@@ -6,9 +6,11 @@ import { useGameStore } from './store/gameStore';
 import BattleScreen from './components/BattleScreen';
 import StatsScreen from './components/StatsScreen';
 import TownScreen from './components/TownScreen';
+import NavigationBar from './components/NavigationBar'; // NavigationBar 임포트
 
 // 화면 상태를 정의합니다.
 type GameScreen = 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN' | 'TOWN_SCREEN' | 'BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN';
+type NavigableScreen = Exclude<GameScreen, 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN'>; // NavigationBar에서 이동 가능한 화면 타입
 
 // package.json의 버전을 가져옵니다.
 const APP_VERSION = import.meta.env.VITE_APP_VERSION;
@@ -85,8 +87,10 @@ function App() {
     setScreen('TOWN_SCREEN'); // 게임 리셋 후 마을 화면으로 이동
   };
 
+  const showNavigationBar = screen !== 'TITLE_SCREEN' && screen !== 'LOGIN_CHOICE_SCREEN';
+
   return (
-    <div className="min-h-screen bg-neutral-900 text-white p-4 font-mono flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-neutral-900 text-white p-4 font-mono flex flex-col items-center justify-center pb-20"> {/* pb-20 for nav bar */}
       {screen === 'TITLE_SCREEN' && (
         <div className="text-center">
           <h1 className="text-5xl font-bold mb-8 text-yellow-400">BoxSlayer</h1>
@@ -121,7 +125,7 @@ function App() {
       )}
 
       {screen === 'TOWN_SCREEN' && (
-        <TownScreen onNavigate={handleNavigate} />
+        <TownScreen onNavigate={(s) => handleNavigate(s)} />
       )}
 
       {screen === 'BATTLE_SCREEN' && (
@@ -144,6 +148,10 @@ function App() {
       <div className="absolute bottom-2 right-2 text-xs text-neutral-500">
         v{APP_VERSION}
       </div>
+
+      {showNavigationBar && (
+        <NavigationBar onNavigate={(s) => handleNavigate(s)} currentScreen={screen as NavigableScreen} />
+      )}
     </div>
   );
 }

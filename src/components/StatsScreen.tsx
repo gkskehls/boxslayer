@@ -27,8 +27,9 @@ const StatsScreen: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto bg-neutral-800 p-6 rounded-xl border border-neutral-700 w-full">
-      <h3 className="text-lg font-bold mb-4 flex items-center">
-        <span className="mr-2">⚔️</span> 스탯 강화
+      <h3 className="text-lg font-bold mb-4 flex items-center justify-between">
+        <span>⚔️ 스탯 강화</span>
+        <span className="text-green-400">남은 스탯 포인트: {player.statPoints}</span>
       </h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {(['attack', 'defense', 'maxHealth', 'attackSpeed'] as const).map((stat) => (
@@ -40,11 +41,11 @@ const StatsScreen: React.FC = () => {
             <button
               disabled={player.statPoints <= 0}
               onClick={() => distributeStat(stat)}
-              className={`w-full py-1 rounded font-bold transition-colors ${
-                player.statPoints > 0
+              className={`w-full py-2 px-4 rounded-lg font-bold transition-colors shadow-md
+                ${player.statPoints > 0
                   ? 'bg-green-600 hover:bg-green-500 text-white'
                   : 'bg-neutral-600 text-neutral-400 cursor-not-allowed'
-              }`}
+                }`}
             >
               + {getStatIncreaseValue(stat)}
             </button>
