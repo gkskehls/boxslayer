@@ -14,13 +14,13 @@
     *   [x] "게스트 로그인" 선택 시 `MAIN_HUB_SCREEN`으로 전환 로직 구현.
     *   [x] 게임 오버 시 `resetGame` 호출 및 `MAIN_HUB_SCREEN`으로 복귀 로직 구현.
 
-### [x] 1.2. 스탯 밸런싱 초기 적용 및 UI 개선
+### [x] 1.2. 스탯 밸런싱 초기 적용 및 UI 개선 (완료)
 *   **목표:** `GAME_DESIGN.md`에 정의된 스탯 밸런싱 가이드라인을 `gameStore`에 반영하고, 스탯 강화 UI의 피드백을 개선합니다.
 *   **주요 작업:**
     *   [x] `gameStore.ts`의 `distributeStat` 로직을 업데이트하여 각 스탯 투자 시 증가량 (`공격력 +1`, `방어력 +1`, `최대체력 +10`, `공격속도 +0.05`)을 `GAME_DESIGN.md`에 맞춰 정확히 적용.
     *   [x] 스탯 강화 버튼 클릭 시, 해당 스탯이 얼마나 증가하는지 텍스트로 명확하게 표시하는 UI 개선 (예: 버튼 텍스트에 `+1 ATK` 등).
 
-### [x] 1.3. 사용자 데이터 관리 (게스트 로그인)
+### [x] 1.3. 사용자 데이터 관리 (게스트 로그인) (완료)
 *   **목표:** 게스트 사용자의 게임 진행 데이터를 로컬 스토리지에 저장하고 불러오는 기능을 구현하여, 브라우저를 닫았다 열어도 진행 상황이 유지되도록 합니다. **(참고: 이 기능은 데이터베이스 준비 전까지 임시적으로 로컬 스토리지를 활용하며, 추후 Firebase 등 실제 데이터베이스 연동으로 전환될 예정입니다.)**
 *   **주요 작업:**
     *   [x] `gameStore`에 `saveGame` 및 `loadGame` 액션 추가.
@@ -28,24 +28,24 @@
     *   [x] 게임 시작 시 (또는 로그인 후) 저장된 데이터가 있으면 불러오고, 없으면 `initialPlayer`로 시작하는 로직 구현.
     *   [x] `gameStore`의 상태 변화 시 자동으로 `saveGame`이 호출되도록 `useEffect` 또는 `subscribe` 활용.
 
-## Phase 2: 코어 시스템 구현 [ ]
+## Phase 2: 코어 시스템 구현 (현재 진행 중)
 
 **목표:** 플레이어 박스에 '코어'를 장착하여 특수 효과를 부여하고, 이를 통해 전투에 전략적 요소를 추가합니다.
 
-### [ ] 2.1. 코어 데이터 구조 정의
+### [x] 2.1. 코어 데이터 구조 정의 (완료)
 *   **목표:** `GAME_DESIGN.md`에 정의된 코어의 속성들을 TypeScript 타입으로 정의합니다.
 *   **주요 작업:**
-    *   [ ] `src/types/game.ts`에 `CoreType`, `CoreEffect`, `Core` 인터페이스 추가.
-    *   [ ] 각 코어의 속성 (이름, 타입, 레벨, 효과, 강화 비용 등) 정의.
+    *   [x] `src/types/game.ts`에 `CoreType`, `CoreEffect`, `Core` 인터페이스 추가.
+    *   [x] 각 코어의 속성 (이름, 타입, 레벨, 효과, 강화 비용 등) 정의.
 
-### [ ] 2.2. `gameStore`에 코어 로직 추가
+### [x] 2.2. `gameStore`에 코어 로직 추가 (완료)
 *   **목표:** `gameStore`가 코어의 획득, 장착, 강화, 인벤토리 관리를 처리할 수 있도록 확장합니다.
 *   **주요 작업:**
-    *   [ ] `GameState`에 `playerCores: Core[]` (인벤토리), `equippedCores: Core[]` (장착된 코어) 필드 추가.
-    *   [ ] `acquireCore(core: Core)`: 코어를 획득하여 인벤토리에 추가하는 액션.
-    *   [ ] `equipCore(coreId: string, slotIndex: number)`: 코어를 장착 슬롯에 장착하는 액션.
-    *   [ ] `unequipCore(slotIndex: number)`: 코어를 해제하는 액션.
-    *   [ ] `upgradeCore(coreId: string)`: 코어를 강화하는 액션 (재화 소모 및 효과 증가).
+    *   [x] `GameState`에 `playerCores: Core[]` (인벤토리), `equippedCores: (Core | null)[]` (장착된 코어) 필드 추가.
+    *   [x] `acquireCore(core: Core)`: 코어를 획득하여 인벤토리에 추가하는 액션.
+    *   [x] `equipCore(coreId: string, slotIndex: number)`: 코어를 장착 슬롯에 장착하는 액션.
+    *   [x] `unequipCore(slotIndex: number)`: 코어를 해제하는 액션.
+    *   [x] `upgradeCore(coreId: string)`: 코어를 강화하는 액션 (재화 소모 및 효과 증가).
 
 ### [ ] 2.3. 코어 관리 UI 구현
 *   **목표:** 메인 허브 화면에서 플레이어가 코어를 확인하고, 장착/해제/강화할 수 있는 UI를 제공합니다.
