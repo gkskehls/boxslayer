@@ -1,6 +1,38 @@
 import { create } from 'zustand';
 import type { GameState, Player, Enemy, Stats } from '../types/game';
 
+// Helper functions for localStorage
+const LOCAL_STORAGE_KEY = 'boxslayer-game-state';
+
+const loadStateFromLocalStorage = (): GameState | null => {
+  try {
+    const serializedState = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (serializedState === null) {
+      return null;
+    }
+    const parsedState = JSON.parse(serializedState);
+    // Basic validation to ensure it's a GameState
+    if (parsedState && parsedState.player && parsedState.player.stats) {
+      // Ensure currentHealth doesn't exceed maxHealth if stats changed
+      parsedState.player.currentHealth = Math.min(parsedState.player.currentHealth, parsedState.player.stats.maxHealth);
+      return parsedState as GameState;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error loading state from localStorage:", error);
+    return null;
+  }
+};
+
+const saveStateToLocalStorage = (state: GameState) => {
+  try {
+    const serializedState = JSON.stringify(state);
+    localStorage.setItem(LOCAL_STORAGE_KEY, serializedState);
+  } catch (error) {
+    console.error("Error saving state to localStorage:", error);
+  }
+};
+
 interface GameActions {
   attackEnemy: () => void;
   attackPlayer: (damage: number) => void;
@@ -28,12 +60,27 @@ const initialPlayer: Player = {
   statPoints: 0,
 };
 
-export const useGameStore = create<GameState & GameActions>((set) => ({
-  player: initialPlayer,
-  currentEnemy: null,
-  stage: 1,
-  isAutoBattle: true,
-  gameStatus: 'IDLE',
+// Initial state for the store, potentially loaded from localStorage
+const getInitialStoreState = (): GameState => {
+  const loadedState = loadStateFromLocalStorage();
+  if (loadedState) {
+    return {
+      ...loadedState,
+      gameStatus: 'IDLE', // Always start as IDLE on load
+      currentEnemy: null, // Clear current enemy on load
+    };
+  }
+  return {
+    player: initialPlayer,
+    currentEnemy: null,
+    stage: 1,
+    isAutoBattle: true,
+    gameStatus: 'IDLE',
+  };
+};
+
+export const useGameStore = create<GameState & GameActions>((set) => ({ // 'get' 매개변수 제거
+  ...getInitialStoreState(),
 
   spawnEnemy: () => set((state) => {
     const stageMultiplier = 1 + (state.stage - 1) * 0.1;
@@ -131,13 +178,26 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
   }),
 
   levelUp: () => set((state) => ({
-      player: { ...state.player, level: state.player.level + 1, statPoints: state.player.statPoints + 3 }
+    player: { ...state.player, level: state.player.level + 1, statPoints: state.player.statPoints + 3 }
   })),
 
-  resetGame: () => set({
-    player: initialPlayer,
-    currentEnemy: null,
-    stage: 1,
-    gameStatus: 'IDLE'
-  }),
+  resetGame: () => {
+    set({
+      player: initialPlayer,
+      currentEnemy: null,
+      stage: 1,
+      gameStatus: 'IDLE'
+    });
+    // After resetting, save the initial state to localStorage
+    saveStateToLocalStorage(getInitialStoreState()); // Save the default initial state
+  },
 }));
+
+// Subscribe to state changes to automatically save
+useGameStore.subscribe(
+  (state) => {
+    // For simplicity, let's save the entire state on every change.
+    // A more optimized approach would be to debounce this or only save specific parts.
+    saveStateToLocalStorage(state);
+  }
+);
