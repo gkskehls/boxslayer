@@ -76,6 +76,8 @@ const getInitialStoreState = (): GameState => {
       ...loadedState,
       gameStatus: 'IDLE', // Always start as IDLE on load
       currentEnemy: null, // Clear current enemy on load
+      playerCores: loadedState.playerCores || [], // Ensure cores are initialized
+      equippedCores: loadedState.equippedCores || [null, null, null], // Ensure equipped cores are initialized
     };
   }
   return {
@@ -210,13 +212,13 @@ export const useGameStore = create<GameState & GameActions>((set) => ({ // 'get'
   })),
 
   equipCore: (coreId: string, slotIndex: number) => set((state) => {
-    const coreToEquip = state.playerCores.find(c => c.id === coreId);
+    const coreToEquip = state.playerCores.find((c: Core) => c.id === coreId); // c: Core 타입 명시
     if (!coreToEquip || slotIndex < 0 || slotIndex >= state.equippedCores.length) {
       return {}; // Invalid core or slot
     }
 
     const newEquippedCores = [...state.equippedCores];
-    const newPlayerCores = state.playerCores.filter(c => c.id !== coreId);
+    const newPlayerCores = state.playerCores.filter((c: Core) => c.id !== coreId); // c: Core 타입 명시
 
     // If there's already a core in the slot, move it back to inventory
     if (newEquippedCores[slotIndex]) {
@@ -247,8 +249,8 @@ export const useGameStore = create<GameState & GameActions>((set) => ({ // 'get'
   }),
 
   upgradeCore: (coreId: string) => set((state) => {
-    const coreIndex = state.playerCores.findIndex(c => c.id === coreId);
-    const equippedCoreIndex = state.equippedCores.findIndex(c => c && c.id === coreId);
+    const coreIndex = state.playerCores.findIndex((c: Core) => c.id === coreId); // c: Core 타입 명시
+    const equippedCoreIndex = state.equippedCores.findIndex((c: Core | null) => c && c.id === coreId); // c: Core | null 타입 명시
 
     if (coreIndex === -1 && equippedCoreIndex === -1) {
       return {}; // Core not found

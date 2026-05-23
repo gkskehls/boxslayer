@@ -28,6 +28,16 @@
     *   [x] 게임 시작 시 (또는 로그인 후) 저장된 데이터가 있으면 불러오고, 없으면 `initialPlayer`로 시작하는 로직 구현.
     *   [x] `gameStore`의 상태 변화 시 자동으로 `saveGame`이 호출되도록 `useEffect` 또는 `subscribe` 활용.
 
+### [x] 1.4. 화면 내비게이션 시스템 구현 (완료)
+*   **목표:** 게임의 다양한 화면(마을, 전투, 스탯, 코어, 상점 등) 간의 전환을 관리하는 시스템을 구축하고, `App.tsx`의 역할을 화면 라우팅 및 레이아웃 관리로 분리합니다.
+*   **주요 작업:**
+    *   [x] `App.tsx`의 `GameScreen` 타입을 확장하여 `TOWN_SCREEN`, `BATTLE_SCREEN`, `STATS_SCREEN`, `CORE_SCREEN`, `SHOP_SCREEN` 등 추가.
+    *   [x] `App.tsx` 내에서 `screen` 상태에 따라 각 화면 컴포넌트를 조건부 렌더링하도록 구조 변경.
+    *   [x] `TOWN_SCREEN` (마을 화면) 컴포넌트의 기본 레이아웃 및 내비게이션 버튼 (전투, 스탯, 코어, 상점) 구현.
+    *   [x] 기존 `MAIN_HUB_SCREEN`의 전투 관련 UI를 `BATTLE_SCREEN` 컴포넌트로 분리.
+    *   [x] 기존 `MAIN_HUB_SCREEN`의 스탯 강화 UI를 `STATS_SCREEN` 컴포넌트로 분리.
+    *   [x] 각 화면 컴포넌트 간 전환을 위한 액션 (`goToTown`, `goToBattle`, `goToStats` 등) 구현.
+
 ## Phase 2: 코어 시스템 구현 (현재 진행 중)
 
 **목표:** 플레이어 박스에 '코어'를 장착하여 특수 효과를 부여하고, 이를 통해 전투에 전략적 요소를 추가합니다.

@@ -68,4 +68,6 @@ export interface GameState {
   stage: number;
   isAutoBattle: boolean;
   gameStatus: 'IDLE' | 'BATTLE' | 'VICTORY' | 'DEFEAT';
+  playerCores: Core[]; // 플레이어가 보유한 코어 인벤토리
+  equippedCores: (Core | null)[]; // 플레이어가 장착한 코어 슬롯 (예: 3개 슬롯)
 }
