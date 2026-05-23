@@ -105,12 +105,19 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
     if (state.player.statPoints <= 0) return {};
     
     const newStats = { ...state.player.stats };
-    if (stat === 'maxHealth') {
-        newStats[stat] += 20;
-    } else if (stat === 'attackSpeed') {
-        newStats[stat] += 0.05;
-    } else {
-        newStats[stat] += 2;
+    switch (stat) {
+      case 'attack':
+        newStats.attack += 1;
+        break;
+      case 'defense':
+        newStats.defense += 1;
+        break;
+      case 'maxHealth':
+        newStats.maxHealth += 10;
+        break;
+      case 'attackSpeed':
+        newStats.attackSpeed += 0.05;
+        break;
     }
 
     return {
@@ -118,7 +125,7 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
         ...state.player,
         stats: newStats,
         statPoints: state.player.statPoints - 1,
-        currentHealth: stat === 'maxHealth' ? state.player.currentHealth + 20 : state.player.currentHealth
+        currentHealth: stat === 'maxHealth' ? state.player.currentHealth + 10 : state.player.currentHealth // 최대체력 증가 시 현재 체력도 같이 증가
       }
     };
   }),
