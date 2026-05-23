@@ -10,9 +10,8 @@ import TownScreen from './components/TownScreen';
 // 화면 상태를 정의합니다.
 type GameScreen = 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN' | 'TOWN_SCREEN' | 'BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN';
 
-// package.json의 버전을 가져오는 대신, 일단 하드코딩된 문자열을 사용합니다.
-// 실제 프로젝트에서는 빌드 스크립트나 Vite 설정을 통해 package.json의 버전을 주입하는 것이 좋습니다.
-const APP_VERSION = "0.0.0"; // package.json의 version과 동일하게 설정
+// package.json의 버전을 가져옵니다.
+const APP_VERSION = import.meta.env.VITE_APP_VERSION;
 
 function App() {
   const {
