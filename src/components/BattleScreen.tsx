@@ -62,9 +62,9 @@ const BattleScreen: React.FC<BattleScreenProps> = ({ onDefeat }) => {
   };
 
   return (
-    <>
+    <div className="max-w-4xl mx-auto p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-6">
       {/* Header Info */}
-      <div className="max-w-4xl mx-auto flex justify-between items-center mb-8 bg-neutral-800 p-4 rounded-lg border border-neutral-700 w-full">
+      <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-yellow-500">STAGE {stage}</h2>
           <p className="text-sm text-neutral-400">Level {player.level}</p>
@@ -88,7 +88,7 @@ const BattleScreen: React.FC<BattleScreenProps> = ({ onDefeat }) => {
       </div>
 
       {/* Battle Area */}
-      <div className="max-w-4xl mx-auto grid grid-cols-2 gap-8 items-center py-12 bg-neutral-800/50 rounded-xl mb-8 relative overflow-hidden min-h-[400px] w-full">
+      <div className="bg-neutral-800/50 rounded-xl p-8 relative overflow-hidden min-h-[400px] flex justify-around items-center border border-neutral-700">
         {/* Grid Background */}
         <div className="absolute inset-0 opacity-10 pointer-events-none"
           style={{
@@ -98,7 +98,7 @@ const BattleScreen: React.FC<BattleScreenProps> = ({ onDefeat }) => {
         />
 
         {/* Player Side */}
-        <div className="flex flex-col items-center z-10">
+        <div className="flex flex-col items-center z-10 p-4 bg-neutral-700/50 rounded-lg border border-neutral-600">
           <div className="mb-4 w-48">
             <div className="flex justify-between text-xs mb-1">
               <span>HP</span>
@@ -133,7 +133,7 @@ const BattleScreen: React.FC<BattleScreenProps> = ({ onDefeat }) => {
         </div>
 
         {/* Enemy Side */}
-        <div className="flex flex-col items-center z-10">
+        <div className="flex flex-col items-center z-10 p-4 bg-neutral-700/50 rounded-lg border border-neutral-600">
           {currentEnemy ? (
             <>
               <div className="mb-4 w-48">
@@ -181,7 +181,7 @@ const BattleScreen: React.FC<BattleScreenProps> = ({ onDefeat }) => {
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 };
 
