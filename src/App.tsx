@@ -138,7 +138,29 @@ function App() {
         )}
 
         {screen === 'TOWN_SCREEN' && (
-            <TownScreen onNavigate={(s) => handleNavigate(s)} />
+            <>
+              <TownScreen onNavigate={(s) => handleNavigate(s)} />
+              {/* Offline Rewards Modal - Only render in TOWN_SCREEN */}
+              {offlineRewards && (offlineRewards.gold > 0 || offlineRewards.exp > 0) && (
+                  <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                    <div className="bg-neutral-800 p-8 rounded-lg border border-neutral-700 text-center">
+                      <h3 className="text-3xl font-bold text-yellow-400 mb-4">오프라인 보상!</h3>
+                      {offlineRewards.gold > 0 && (
+                          <p className="text-xl text-neutral-300">골드: <span className="text-yellow-500 font-bold">{Math.floor(offlineRewards.gold)}</span></p>
+                      )}
+                      {offlineRewards.exp > 0 && (
+                          <p className="text-xl text-neutral-300">경험치: <span className="text-blue-500 font-bold">{Math.floor(offlineRewards.exp)}</span></p>
+                      )}
+                      <button
+                          onClick={() => setOfflineRewards(null)}
+                          className="mt-6 px-6 py-2 bg-green-600 text-white text-lg font-bold rounded-lg hover:bg-green-500 transition-colors"
+                      >
+                        확인
+                      </button>
+                    </div>
+                  </div>
+              )}
+            </>
         )}
 
         {screen === 'BATTLE_SCREEN' && (
@@ -155,27 +177,6 @@ function App() {
 
         {screen === 'SHOP_SCREEN' && (
             <div className="text-center text-2xl">상점 화면 (준비 중)</div>
-        )}
-
-        {/* Offline Rewards Modal */}
-        {offlineRewards && (offlineRewards.gold > 0 || offlineRewards.exp > 0) && (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-              <div className="bg-neutral-800 p-8 rounded-lg border border-neutral-700 text-center">
-                <h3 className="text-3xl font-bold text-yellow-400 mb-4">오프라인 보상!</h3>
-                {offlineRewards.gold > 0 && (
-                    <p className="text-xl text-neutral-300">골드: <span className="text-yellow-500 font-bold">{Math.floor(offlineRewards.gold)}</span></p>
-                )}
-                {offlineRewards.exp > 0 && (
-                    <p className="text-xl text-neutral-300">경험치: <span className="text-blue-500 font-bold">{Math.floor(offlineRewards.exp)}</span></p>
-                )}
-                <button
-                    onClick={() => setOfflineRewards(null)}
-                    className="mt-6 px-6 py-2 bg-green-600 text-white text-lg font-bold rounded-lg hover:bg-green-500 transition-colors"
-                >
-                  확인
-                </button>
-              </div>
-            </div>
         )}
 
         {/* Version Display */}

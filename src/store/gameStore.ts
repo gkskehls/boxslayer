@@ -16,6 +16,8 @@ interface GameActions {
   upgradeCore: (coreId: string) => void;
   // Offline Rewards
   calculateOfflineRewards: () => { gold: number; exp: number }; // 반환값 추가
+  // Retry on Defeat
+  retryCurrentFloor: () => void; // 새로 추가된 액션
 }
 
 const initialStats: Stats = {
@@ -97,7 +99,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     if (newEnemyHealth <= 0) {
       const newExp = state.player.experience + state.currentEnemy.expReward;
-      let newPlayer = { ...state.player, experience: newExp, gold: state.player.gold + state.currentEnemy.goldReward }; // 골드 획득 추가
+      const newPlayer = { ...state.player, experience: newExp, gold: state.player.gold + state.currentEnemy.goldReward }; // 골드 획득 추가
 
       if (newPlayer.experience >= newPlayer.nextLevelExperience) {
         newPlayer.level += 1;
@@ -125,8 +127,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     if (newHealth <= 0) {
       return {
-        player: { ...state.player, currentHealth: 0 },
-        gameStatus: 'DEFEAT'
+        player: { ...state.player, currentHealth: 0 }, // 체력만 0으로 설정
+        gameStatus: 'DEFEAT' // 게임 상태만 패배로 변경
       };
     }
 
@@ -294,6 +296,22 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     return { gold: earnedGold, exp: earnedExp };
   },
+
+  // Retry on Defeat
+  retryCurrentFloor: () => set((state) => {
+    // 현재 스테이지의 시작 층을 계산 (예: 70층에서 죽으면 61층으로)
+    const currentFloorStartStage = Math.floor((state.stage - 1) / 10) * 10 + 1;
+
+    return {
+      player: {
+        ...state.player,
+        currentHealth: state.player.stats.maxHealth, // 체력 회복
+      },
+      currentEnemy: null, // 적 제거 (새로운 적 스폰을 위해)
+      stage: currentFloorStartStage, // 현재 층의 시작 스테이지로 이동
+      gameStatus: 'IDLE', // 게임 상태를 IDLE로 변경하여 spawnEnemy가 호출되도록
+    };
+  }),
 }));
 
 // Subscribe to state changes to automatically save
