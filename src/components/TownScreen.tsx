@@ -5,17 +5,19 @@ interface TownScreenProps {
   onNavigate: (screen: 'BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN') => void;
 }
 
-const TownScreen: React.FC<TownScreenProps> = ({ onNavigate }) => {
+// eslint-disable-next-line no-empty-pattern
+const TownScreen: React.FC<TownScreenProps> = ({ }) => {
   const { player, stage } = useGameStore();
 
   return (
-    <div className="max-w-4xl mx-auto p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-6 items-center justify-center">
-      <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 w-full text-center">
-        <h2 className="text-3xl font-bold text-yellow-400 mb-4">마을 (Town)</h2>
-        <p className="text-xl text-neutral-300">현재 스테이지: <span className="font-bold text-white">{stage}</span> | 레벨: <span className="font-bold text-white">{player.level}</span></p>
-      </div>
+      <div className="max-w-4xl mx-auto p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-6 items-center justify-center">
+        <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 w-full text-center">
+          <h2 className="text-3xl font-bold text-yellow-400 mb-4">마을 (Town)</h2>
+          <p className="text-xl text-neutral-300">현재 스테이지: <span className="font-bold text-white">{stage}</span> | 레벨: <span className="font-bold text-white">{player.level}</span></p>
+        </div>
 
-      <div className="grid grid-cols-2 gap-4 w-full max-w-md bg-neutral-800 p-4 rounded-lg border border-neutral-700">
+        {/* 기존 내비게이션 버튼들을 제거합니다. 하단 NavigationBar를 사용합니다. */}
+        {/* <div className="grid grid-cols-2 gap-4 w-full max-w-md bg-neutral-800 p-4 rounded-lg border border-neutral-700">
         <button
           onClick={() => onNavigate('BATTLE_SCREEN')}
           className="px-6 py-4 bg-red-600 text-white text-xl font-bold rounded-lg hover:bg-red-500 transition-colors shadow-md"
@@ -40,8 +42,8 @@ const TownScreen: React.FC<TownScreenProps> = ({ onNavigate }) => {
         >
           상점
         </button>
+      </div> */}
       </div>
-    </div>
   );
 };
 

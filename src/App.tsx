@@ -24,7 +24,7 @@ function App() {
     spawnEnemy,
     attackEnemy,
     attackPlayer,
-    resetGame,
+    // resetGame, // App.tsx에서 직접 사용하지 않으므로 제거
     calculateOfflineRewards, // 오프라인 보상 계산 액션 임포트
   } = useGameStore();
 
@@ -95,10 +95,11 @@ function App() {
   };
 
   // 게임 오버 시 리셋 버튼 핸들러 (BattleScreen에서 호출)
-  const handleDefeat = () => {
-    resetGame();
-    setScreen('TOWN_SCREEN'); // 게임 리셋 후 마을 화면으로 이동
-  };
+  // BattleScreen에서 직접 retryCurrentFloor를 호출하므로 App.tsx에서는 더 이상 필요 없음
+  // const handleDefeat = () => {
+  //   resetGame();
+  //   setScreen('TOWN_SCREEN'); // 게임 리셋 후 마을 화면으로 이동
+  // };
 
   const showNavigationBar = screen !== 'TITLE_SCREEN' && screen !== 'LOGIN_CHOICE_SCREEN';
 
@@ -143,17 +144,17 @@ function App() {
               {/* Offline Rewards Modal - Only render in TOWN_SCREEN */}
               {offlineRewards && (offlineRewards.gold > 0 || offlineRewards.exp > 0) && (
                   <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-                    <div className="bg-neutral-800 p-8 rounded-lg border border-neutral-700 text-center">
+                    <div className="bg-neutral-800 p-8 rounded-lg border border-neutral-700 text-center shadow-lg max-w-sm mx-auto">
                       <h3 className="text-3xl font-bold text-yellow-400 mb-4">오프라인 보상!</h3>
                       {offlineRewards.gold > 0 && (
-                          <p className="text-xl text-neutral-300">골드: <span className="text-yellow-500 font-bold">{Math.floor(offlineRewards.gold)}</span></p>
+                          <p className="text-xl text-neutral-300 mb-2">골드: <span className="text-yellow-500 font-bold">{Math.floor(offlineRewards.gold)}</span></p>
                       )}
                       {offlineRewards.exp > 0 && (
-                          <p className="text-xl text-neutral-300">경험치: <span className="text-blue-500 font-bold">{Math.floor(offlineRewards.exp)}</span></p>
+                          <p className="text-xl text-neutral-300 mb-4">경험치: <span className="text-blue-500 font-bold">{Math.floor(offlineRewards.exp)}</span></p>
                       )}
                       <button
                           onClick={() => setOfflineRewards(null)}
-                          className="mt-6 px-6 py-2 bg-green-600 text-white text-lg font-bold rounded-lg hover:bg-green-500 transition-colors"
+                          className="mt-6 px-6 py-2 bg-green-600 text-white text-lg font-bold rounded-lg hover:bg-green-500 transition-colors shadow-md"
                       >
                         확인
                       </button>
@@ -164,8 +165,8 @@ function App() {
         )}
 
         {screen === 'BATTLE_SCREEN' && (
-            <BattleScreen onDefeat={handleDefeat} />
-        )}
+            <BattleScreen />
+          )}
 
         {screen === 'STATS_SCREEN' && (
             <StatsScreen />

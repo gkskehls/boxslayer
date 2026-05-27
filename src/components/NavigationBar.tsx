@@ -15,19 +15,19 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ onNavigate, currentScreen
   ] as const; // as const 추가
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-neutral-800 border-t border-neutral-700 flex justify-around p-2 z-50">
-      {navItems.map((item) => (
-        <button
-          key={item.screen}
-          onClick={() => onNavigate(item.screen)}
-          className={`flex flex-col items-center text-xs py-1 px-2 rounded-md transition-colors
+      <div className="fixed bottom-0 left-0 right-0 bg-neutral-800 border-t border-neutral-700 flex justify-evenly p-2 z-50 gap-1"> {/* justify-evenly와 gap-1 추가 */}
+        {navItems.map((item) => (
+            <button
+                key={item.screen}
+                onClick={() => onNavigate(item.screen)}
+                className={`flex flex-col items-center text-xs py-1 px-2 rounded-md transition-colors flex-1
             ${currentScreen === item.screen ? 'text-yellow-400 bg-neutral-700' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'}`}
-        >
-          <span className="text-xl mb-1">{item.icon}</span>
-          <span>{item.label}</span>
-        </button>
-      ))}
-    </div>
+            >
+              <span className="text-xl mb-1">{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+        ))}
+      </div>
   );
 };
 
