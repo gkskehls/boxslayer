@@ -1,40 +1,6 @@
 import { create } from 'zustand';
-import type { GameState, Player, Enemy, Stats, Core } from '../types/game'; // Core 타입 추가
-
-// Helper functions for localStorage
-const LOCAL_STORAGE_KEY = 'boxslayer-game-state';
-
-const loadStateFromLocalStorage = (): GameState | null => {
-  try {
-    const serializedState = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (serializedState === null) {
-      return null;
-    }
-    const parsedState = JSON.parse(serializedState);
-    // Basic validation to ensure it's a GameState
-    if (parsedState && parsedState.player && parsedState.player.stats) {
-      // Ensure currentHealth doesn't exceed maxHealth if stats changed
-      parsedState.player.currentHealth = Math.min(parsedState.player.currentHealth, parsedState.player.stats.maxHealth);
-      // Initialize playerCores and equippedCores if they don't exist in loaded state
-      parsedState.playerCores = parsedState.playerCores || [];
-      parsedState.equippedCores = parsedState.equippedCores || [null, null, null]; // 3 slots for example
-      return parsedState as GameState;
-    }
-    return null;
-  } catch (error) {
-    console.error("Error loading state from localStorage:", error);
-    return null;
-  }
-};
-
-const saveStateToLocalStorage = (state: GameState) => {
-  try {
-    const serializedState = JSON.stringify(state);
-    localStorage.setItem(LOCAL_STORAGE_KEY, serializedState);
-  } catch (error) {
-    console.error("Error saving state to localStorage:", error);
-  }
-};
+import type { GameState, Player, Enemy, Stats, Core } from '../types/game';
+import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage'; // localStorage 헬퍼 임포트
 
 interface GameActions {
   attackEnemy: () => void;
@@ -48,6 +14,8 @@ interface GameActions {
   equipCore: (coreId: string, slotIndex: number) => void;
   unequipCore: (slotIndex: number) => void;
   upgradeCore: (coreId: string) => void;
+  // Offline Rewards
+  calculateOfflineRewards: () => { gold: number; exp: number }; // 반환값 추가
 }
 
 const initialStats: Stats = {
@@ -66,6 +34,7 @@ const initialPlayer: Player = {
   experience: 0,
   nextLevelExperience: 100,
   statPoints: 0,
+  gold: 0, // Player에 골드 필드 추가
 };
 
 // Initial state for the store, potentially loaded from localStorage
@@ -78,6 +47,11 @@ const getInitialStoreState = (): GameState => {
       currentEnemy: null, // Clear current enemy on load
       playerCores: loadedState.playerCores || [], // Ensure cores are initialized
       equippedCores: loadedState.equippedCores || [null, null, null], // Ensure equipped cores are initialized
+      lastOnlineTime: loadedState.lastOnlineTime || Date.now(), // Ensure lastOnlineTime is initialized
+      player: {
+        ...loadedState.player,
+        gold: loadedState.player.gold || 0, // Ensure gold is initialized
+      }
     };
   }
   return {
@@ -88,10 +62,11 @@ const getInitialStoreState = (): GameState => {
     gameStatus: 'IDLE',
     playerCores: [], // Initial empty core inventory
     equippedCores: [null, null, null], // Initial 3 empty core slots
+    lastOnlineTime: Date.now(), // Initialize with current time
   };
 };
 
-export const useGameStore = create<GameState & GameActions>((set) => ({ // 'get' 매개변수 제거
+export const useGameStore = create<GameState & GameActions>((set, get) => ({
   ...getInitialStoreState(),
 
   spawnEnemy: () => set((state) => {
@@ -122,8 +97,8 @@ export const useGameStore = create<GameState & GameActions>((set) => ({ // 'get'
 
     if (newEnemyHealth <= 0) {
       const newExp = state.player.experience + state.currentEnemy.expReward;
-      let newPlayer = { ...state.player, experience: newExp };
-      
+      let newPlayer = { ...state.player, experience: newExp, gold: state.player.gold + state.currentEnemy.goldReward }; // 골드 획득 추가
+
       if (newPlayer.experience >= newPlayer.nextLevelExperience) {
         newPlayer.level += 1;
         newPlayer.experience -= newPlayer.nextLevelExperience;
@@ -162,7 +137,7 @@ export const useGameStore = create<GameState & GameActions>((set) => ({ // 'get'
 
   distributeStat: (stat: keyof Stats) => set((state) => {
     if (state.player.statPoints <= 0) return {};
-    
+
     const newStats = { ...state.player.stats };
     switch (stat) {
       case 'attack':
@@ -201,6 +176,7 @@ export const useGameStore = create<GameState & GameActions>((set) => ({ // 'get'
       gameStatus: 'IDLE',
       playerCores: [],
       equippedCores: [null, null, null],
+      lastOnlineTime: Date.now(), // Reset lastOnlineTime on game reset
     });
     // After resetting, save the initial state to localStorage
     saveStateToLocalStorage(getInitialStoreState()); // Save the default initial state
@@ -287,13 +263,44 @@ export const useGameStore = create<GameState & GameActions>((set) => ({ // 'get'
       equippedCores: newEquippedCores,
     };
   }),
+
+  // Offline Rewards
+  calculateOfflineRewards: () => {
+    const state = get(); // get 함수를 사용하여 현재 상태를 가져옵니다.
+    const now = Date.now();
+    const offlineDurationMs = now - state.lastOnlineTime;
+    const offlineDurationSeconds = Math.floor(offlineDurationMs / 1000);
+
+    if (offlineDurationSeconds <= 0) {
+      return { gold: 0, exp: 0 }; // No offline time
+    }
+
+    // Example: 1초당 1골드, 0.5 경험치 획득 (간단한 예시)
+    // 실제로는 플레이어 레벨, 스탯, 마지막으로 도달한 스테이지 등에 비례하여 계산
+    const goldPerSecond = 1;
+    const expPerSecond = 0.5;
+
+    const earnedGold = offlineDurationSeconds * goldPerSecond;
+    const earnedExp = offlineDurationSeconds * expPerSecond;
+
+    set((s) => ({
+      player: {
+        ...s.player,
+        gold: s.player.gold + earnedGold, // 획득한 골드 추가
+        experience: s.player.experience + earnedExp, // 획득한 경험치 추가
+      },
+      lastOnlineTime: now, // 마지막 접속 시간 업데이트
+    }));
+
+    return { gold: earnedGold, exp: earnedExp };
+  },
 }));
 
 // Subscribe to state changes to automatically save
 useGameStore.subscribe(
-  (state) => {
-    // For simplicity, let's save the entire state on every change.
-    // A more optimized approach would be to debounce this or only save specific parts.
-    saveStateToLocalStorage(state);
-  }
+    (state) => {
+      // For simplicity, let's save the entire state on every change.
+      // A more optimized approach would be to debounce this or only save specific parts.
+      saveStateToLocalStorage(state);
+    }
 );

@@ -19,6 +19,7 @@ export interface Player extends Entity {
   experience: number;
   nextLevelExperience: number;
   statPoints: number;
+  gold: number; // Player에 골드 필드 추가
 }
 
 export interface Enemy extends Entity {
@@ -70,4 +71,5 @@ export interface GameState {
   gameStatus: 'IDLE' | 'BATTLE' | 'VICTORY' | 'DEFEAT';
   playerCores: Core[]; // 플레이어가 보유한 코어 인벤토리
   equippedCores: (Core | null)[]; // 플레이어가 장착한 코어 슬롯 (예: 3개 슬롯)
+  lastOnlineTime: number; // 마지막 접속 시간 (유닉스 타임스탬프, 밀리초)
 }
