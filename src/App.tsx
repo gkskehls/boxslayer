@@ -7,6 +7,7 @@ import BattleScreen from './components/BattleScreen';
 import StatsScreen from './components/StatsScreen';
 import TownScreen from './components/TownScreen';
 import NavigationBar from './components/NavigationBar'; // NavigationBar 임포트
+import CoreScreen from './components/CoreScreen'; // CoreScreen 임포트
 
 // 화면 상태를 정의합니다.
 type GameScreen = 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN' | 'TOWN_SCREEN' | 'BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN';
@@ -148,10 +149,10 @@ function App() {
             <StatsScreen />
         )}
 
-        {/* CORE_SCREEN and SHOP_SCREEN will be implemented later */}
         {screen === 'CORE_SCREEN' && (
-            <div className="text-center text-2xl">코어 관리 화면 (준비 중)</div>
+            <CoreScreen />
         )}
+
         {screen === 'SHOP_SCREEN' && (
             <div className="text-center text-2xl">상점 화면 (준비 중)</div>
         )}
