@@ -1,58 +1,66 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
-import type { Stats } from '../types/game';
 
 const StatsScreen: React.FC = () => {
-  const { player, distributeStat } = useGameStore();
+  // resetStats를 useGameStore에서 가져옵니다
+  const { player, distributeStat, resetStats } = useGameStore();
 
-  const getStatLabel = (key: keyof Stats) => {
-    switch (key) {
-      case 'attack': return '공격력';
-      case 'defense': return '방어력';
-      case 'maxHealth': return '최대체력';
-      case 'attackSpeed': return '공격속도';
-      default: return key;
+  const handleReset = () => {
+    if (window.confirm("정말 스탯을 초기화하고 포인트를 반환받으시겠습니까?")) {
+      resetStats();
     }
   };
 
-  const getStatIncreaseValue = (stat: keyof Stats) => {
-    switch (stat) {
-      case 'attack': return '+1';
-      case 'defense': return '+1';
-      case 'maxHealth': return '+10';
-      case 'attackSpeed': return '+0.05';
-      default: return '';
-    }
-  };
+  const statsConfig = [
+    { key: 'str', label: '힘 (STR)', increase: '+1 (공격력 +2)' },
+    { key: 'dex', label: '민첩 (DEX)', increase: '+1 (공속/회피)' },
+    { key: 'con', label: '체력 (CON)', increase: '+1 (체력 +20)' },
+  ] as const;
 
   return (
-    <div className="max-w-4xl mx-auto bg-neutral-800 p-6 rounded-xl border border-neutral-700 w-full">
-      <h3 className="text-lg font-bold mb-4 flex items-center justify-between">
-        <span>⚔️ 스탯 강화</span>
-        <span className="text-green-400">남은 스탯 포인트: {player.statPoints}</span>
-      </h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {(['attack', 'defense', 'maxHealth', 'attackSpeed'] as const).map((stat) => (
-          <div key={stat} className="bg-neutral-700 p-4 rounded-lg flex flex-col items-center">
-            <span className="text-sm text-neutral-400 mb-1">{getStatLabel(stat)}</span>
-            <span className="text-xl font-bold mb-3">
-              {stat === 'attackSpeed' ? player.stats[stat].toFixed(2) : player.stats[stat]}
-            </span>
+      <div className="max-w-4xl mx-auto bg-neutral-800 p-6 rounded-xl border border-neutral-700 w-full">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold flex items-center">⚔️ 스탯 강화</h3>
+          <div className="flex gap-4 items-center">
+            <span className="text-green-400 font-bold">포인트: {player.statPoints}</span>
             <button
-              disabled={player.statPoints <= 0}
-              onClick={() => distributeStat(stat)}
-              className={`w-full py-2 px-4 rounded-lg font-bold transition-colors shadow-md
-                ${player.statPoints > 0
-                  ? 'bg-green-600 hover:bg-green-500 text-white'
-                  : 'bg-neutral-600 text-neutral-400 cursor-not-allowed'
-                }`}
+                onClick={handleReset}
+                className="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm font-bold transition-colors"
             >
-              + {getStatIncreaseValue(stat)}
+              초기화
             </button>
           </div>
-        ))}
+        </div>
+
+        {/* 현재 능력치 표시 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-sm text-neutral-300">
+          <div>공격력: {player.stats.attack.toFixed(0)}</div>
+          <div>공속: {player.stats.attackSpeed.toFixed(2)}</div>
+          <div>최대체력: {player.stats.maxHealth}</div>
+          <div>회피율: {(player.stats.evasion * 100).toFixed(0)}%</div>
+        </div>
+
+        {/* 스탯 투자 버튼 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {statsConfig.map(({ key, label, increase }) => (
+              <div key={key} className="bg-neutral-700 p-4 rounded-lg flex flex-col items-center">
+                <span className="text-lg font-bold mb-1">{label}</span>
+                <span className="text-2xl font-bold mb-3">{player.stats[key]}</span>
+                <button
+                    disabled={player.statPoints <= 0}
+                    onClick={() => distributeStat(key)}
+                    className={`w-full py-2 px-4 rounded-lg font-bold transition-colors shadow-md
+                ${player.statPoints > 0
+                        ? 'bg-green-600 hover:bg-green-500 text-white'
+                        : 'bg-neutral-600 text-neutral-400 cursor-not-allowed'
+                    }`}
+                >
+                  {increase}
+                </button>
+              </div>
+          ))}
+        </div>
       </div>
-    </div>
   );
 };
 
