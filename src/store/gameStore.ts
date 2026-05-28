@@ -75,6 +75,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   spawnEnemy: () => set((state) => {
     const stageMultiplier = 1 + (state.stage - 1) * 0.1;
     const isBoss = state.stage % 5 === 0;
+
+    // 스테이지 비례 보상 공식 적용 (기본값 * (1 + 스테이지 * 계수))
+    const goldReward = Math.floor(10 * (1 + (state.stage - 1) * 0.2) * (isBoss ? 5 : 1));
+    const expReward = Math.floor(20 * (1 + (state.stage - 1) * 0.15) * (isBoss ? 3 : 1));
+
     const enemy: Enemy = {
       id: `enemy-${state.stage}`,
       name: isBoss ? `Boss Box ${state.stage}` : `Box ${state.stage}`,
@@ -87,8 +92,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         attackSpeed: 0.8 + (isBoss ? 0.2 : 0),
       },
       currentHealth: Math.floor(50 * stageMultiplier * (isBoss ? 5 : 1)),
-      goldReward: state.stage * 10 * (isBoss ? 5 : 1),
-      expReward: state.stage * 20 * (isBoss ? 3 : 1),
+      goldReward,
+      expReward,
     };
     return { currentEnemy: enemy, gameStatus: 'BATTLE' };
   }),
@@ -105,7 +110,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       if (newPlayer.experience >= newPlayer.nextLevelExperience) {
         newPlayer.level += 1;
         newPlayer.experience -= newPlayer.nextLevelExperience;
-        newPlayer.nextLevelExperience = Math.floor(newPlayer.nextLevelExperience * 1.5);
+        newPlayer.nextLevelExperience = Math.floor(newPlayer.nextLevelExperience * 1.2);
         newPlayer.statPoints += 3;
       }
 
@@ -218,13 +223,26 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const state = get();
     const now = Date.now();
     const offlineDurationSeconds = Math.floor((now - state.lastOnlineTime) / 1000);
+
     if (offlineDurationSeconds <= 0) return { gold: 0, exp: 0 };
-    const earnedGold = offlineDurationSeconds * 1;
-    const earnedExp = offlineDurationSeconds * 0.5;
+
+    // 스테이지 비례 오프라인 보상 공식
+    // 스테이지가 높을수록 시간당 획득량이 증가 (예: 스테이지당 10%씩 증가)
+    const stageBonus = 1 + (state.stage - 1) * 0.1;
+
+    // 기본값: 골드 1/초, 경험치 0.5/초
+    const earnedGold = Math.floor(offlineDurationSeconds * 1 * stageBonus);
+    const earnedExp = Math.floor(offlineDurationSeconds * 0.5 * stageBonus);
+
     set((s) => ({
-      player: { ...s.player, gold: s.player.gold + earnedGold, experience: s.player.experience + earnedExp },
+      player: {
+        ...s.player,
+        gold: s.player.gold + earnedGold,
+        experience: s.player.experience + earnedExp
+      },
       lastOnlineTime: now,
     }));
+
     return { gold: earnedGold, exp: earnedExp };
   },
 
