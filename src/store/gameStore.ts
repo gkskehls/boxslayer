@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { GameState, Player, Enemy, Stats, Core } from '../types/game';
-import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage'; // localStorage 헬퍼 임포트
+import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage';
 
 interface GameActions {
   attackEnemy: () => void;
@@ -15,9 +15,11 @@ interface GameActions {
   unequipCore: (slotIndex: number) => void;
   upgradeCore: (coreId: string) => void;
   // Offline Rewards
-  calculateOfflineRewards: () => { gold: number; exp: number }; // 반환값 추가
+  calculateOfflineRewards: () => { gold: number; exp: number };
   // Retry on Defeat
-  retryCurrentFloor: () => void; // 새로 추가된 액션
+  retryCurrentFloor: () => void;
+  // Gold Actions (상점에서 사용하기 위해 추가)
+  spendGold: (amount: number) => void;
 }
 
 const initialStats: Stats = {
@@ -36,23 +38,22 @@ const initialPlayer: Player = {
   experience: 0,
   nextLevelExperience: 100,
   statPoints: 0,
-  gold: 0, // Player에 골드 필드 추가
+  gold: 0,
 };
 
-// Initial state for the store, potentially loaded from localStorage
 const getInitialStoreState = (): GameState => {
   const loadedState = loadStateFromLocalStorage();
   if (loadedState) {
     return {
       ...loadedState,
-      gameStatus: 'IDLE', // Always start as IDLE on load
-      currentEnemy: null, // Clear current enemy on load
-      playerCores: loadedState.playerCores || [], // Ensure cores are initialized
-      equippedCores: loadedState.equippedCores || [null, null, null], // Ensure equipped cores are initialized
-      lastOnlineTime: loadedState.lastOnlineTime || Date.now(), // Ensure lastOnlineTime is initialized
+      gameStatus: 'IDLE',
+      currentEnemy: null,
+      playerCores: loadedState.playerCores || [],
+      equippedCores: loadedState.equippedCores || [null, null, null],
+      lastOnlineTime: loadedState.lastOnlineTime || Date.now(),
       player: {
         ...loadedState.player,
-        gold: loadedState.player.gold || 0, // Ensure gold is initialized
+        gold: loadedState.player.gold || 0,
       }
     };
   }
@@ -62,9 +63,9 @@ const getInitialStoreState = (): GameState => {
     stage: 1,
     isAutoBattle: true,
     gameStatus: 'IDLE',
-    playerCores: [], // Initial empty core inventory
-    equippedCores: [null, null, null], // Initial 3 empty core slots
-    lastOnlineTime: Date.now(), // Initialize with current time
+    playerCores: [],
+    equippedCores: [null, null, null],
+    lastOnlineTime: Date.now(),
   };
 };
 
@@ -99,7 +100,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     if (newEnemyHealth <= 0) {
       const newExp = state.player.experience + state.currentEnemy.expReward;
-      const newPlayer = { ...state.player, experience: newExp, gold: state.player.gold + state.currentEnemy.goldReward }; // 골드 획득 추가
+      const newPlayer = { ...state.player, experience: newExp, gold: state.player.gold + state.currentEnemy.goldReward };
 
       if (newPlayer.experience >= newPlayer.nextLevelExperience) {
         newPlayer.level += 1;
@@ -127,8 +128,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     if (newHealth <= 0) {
       return {
-        player: { ...state.player, currentHealth: 0 }, // 체력만 0으로 설정
-        gameStatus: 'DEFEAT' // 게임 상태만 패배로 변경
+        player: { ...state.player, currentHealth: 0 },
+        gameStatus: 'DEFEAT'
       };
     }
 
@@ -139,29 +140,19 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
   distributeStat: (stat: keyof Stats) => set((state) => {
     if (state.player.statPoints <= 0) return {};
-
     const newStats = { ...state.player.stats };
     switch (stat) {
-      case 'attack':
-        newStats.attack += 1;
-        break;
-      case 'defense':
-        newStats.defense += 1;
-        break;
-      case 'maxHealth':
-        newStats.maxHealth += 10;
-        break;
-      case 'attackSpeed':
-        newStats.attackSpeed += 0.05;
-        break;
+      case 'attack': newStats.attack += 1; break;
+      case 'defense': newStats.defense += 1; break;
+      case 'maxHealth': newStats.maxHealth += 10; break;
+      case 'attackSpeed': newStats.attackSpeed += 0.05; break;
     }
-
     return {
       player: {
         ...state.player,
         stats: newStats,
         statPoints: state.player.statPoints - 1,
-        currentHealth: stat === 'maxHealth' ? state.player.currentHealth + 10 : state.player.currentHealth // 최대체력 증가 시 현재 체력도 같이 증가
+        currentHealth: stat === 'maxHealth' ? state.player.currentHealth + 10 : state.player.currentHealth
       }
     };
   }),
@@ -178,147 +169,76 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       gameStatus: 'IDLE',
       playerCores: [],
       equippedCores: [null, null, null],
-      lastOnlineTime: Date.now(), // Reset lastOnlineTime on game reset
+      lastOnlineTime: Date.now(),
     });
-    // After resetting, save the initial state to localStorage
-    saveStateToLocalStorage(getInitialStoreState()); // Save the default initial state
+    saveStateToLocalStorage(getInitialStoreState());
   },
 
-  // Core Actions
   acquireCore: (core: Core) => set((state) => ({
     playerCores: [...state.playerCores, core],
   })),
 
   equipCore: (coreId: string, slotIndex: number) => set((state) => {
-    const coreToEquip = state.playerCores.find((c: Core) => c.id === coreId); // c: Core 타입 명시
-    if (!coreToEquip || slotIndex < 0 || slotIndex >= state.equippedCores.length) {
-      return {}; // Invalid core or slot
-    }
-
+    const coreToEquip = state.playerCores.find((c: Core) => c.id === coreId);
+    if (!coreToEquip || slotIndex < 0 || slotIndex >= state.equippedCores.length) return {};
     const newEquippedCores = [...state.equippedCores];
-    const newPlayerCores = state.playerCores.filter((c: Core) => c.id !== coreId); // c: Core 타입 명시
-
-    // If there's already a core in the slot, move it back to inventory
-    if (newEquippedCores[slotIndex]) {
-      newPlayerCores.push(newEquippedCores[slotIndex] as Core);
-    }
-
+    const newPlayerCores = state.playerCores.filter((c: Core) => c.id !== coreId);
+    if (newEquippedCores[slotIndex]) newPlayerCores.push(newEquippedCores[slotIndex] as Core);
     newEquippedCores[slotIndex] = coreToEquip;
-
-    return {
-      playerCores: newPlayerCores,
-      equippedCores: newEquippedCores,
-    };
+    return { playerCores: newPlayerCores, equippedCores: newEquippedCores };
   }),
 
   unequipCore: (slotIndex: number) => set((state) => {
-    if (slotIndex < 0 || slotIndex >= state.equippedCores.length || !state.equippedCores[slotIndex]) {
-      return {}; // Invalid slot or no core equipped
-    }
-
+    if (slotIndex < 0 || slotIndex >= state.equippedCores.length || !state.equippedCores[slotIndex]) return {};
     const coreToUnequip = state.equippedCores[slotIndex] as Core;
     const newEquippedCores = [...state.equippedCores];
     newEquippedCores[slotIndex] = null;
-
-    return {
-      playerCores: [...state.playerCores, coreToUnequip],
-      equippedCores: newEquippedCores,
-    };
+    return { playerCores: [...state.playerCores, coreToUnequip], equippedCores: newEquippedCores };
   }),
 
   upgradeCore: (coreId: string) => set((state) => {
-    const coreIndex = state.playerCores.findIndex((c: Core) => c.id === coreId); // c: Core 타입 명시
-    const equippedCoreIndex = state.equippedCores.findIndex((c: Core | null) => c && c.id === coreId); // c: Core | null 타입 명시
-
-    if (coreIndex === -1 && equippedCoreIndex === -1) {
-      return {}; // Core not found
-    }
-
-    // Determine if core is in inventory or equipped
+    const coreIndex = state.playerCores.findIndex((c: Core) => c.id === coreId);
+    const equippedCoreIndex = state.equippedCores.findIndex((c: Core | null) => c && c.id === coreId);
+    if (coreIndex === -1 && equippedCoreIndex === -1) return {};
     const targetCore = coreIndex !== -1 ? state.playerCores[coreIndex] : state.equippedCores[equippedCoreIndex] as Core;
-
-    // For simplicity, let's assume upgrade cost is always met for now
-    // In a real game, you'd check for gold/resources
     const upgradedCore = {
       ...targetCore,
       level: targetCore.level + 1,
-      // Example: Increase fireDamage by 10 per level
-      effects: {
-        ...targetCore.effects,
-        fireDamage: (targetCore.effects.fireDamage || 0) + 10,
-        // Add more specific upgrade logic for other effects
-      },
-      upgradeCost: Math.floor(targetCore.upgradeCost * 1.5), // Increase cost
+      effects: { ...targetCore.effects, fireDamage: (targetCore.effects.fireDamage || 0) + 10 },
+      upgradeCost: Math.floor(targetCore.upgradeCost * 1.5),
     };
-
     const newPlayerCores = [...state.playerCores];
     const newEquippedCores = [...state.equippedCores];
-
-    if (coreIndex !== -1) {
-      newPlayerCores[coreIndex] = upgradedCore;
-    } else {
-      newEquippedCores[equippedCoreIndex] = upgradedCore;
-    }
-
-    return {
-      playerCores: newPlayerCores,
-      equippedCores: newEquippedCores,
-    };
+    if (coreIndex !== -1) newPlayerCores[coreIndex] = upgradedCore;
+    else newEquippedCores[equippedCoreIndex] = upgradedCore;
+    return { playerCores: newPlayerCores, equippedCores: newEquippedCores };
   }),
 
-  // Offline Rewards
   calculateOfflineRewards: () => {
-    const state = get(); // get 함수를 사용하여 현재 상태를 가져옵니다.
+    const state = get();
     const now = Date.now();
-    const offlineDurationMs = now - state.lastOnlineTime;
-    const offlineDurationSeconds = Math.floor(offlineDurationMs / 1000);
-
-    if (offlineDurationSeconds <= 0) {
-      return { gold: 0, exp: 0 }; // No offline time
-    }
-
-    // Example: 1초당 1골드, 0.5 경험치 획득 (간단한 예시)
-    // 실제로는 플레이어 레벨, 스탯, 마지막으로 도달한 스테이지 등에 비례하여 계산
-    const goldPerSecond = 1;
-    const expPerSecond = 0.5;
-
-    const earnedGold = offlineDurationSeconds * goldPerSecond;
-    const earnedExp = offlineDurationSeconds * expPerSecond;
-
+    const offlineDurationSeconds = Math.floor((now - state.lastOnlineTime) / 1000);
+    if (offlineDurationSeconds <= 0) return { gold: 0, exp: 0 };
+    const earnedGold = offlineDurationSeconds * 1;
+    const earnedExp = offlineDurationSeconds * 0.5;
     set((s) => ({
-      player: {
-        ...s.player,
-        gold: s.player.gold + earnedGold, // 획득한 골드 추가
-        experience: s.player.experience + earnedExp, // 획득한 경험치 추가
-      },
-      lastOnlineTime: now, // 마지막 접속 시간 업데이트
+      player: { ...s.player, gold: s.player.gold + earnedGold, experience: s.player.experience + earnedExp },
+      lastOnlineTime: now,
     }));
-
     return { gold: earnedGold, exp: earnedExp };
   },
 
-  // Retry on Defeat
-  retryCurrentFloor: () => set((state) => {
-    // 현재 스테이지의 시작 층을 계산 (예: 70층에서 죽으면 61층으로)
-    const currentFloorStartStage = Math.floor((state.stage - 1) / 10) * 10 + 1;
+  retryCurrentFloor: () => set((state) => ({
+    player: { ...state.player, currentHealth: state.player.stats.maxHealth },
+    currentEnemy: null,
+    stage: Math.floor((state.stage - 1) / 10) * 10 + 1,
+    gameStatus: 'IDLE',
+  })),
 
-    return {
-      player: {
-        ...state.player,
-        currentHealth: state.player.stats.maxHealth, // 체력 회복
-      },
-      currentEnemy: null, // 적 제거 (새로운 적 스폰을 위해)
-      stage: currentFloorStartStage, // 현재 층의 시작 스테이지로 이동
-      gameStatus: 'IDLE', // 게임 상태를 IDLE로 변경하여 spawnEnemy가 호출되도록
-    };
-  }),
+  // [추가된 기능] 상점에서 골드 사용
+  spendGold: (amount: number) => set((state) => ({
+    player: { ...state.player, gold: Math.max(0, state.player.gold - amount) }
+  })),
 }));
 
-// Subscribe to state changes to automatically save
-useGameStore.subscribe(
-    (state) => {
-      // For simplicity, let's save the entire state on every change.
-      // A more optimized approach would be to debounce this or only save specific parts.
-      saveStateToLocalStorage(state);
-    }
-);
+useGameStore.subscribe((state) => saveStateToLocalStorage(state));

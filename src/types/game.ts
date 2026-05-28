@@ -59,8 +59,9 @@ export interface Core {
   type: CoreType;
   level: number;
   effects: CoreEffect;
-  upgradeCost: number; // 코어 강화 비용
+  upgradeCost: number;
   description: string;
+  price: number; // <--- 이 줄을 추가하세요!
 }
 
 export interface GameState {
