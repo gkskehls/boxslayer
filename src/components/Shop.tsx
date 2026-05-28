@@ -1,5 +1,6 @@
 // src/components/Shop.tsx
 import React from 'react';
+import { useGameStore } from '../store/useGameStore';
 import type {Core} from '../types/core';
 
 // 임시 코어 데이터 (실제로는 서버에서 가져오거나 상태 관리 스토어에서 관리)
@@ -35,13 +36,14 @@ const sampleCores: Core[] = [
 ];
 
 const Shop: React.FC = () => {
-  // TODO: 플레이어의 현재 골드 상태를 가져와야 합니다. (예: Zustand 스토어)
-  const playerGold = 500; // 임시 값
+  // Zustand 스토어에서 실제 골드와 골드 차감 함수를 가져옵니다.
+  const { gold, spendGold } = useGameStore();
 
   const handlePurchase = (core: Core) => {
-    if (playerGold >= core.price) {
-      alert(`${core.name}을(를) 구매했습니다! (남은 골드: ${playerGold - core.price})`);
-      // TODO: 실제 구매 로직 (골드 차감, 인벤토리에 코어 추가 등) 구현
+    if (gold >= core.price) {
+      spendGold(core.price);
+      alert(`${core.name}을(를) 구매했습니다! (남은 골드: ${gold - core.price})`);
+      // TODO: 인벤토리에 코어 추가 로직(예: addCoreToInventory)도 스토어에 있다면 여기서 호출
     } else {
       alert('골드가 부족합니다.');
     }
@@ -52,7 +54,7 @@ const Shop: React.FC = () => {
       <h2 className="text-2xl font-bold mb-4 text-center">상점</h2>
 
       <div className="mb-4 text-right">
-        <span className="text-lg">내 골드: {playerGold}</span>
+        <span className="text-lg">내 골드: {gold}</span>
       </div>
 
       <div className="space-y-4">
@@ -66,7 +68,7 @@ const Shop: React.FC = () => {
             <button
               onClick={() => handlePurchase(core)}
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={playerGold < core.price}
+              disabled={gold < core.price}
             >
               구매
             </button>
