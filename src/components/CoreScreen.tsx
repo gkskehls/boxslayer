@@ -9,10 +9,26 @@ const CoreScreen: React.FC = () => {
 
   // 임시 코어 데이터 (테스트용)
   const tempCores: Core[] = [
-    { id: 'fire_core_1', name: '불의 코어', type: 'FIRE', level: 1, effects: { fireDamage: 10 }, upgradeCost: 100, description: '몸통박치기 시 추가 화속성 데미지' },
-    { id: 'water_core_1', name: '물의 코어', type: 'WATER', level: 1, effects: { shieldAmount: 5 }, upgradeCost: 100, description: '일정 시간마다 보호막 생성' },
-    { id: 'wind_core_1', name: '바람의 코어', type: 'WIND', level: 1, effects: { attackSpeedBonus: 0.1 }, upgradeCost: 100, description: '공격 속도 증가' },
-    { id: 'electric_core_1', name: '전기의 코어', type: 'ELECTRIC', level: 1, effects: { stunChance: 0.1, stunDuration: 2 }, upgradeCost: 100, description: '일정 확률로 적 기절' },
+    {
+      id: 'fire_core_1', name: '불의 코어', type: 'FIRE', level: 1,
+      effects: { fireDamage: 10 }, upgradeCost: 100, description: '몸통박치기 시 추가 화속성 데미지',
+      price: 100 // 추가
+    },
+    {
+      id: 'water_core_1', name: '물의 코어', type: 'WATER', level: 1,
+      effects: { shieldAmount: 5 }, upgradeCost: 100, description: '일정 시간마다 보호막 생성',
+      price: 120 // 추가
+    },
+    {
+      id: 'wind_core_1', name: '바람의 코어', type: 'WIND', level: 1,
+      effects: { attackSpeedBonus: 0.1 }, upgradeCost: 100, description: '공격 속도 증가',
+      price: 110 // 추가
+    },
+    {
+      id: 'electric_core_1', name: '전기의 코어', type: 'ELECTRIC', level: 1,
+      effects: { stunChance: 0.1, stunDuration: 2 }, upgradeCost: 100, description: '일정 확률로 적 기절',
+      price: 130 // 추가
+    },
   ];
 
   const handleAcquireCore = (core: Core) => {
