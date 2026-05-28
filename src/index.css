@@ -7,19 +7,25 @@
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  /* 모바일에서 콘텐츠가 길어지면 자동으로 스크롤되도록 변경 */
   min-height: 100vh;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden; /* 가로 스크롤만 방지 */
 }
 
 #root {
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem; /* 모바일에서는 padding을 줄여야 공간이 확보됩니다 */
   text-align: center;
+}
+
+/* 모바일 화면을 위한 미디어 쿼리 추가 */
+@media (max-width: 640px) {
+  #root {
+    padding: 0.5rem;
+  }
 }
 
 .health-bar {
