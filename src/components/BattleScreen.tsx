@@ -64,13 +64,16 @@ const BattleScreen: React.FC<BattleScreenProps> = () => { // onDefeat prop 제�
   return (
       <div className="max-w-4xl mx-auto p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-6">
         {/* Header Info */}
-        <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold text-yellow-500">STAGE {stage}</h2>
-            <p className="text-sm text-neutral-400">Level {player.level}</p>
+        <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 flex flex-col sm:flex-row justify-between items-center gap-4">
+          {/* 스테이지 정보 (왼쪽) */}
+          <div className="w-full sm:w-auto text-center sm:text-left">
+            <h2 className="text-lg sm:text-xl font-bold text-yellow-500">STAGE {stage}</h2>
+            <p className="text-xs sm:text-sm text-neutral-400">Level {player.level}</p>
           </div>
-          <div className="flex-1 mx-8">
-            <div className="text-xs mb-1 flex justify-between">
+
+          {/* 경험치 바 (중앙) - 모바일에서 너비 100% 확보 */}
+          <div className="flex-1 w-full sm:mx-8">
+            <div className="text-[10px] sm:text-xs mb-1 flex justify-between">
               <span>XP</span>
               <span>{player.experience} / {player.nextLevelExperience}</span>
             </div>
@@ -81,14 +84,16 @@ const BattleScreen: React.FC<BattleScreenProps> = () => { // onDefeat prop 제�
               />
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-neutral-400">Stat Points</p>
-            <p className="text-xl font-bold text-green-500">{player.statPoints}</p>
+
+          {/* 스탯 포인트 (오른쪽) */}
+          <div className="w-full sm:w-auto text-center sm:text-right">
+            <p className="text-[10px] sm:text-sm text-neutral-400">Stat Points</p>
+            <p className="text-lg sm:text-xl font-bold text-green-500">{player.statPoints}</p>
           </div>
         </div>
 
         {/* Battle Area */}
-        <div className="bg-neutral-800/50 rounded-xl p-8 relative overflow-hidden min-h-[400px] flex justify-around items-center border border-neutral-700">
+        <div className="bg-neutral-800/50 rounded-xl p-4 sm:p-8 relative overflow-hidden min-h-[400px] flex flex-col sm:flex-row justify-center items-center gap-8 border border-neutral-700">
           {/* Grid Background */}
           <div className="absolute inset-0 opacity-10 pointer-events-none"
                style={{
