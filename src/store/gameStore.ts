@@ -1,7 +1,10 @@
+// src/store/gameStore.ts
+
 import { create } from 'zustand';
 import type { GameState, Player, Stats, Core } from '../types/game';
-import { saveStateToLocalStorage } from './utils/localStorage';
+import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage';
 
+// [로직 유지] 액션 정의는 그대로 유지합니다.
 interface GameActions {
   attackEnemy: () => void;
   attackPlayer: (damage: number) => void;
@@ -19,40 +22,29 @@ interface GameActions {
   spendGold: (amount: number) => void;
 }
 
-const initialStats: Stats = {
-  str: 10, dex: 10, con: 10,
-  attack: 20, defense: 5, maxHealth: 100,
-  attackSpeed: 1.0, evasion: 0.05,
+// [로직 유지] 초기값들은 그대로 둡니다.
+const initialStats: Stats = { str: 10, dex: 10, con: 10, attack: 20, defense: 5, maxHealth: 100, attackSpeed: 1.0, evasion: 0.05 };
+const initialPlayer: Player = { id: 'player', name: 'Slayer', level: 1, stats: initialStats, currentHealth: 100, experience: 0, nextLevelExperience: 100, statPoints: 0, gold: 0 };
+
+const getInitialStoreState = (): GameState => {
+  const loadedState = loadStateFromLocalStorage();
+  return loadedState || { player: initialPlayer, currentEnemy: null, stage: 1, isAutoBattle: true, gameStatus: 'IDLE', playerCores: [], equippedCores: [null, null, null], lastOnlineTime: Date.now() };
 };
 
-const initialPlayer: Player = {
-  id: 'player', name: 'Slayer', level: 1, stats: initialStats,
-  currentHealth: 100, experience: 0, nextLevelExperience: 100,
-  statPoints: 0, gold: 0,
-};
-
-export const useGameStore = create<GameState & GameActions>((set) => ({
-  player: initialPlayer,
-  currentEnemy: null,
-  stage: 1,
-  isAutoBattle: true,
-  gameStatus: 'IDLE',
-  playerCores: [],
-  equippedCores: [null, null, null],
-  lastOnlineTime: Date.now(),
+export const useGameStore = create<GameState & GameActions>((set, get) => ({
+  ...getInitialStoreState(),
 
   spawnEnemy: () => set((state) => {
     const stageMultiplier = 1 + (state.stage - 1) * 0.1;
     const isBoss = state.stage % 5 === 0;
     const goldReward = Math.floor(10 * (1 + (state.stage - 1) * 0.2) * (isBoss ? 5 : 1));
     const expReward = Math.floor(20 * (1 + (state.stage - 1) * 0.15) * (isBoss ? 3 : 1));
-
     return {
       currentEnemy: {
         id: `enemy-${state.stage}`, name: isBoss ? `Boss ${state.stage}` : `Box ${state.stage}`,
         level: state.stage, type: isBoss ? 'BOSS' : 'NORMAL',
-        stats: { str: 10, dex: 10, con: 10, attack: Math.floor(8 * stageMultiplier), defense: 3, maxHealth: 50, attackSpeed: 1, evasion: 0.05 },
-        currentHealth: Math.floor(50 * stageMultiplier),
+        stats: { str: 10, dex: 10, con: 10, attack: Math.floor(20 * stageMultiplier), defense: Math.floor(5 * stageMultiplier), maxHealth: Math.floor(100 * stageMultiplier), attackSpeed: 1.0, evasion: 0.05 },
+        currentHealth: Math.floor(100 * stageMultiplier * (isBoss ? 5 : 1)),
         goldReward, expReward,
       },
       gameStatus: 'BATTLE'
@@ -63,36 +55,12 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
     if (!state.currentEnemy) return {};
     const damage = Math.max(1, state.player.stats.attack - state.currentEnemy.stats.defense);
     const newEnemyHealth = state.currentEnemy.currentHealth - damage;
-
     if (newEnemyHealth <= 0) {
-      const expReward = state.currentEnemy.expReward;
-      const goldReward = state.currentEnemy.goldReward;
-
-      let newExp = state.player.experience + expReward;
-      let newLevel = state.player.level;
-      let nextLevelExp = state.player.nextLevelExperience;
-      let newStatPoints = state.player.statPoints;
-
-      if (newExp >= nextLevelExp) {
-        newLevel += 1;
-        newExp -= nextLevelExp;
-        nextLevelExp = Math.floor(nextLevelExp * 1.2);
-        newStatPoints += 3;
-      }
-
-      return {
-        player: {
-          ...state.player,
-          experience: newExp,
-          gold: state.player.gold + goldReward,
-          level: newLevel,
-          nextLevelExperience: nextLevelExp,
-          statPoints: newStatPoints
-        },
-        currentEnemy: null,
-        stage: state.stage + 1,
-        gameStatus: 'VICTORY'
-      };
+      const { expReward, goldReward } = state.currentEnemy;
+      let { experience: e, level: l, nextLevelExperience: n, statPoints: s } = state.player;
+      e += expReward;
+      if (e >= n) { l += 1; e -= n; n = Math.floor(n * 1.2); s += 3; }
+      return { player: { ...state.player, experience: e, gold: state.player.gold + goldReward, level: l, nextLevelExperience: n, statPoints: s }, currentEnemy: null, stage: state.stage + 1, gameStatus: 'VICTORY' };
     }
     return { currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth } };
   }),
@@ -106,18 +74,51 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
     return { player: { ...state.player, stats: newStats, statPoints: state.player.statPoints - 1 } };
   }),
 
-  resetStats: () => set((state) => ({
-    player: { ...state.player, stats: initialStats, statPoints: (state.player.level - 1) * 3 }
-  })),
-
-  attackPlayer: (dmg) => set((state) => ({ player: { ...state.player, currentHealth: Math.max(0, state.player.currentHealth - dmg) } })),
+  resetStats: () => set((state) => ({ player: { ...state.player, stats: initialStats, statPoints: (state.player.level - 1) * 3 } })),
+  attackPlayer: (dmg) => set((state) => ({ player: { ...state.player, currentHealth: Math.max(0, state.player.currentHealth - Math.max(1, dmg - state.player.stats.defense)) } })),
   levelUp: () => set((state) => ({ player: { ...state.player, level: state.player.level + 1, statPoints: state.player.statPoints + 3 } })),
-  resetGame: () => set({ player: initialPlayer, stage: 1, currentEnemy: null }),
+  resetGame: () => set(getInitialStoreState()),
+  acquireCore: (core) => set((state) => ({ playerCores: [...state.playerCores, core] })),
 
-  acquireCore: () => {}, equipCore: () => {}, unequipCore: () => {}, upgradeCore: () => {},
-  calculateOfflineRewards: () => ({ gold: 0, exp: 0 }),
-  retryCurrentFloor: () => {},
-  spendGold: () => {},
+  equipCore: (coreId, slotIndex) => set((state) => {
+    const c = state.playerCores.find((i) => i.id === coreId);
+    if (!c) return {};
+    const e = [...state.equippedCores];
+    e[slotIndex] = c;
+    return { playerCores: state.playerCores.filter((i) => i.id !== coreId), equippedCores: e };
+  }),
+
+  unequipCore: (slotIndex) => set((state) => {
+    const c = state.equippedCores[slotIndex];
+    if (!c) return {};
+    const e = [...state.equippedCores];
+    e[slotIndex] = null;
+    return { playerCores: [...state.playerCores, c], equippedCores: e };
+  }),
+
+  upgradeCore: (coreId) => set((state) => {
+    const cIdx = state.playerCores.findIndex((c) => c.id === coreId);
+    const eIdx = state.equippedCores.findIndex((c) => c && c.id === coreId);
+    if (cIdx === -1 && eIdx === -1) return {};
+    const target = cIdx !== -1 ? state.playerCores[cIdx] : state.equippedCores[eIdx] as Core;
+    if (state.player.gold < target.upgradeCost) return {};
+    const up: Core = { ...target, level: target.level + 1, upgradeCost: Math.floor(target.upgradeCost * 1.5), effects: { ...target.effects, fireDamage: (target.effects.fireDamage || 0) + 5, shieldAmount: (target.effects.shieldAmount || 0) + 10, attackSpeedBonus: (target.effects.attackSpeedBonus || 0) + 0.01, stunChance: Math.min(0.5, (target.effects.stunChance || 0) + 0.02) } };
+    const pC = [...state.playerCores], eC = [...state.equippedCores];
+    if (cIdx !== -1) pC[cIdx] = up; else eC[eIdx] = up;
+    return { player: { ...state.player, gold: state.player.gold - target.upgradeCost }, playerCores: pC, equippedCores: eC };
+  }),
+
+  calculateOfflineRewards: () => {
+    const state = get();
+    const duration = (Date.now() - state.lastOnlineTime) / 1000;
+    const bonus = 1 + (state.stage - 1) * 0.1;
+    const gold = Math.floor(duration * 1 * bonus), exp = Math.floor(duration * 0.5 * bonus);
+    set((s) => ({ player: { ...s.player, gold: s.player.gold + gold, experience: s.player.experience + exp }, lastOnlineTime: Date.now() }));
+    return { gold, exp };
+  },
+
+  retryCurrentFloor: () => set((state) => ({ player: { ...state.player, currentHealth: state.player.stats.maxHealth }, currentEnemy: null, stage: Math.floor((state.stage - 1) / 10) * 10 + 1, gameStatus: 'IDLE' })),
+  spendGold: (amount) => set((state) => ({ player: { ...state.player, gold: Math.max(0, state.player.gold - amount) } })),
 }));
 
 useGameStore.subscribe((state) => saveStateToLocalStorage(state));

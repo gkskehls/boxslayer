@@ -169,11 +169,20 @@ const CoreScreen: React.FC = () => {
 
               {/* Upgrade Button */}
               <button
-                onClick={() => {
-                  upgradeCore(selectedCore.id);
-                  setSelectedCore(null); // 강화 후 선택 해제 (업데이트된 코어 정보를 다시 불러오기 위함)
-                }}
-                className="flex-1 px-4 py-3 bg-yellow-600 text-white font-bold rounded-lg hover:bg-yellow-500 transition-colors shadow-md"
+                  onClick={() => {
+                    // 1. 강화 실행
+                    upgradeCore(selectedCore.id);
+
+                    // 2. selectedCore를 null로 만드는 대신,
+                    //    스토어에서 강화된 코어를 다시 찾아서 selectedCore를 업데이트합니다.
+                    const updatedCore = useGameStore.getState().playerCores.find(c => c.id === selectedCore.id) ||
+                        useGameStore.getState().equippedCores.find(c => c?.id === selectedCore.id);
+
+                    if (updatedCore) {
+                      setSelectedCore(updatedCore);
+                    }
+                  }}
+                  className="flex-1 px-4 py-3 bg-yellow-600 text-white font-bold rounded-lg hover:bg-yellow-500 transition-colors shadow-md"
               >
                 강화 ({selectedCore.upgradeCost} 골드)
               </button>
