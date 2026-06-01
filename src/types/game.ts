@@ -32,17 +32,15 @@ export interface Enemy extends Entity {
   expReward: number;
 }
 
+// 1. 코어 타입 정의 (이제 데이터 구조가 단순해집니다)
 export type CoreType = 'FIRE' | 'WATER' | 'WIND' | 'ELECTRIC';
-export interface CoreEffect {
-  fireDamage?: number; fireDamageRatio?: number;
-  shieldAmount?: number; slowChance?: number; slowDuration?: number; slowAmount?: number;
-  attackSpeedBonus?: number; evasionChance?: number;
-  stunChance?: number; stunDuration?: number; chainDamage?: number;
-}
 
+// 2. Core 인터페이스 단순화: 이제 데이터 저장에는 id, type, level만 사용합니다.
 export interface Core {
-  id: string; name: string; type: CoreType; level: number;
-  effects: CoreEffect; upgradeCost: number; description: string; price: number;
+  id: string;
+  name: string;
+  type: CoreType;
+  level: number;
 }
 
 export interface GameState {
@@ -52,6 +50,10 @@ export interface GameState {
   isAutoBattle: boolean;
   gameStatus: 'IDLE' | 'BATTLE' | 'VICTORY' | 'DEFEAT';
   playerCores: Core[];
-  equippedCores: (Core | null)[];
+  equippedCore: Core | null;
   lastOnlineTime: number;
+  lastDamageDealt: {
+    normal: number;
+    core: number;
+  };
 }
