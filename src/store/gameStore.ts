@@ -107,7 +107,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       return {
         player: { ...state.player, currentHealth: 0 },
         currentEnemy: null,
-        stage: Math.max(1, Math.floor((state.stage - 2) / 10) * 10 + 1),
+        // ▼ 이 곳에 있던 stage 깎는 공식을 지웠습니다! (retryCurrentFloor에서만 깎도록)
         gameStatus: 'DEFEAT'
       };
     }
