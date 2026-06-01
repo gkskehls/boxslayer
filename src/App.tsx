@@ -52,7 +52,7 @@ function App() {
 
       // Enemy attacks player
       enemyAttackTimer = window.setInterval(() => {
-        attackPlayer(currentEnemy.stats.attack);
+        attackPlayer();
       }, 1000 / currentEnemy.stats.attackSpeed);
     }
 
