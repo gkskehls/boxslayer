@@ -1,12 +1,11 @@
+// src/components/BattleScreen.tsx
+
 import React, { useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
-// import type { Stats } from '../types/game'; // Stats 타입 제거
 
-interface BattleScreenProps {
-  // onDefeat: () => void; // 더 이상 필요 없음
-}
+interface BattleScreenProps {}
 
-const BattleScreen: React.FC<BattleScreenProps> = () => { // onDefeat prop 제거
+const BattleScreen: React.FC<BattleScreenProps> = () => {
   const {
     player,
     currentEnemy,
@@ -15,9 +14,11 @@ const BattleScreen: React.FC<BattleScreenProps> = () => { // onDefeat prop 제�
     spawnEnemy,
     attackEnemy,
     attackPlayer,
-    // resetGame, // resetGame 대신 retryCurrentFloor 사용
-    retryCurrentFloor, // 새로 추가된 액션 임포트
+    retryCurrentFloor,
   } = useGameStore();
+
+  const currentEnemyId = currentEnemy?.id;
+  const enemyAttackSpeed = currentEnemy?.stats.attackSpeed || 1;
 
   // Simple Auto-Battle Loop
   useEffect(() => {
@@ -28,23 +29,21 @@ const BattleScreen: React.FC<BattleScreenProps> = () => { // onDefeat prop 제�
     let playerAttackTimer: number;
     let enemyAttackTimer: number;
 
-    if (gameStatus === 'BATTLE' && currentEnemy) {
-      // Player attacks enemy
+    if (gameStatus === 'BATTLE' && currentEnemyId) {
       playerAttackTimer = window.setInterval(() => {
         attackEnemy();
       }, 1000 / player.stats.attackSpeed);
 
-      // Enemy attacks player
       enemyAttackTimer = window.setInterval(() => {
-        attackPlayer(currentEnemy.stats.attack);
-      }, 1000 / currentEnemy.stats.attackSpeed);
+        attackPlayer();
+      }, 1000 / enemyAttackSpeed);
     }
 
     return () => {
       clearInterval(playerAttackTimer);
       clearInterval(enemyAttackTimer);
     };
-  }, [gameStatus, currentEnemy, player.stats.attackSpeed, spawnEnemy, attackEnemy, attackPlayer]);
+  }, [gameStatus, currentEnemyId, player.stats.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer]);
 
   // Handle Victory - Spawn next enemy after a short delay
   useEffect(() => {
@@ -56,22 +55,32 @@ const BattleScreen: React.FC<BattleScreenProps> = () => { // onDefeat prop 제�
     }
   }, [gameStatus, spawnEnemy]);
 
-  // 게임 오버 시 리트라이 버튼 핸들러
-  const handleRetry = () => {
-    retryCurrentFloor(); // 현재 층 재시도 액션 호출
-  };
+  // Handle Defeat - 자동으로 해당 구역 1층으로 복귀
+  useEffect(() => {
+    if (gameStatus === 'DEFEAT') {
+      const timer = setTimeout(() => {
+        retryCurrentFloor();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [gameStatus, retryCurrentFloor]);
 
   return (
       <div className="max-w-4xl mx-auto p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-6">
+
+        {/* [수정됨] 임시 스탯 표시창 (상단) - 공/민/체 표시 */}
+        <div className="flex justify-between text-[10px] text-neutral-400 bg-neutral-950 p-2 rounded border border-neutral-800">
+          <div>내 스탯: 공 {player.stats.str} / 민 {player.stats.dex} / 체 {player.stats.con}</div>
+          <div>적 스탯: 공 {currentEnemy?.stats.str || 0} / 민 {currentEnemy?.stats.dex || 0} / 체 {currentEnemy?.stats.con || 0}</div>
+        </div>
+
         {/* Header Info */}
         <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 flex flex-col sm:flex-row justify-between items-center gap-4">
-          {/* 스테이지 정보 (왼쪽) */}
           <div className="w-full sm:w-auto text-center sm:text-left">
             <h2 className="text-lg sm:text-xl font-bold text-yellow-500">STAGE {stage}</h2>
             <p className="text-xs sm:text-sm text-neutral-400">Level {player.level}</p>
           </div>
 
-          {/* 경험치 바 (중앙) - 모바일에서 너비 100% 확보 */}
           <div className="flex-1 w-full sm:mx-8">
             <div className="text-[10px] sm:text-xs mb-1 flex justify-between">
               <span>XP</span>
@@ -85,7 +94,6 @@ const BattleScreen: React.FC<BattleScreenProps> = () => { // onDefeat prop 제�
             </div>
           </div>
 
-          {/* 스탯 포인트 (오른쪽) */}
           <div className="w-full sm:w-auto text-center sm:text-right">
             <p className="text-[10px] sm:text-sm text-neutral-400">Stat Points</p>
             <p className="text-lg sm:text-xl font-bold text-green-500">{player.statPoints}</p>
@@ -117,7 +125,6 @@ const BattleScreen: React.FC<BattleScreenProps> = () => { // onDefeat prop 제�
               </div>
             </div>
 
-            {/* Player Box - Appearance changes based on stats */}
             <div
                 className="transition-all duration-300 flex items-center justify-center border-4 relative"
                 style={{
@@ -177,12 +184,7 @@ const BattleScreen: React.FC<BattleScreenProps> = () => { // onDefeat prop 제�
           {gameStatus === 'DEFEAT' && (
               <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50">
                 <h2 className="text-4xl font-bold text-red-500 mb-4">GAME OVER</h2>
-                <button
-                    onClick={handleRetry} // 리트라이 핸들러 사용
-                    className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-neutral-200 transition-colors"
-                >
-                  RETRY STAGE
-                </button>
+                <p className="text-neutral-300 animate-pulse font-medium">해당 구역의 1층으로 자동 복귀합니다...</p>
               </div>
           )}
         </div>
