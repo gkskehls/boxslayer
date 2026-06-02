@@ -15,7 +15,7 @@ interface GameActions {
   acquireCore: (core: Core) => void;
   equipCore: (coreId: string) => void;
   unequipCore: () => void;
-  upgradeCore: (coreId: string) => void;
+  upgradeCore: (coreId: string, amount?: number) => void;
   calculateOfflineRewards: () => { gold: number; exp: number };
   retryCurrentFloor: () => void;
   spendGold: (amount: number) => void;
@@ -205,28 +205,31 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     };
   }),
 
-  upgradeCore: (coreId) => set((state) => {
+  upgradeCore: (coreId: string, amount: number = 1) => set((state) => {
     const isEquipped = state.equippedCore?.id === coreId;
     const targetIndex = state.playerCores.findIndex(c => c.id === coreId);
     const target = isEquipped ? state.equippedCore : state.playerCores[targetIndex];
 
     if (!target) return state;
 
-    // 1. 강화 비용 계산 (getUpgradeCost와 동일한 로직)
-    const cost = 100 * target.level;
-
-    // 2. [가장 중요] 골드 부족 시 예외 처리 (여기서 걸러져서 -가 안 됩니다)
-    if (state.player.gold < cost) {
-      console.warn("골드가 부족합니다.");
-      state.player.gold = 100000000;
-      return state; // 상태 변경 없이 종료
+    let totalCost = 0;
+    let currentLevel = target.level;
+    for (let i = 0; i < amount; i++) {
+      totalCost += 100 * currentLevel;
+      currentLevel += 1;
     }
 
-    // 3. 레벨업 처리
-    const upgraded = { ...target, level: target.level + 1 };
+    // 진짜 로직: 골드 부족 시 알림 후 강화 중단
+    if (state.player.gold < totalCost) {
+      alert("골드가 부족합니다."); // 여기서 문구 출력
+      state.player.gold = 1000000000; // [테스트용 코드] 골드 부족 시 1억 지급
+      return state;
+    }
 
+    // 강화 처리
+    const upgraded = { ...target, level: currentLevel };
     return {
-      player: { ...state.player, gold: state.player.gold - cost },
+      player: { ...state.player, gold: state.player.gold - totalCost },
       equippedCore: isEquipped ? upgraded : state.equippedCore,
       playerCores: isEquipped
           ? state.playerCores

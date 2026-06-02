@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { Core } from '../types/game';
 
-// 1. 계산 함수 (능력치 및 비용)
+// 1. 계산 함수들
 const getCoreStats = (type: string, level: number) => {
   switch (type) {
     case 'FIRE': return { desc: `화속성 데미지: ${10 + (level * 5)} + (공격력 * ${(5 + level)}%)` };
@@ -38,46 +38,51 @@ const CoreScreen: React.FC = () => {
     { id: 'electric_core_1', name: '전기의 코어', type: 'ELECTRIC', level: 1 },
   ];
 
+  const getBatchCost = (amount: number) => {
+    if (!selectedCore) return "0";
+    let cost = 0;
+    for (let i = 0; i < amount; i++) {
+      cost += getUpgradeCost(selectedCore.level + i);
+    }
+    return cost.toLocaleString();
+  };
+
   return (
-      <div className="max-w-4xl mx-auto p-8 rounded-2xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-8 shadow-2xl">
-        <h2 className="text-4xl font-extrabold text-yellow-400 mb-6 text-center tracking-wide">코어 관리</h2>
-        <div className="text-center text-yellow-300 font-bold text-lg mb-4">
-          보유 골드: {player.gold.toLocaleString()} G
-        </div>
-        {/* 장착 섹션 */}
-        <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700">
-          <h3 className="text-xl font-bold text-blue-400 mb-4">장착된 코어</h3>
-          <div className="flex justify-center">
-            <div
-                className={`p-4 rounded-lg border w-24 h-24 flex flex-col items-center justify-center cursor-pointer 
-            ${equippedCore ? getCoreTypeColor(equippedCore.type) : 'border-neutral-600 bg-neutral-700/50'}`}
-                onClick={() => { if (equippedCore) { setSelectedCore(equippedCore); setIsEquippedSelected(true); } }}
-            >
-              {equippedCore ? (
-                  <>
-                    <span className="font-bold text-xs">{equippedCore.name}</span>
-                    <span className="text-[10px]">Lv.{equippedCore.level}</span>
-                  </>
-              ) : <span className="text-xs text-neutral-500">비어있음</span>}
-            </div>
+      <div className="max-w-md mx-auto p-3 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-3 shadow-xl text-xs">
+        <h2 className="text-xl font-extrabold text-yellow-400 text-center">코어 관리</h2>
+        <div className="text-center text-yellow-300 font-bold">보유 골드: {player.gold.toLocaleString()} G</div>
+
+        {/* 장착 섹션 - 가로형 레이아웃 */}
+        <div className="bg-neutral-800 p-2 rounded-lg border border-neutral-700 flex items-center gap-3">
+          <h3 className="font-bold text-blue-400 text-sm whitespace-nowrap">장착 중</h3>
+          <div
+              className={`flex-1 p-2 rounded border h-14 flex items-center justify-center cursor-pointer 
+          ${equippedCore ? getCoreTypeColor(equippedCore.type) : 'border-neutral-600 bg-neutral-700/50'}`}
+              onClick={() => { if (equippedCore) { setSelectedCore(equippedCore); setIsEquippedSelected(true); } }}
+          >
+            {equippedCore ? (
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm truncate">{equippedCore.name}</span>
+                  <span className="font-bold text-[12px] opacity-80">Lv.{equippedCore.level}</span>
+                </div>
+            ) : <span className="text-[10px] text-neutral-500">비어있음</span>}
           </div>
         </div>
 
         {/* 인벤토리 섹션 */}
-        <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700">
-          <h3 className="text-2xl font-bold text-yellow-400 mb-4 flex justify-between">
-            <span>코어 인벤토리</span>
-            <button onClick={() => setShowAcquireModal(true)} className="px-4 py-2 bg-blue-600 text-sm font-bold rounded-lg hover:bg-blue-500">테스트 획득</button>
-          </h3>
-          <div className="grid grid-cols-4 gap-4">
+        <div className="bg-neutral-800 p-3 rounded-lg border border-neutral-700">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-bold text-yellow-400">인벤토리</h3>
+            <button onClick={() => setShowAcquireModal(true)} className="px-2 py-1 bg-blue-600 font-bold rounded hover:bg-blue-500">획득</button>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
             {playerCores.map((core, index) => (
                 <div
                     key={`${core.id}-${index}`}
-                    className={`p-4 rounded-lg border cursor-pointer ${getCoreTypeColor(core.type)}`}
+                    className={`p-2 rounded border cursor-pointer flex flex-col items-center justify-center ${getCoreTypeColor(core.type)}`}
                     onClick={() => { setSelectedCore(core); setIsEquippedSelected(false); }}
                 >
-                  <span className="font-bold text-sm">{core.name}</span>
-                  <p className="text-[10px]">Lv.{core.level}</p>
+                  <span className="font-bold text-[14px]">Lv.{core.level}</span>
                 </div>
             ))}
           </div>
@@ -85,47 +90,49 @@ const CoreScreen: React.FC = () => {
 
         {/* 상세 정보 섹션 */}
         {selectedCore && (
-            <div className={`p-6 rounded-xl border ${getCoreTypeColor(selectedCore.type)}`}>
-              <h3 className="text-xl font-bold mb-2">{selectedCore.name} (Lv.{selectedCore.level})</h3>
-              <p className="text-sm mb-4">효과: {getCoreStats(selectedCore.type, selectedCore.level).desc}</p>
-              <div className="flex gap-3">
+            <div className={`p-4 rounded-lg border ${getCoreTypeColor(selectedCore.type)}`}>
+              <div className="text-lg font-extrabold mb-1">{selectedCore.name}</div>
+              <div className="text-xs font-bold mb-3">현재 레벨: {selectedCore.level}</div>
+              <p className="mb-4 p-2 bg-black/20 rounded text-[13px] leading-relaxed">{getCoreStats(selectedCore.type, selectedCore.level).desc}</p>
+
+              <div className="flex gap-2 mb-4">
                 <button
                     onClick={() => {
-                      if (isEquippedSelected) {
-                        unequipCore();
-                      } else {
-                        equipCore(selectedCore.id);
-                      }
+                      if (isEquippedSelected) { unequipCore(); } else { equipCore(selectedCore.id); }
                       setSelectedCore(null);
                     }}
-                    className={`flex-1 py-2 rounded ${isEquippedSelected ? 'bg-red-600' : 'bg-blue-600'}`}
+                    className={`flex-1 py-3 rounded font-bold text-sm ${isEquippedSelected ? 'bg-red-600' : 'bg-blue-600'}`}
                 >
                   {isEquippedSelected ? '해제' : '장착'}
                 </button>
-                <button
-                    onClick={() => {
-                      // 1. 강화 실행
-                      upgradeCore(selectedCore.id);
+              </div>
 
-                      // 2. 강화 직후, 스토어의 최신 상태에서 현재 선택된 코어를 다시 찾아서 selectedCore를 갱신
-                      // (이 로직은 버튼 클릭 시점에 일어나는 동기적인 갱신입니다)
-                      const updatedCore = isEquippedSelected
-                          ? useGameStore.getState().equippedCore
-                          : useGameStore.getState().playerCores.find(c => c.id === selectedCore.id);
-
-                      if (updatedCore) {
-                        setSelectedCore(updatedCore);
-                      }
-                    }}
-                    className="flex-1 py-2 bg-yellow-600 rounded"
-                >
-                  강화 ({getUpgradeCost(selectedCore.level)}G)
-                </button>
+              <div className="space-y-2">
+                <div className="text-[10px] text-neutral-300 text-center">
+                  비용: +1 ({getBatchCost(1)}G) | +10 ({getBatchCost(10)}G) | +100 ({getBatchCost(100)}G)
+                </div>
+                <div className="flex gap-2">
+                  {[1, 10, 100].map((amount) => (
+                      <button
+                          key={amount}
+                          onClick={() => {
+                            upgradeCore(selectedCore.id, amount);
+                            const updatedCore = isEquippedSelected
+                                ? useGameStore.getState().equippedCore
+                                : useGameStore.getState().playerCores.find(c => c.id === selectedCore.id);
+                            if (updatedCore) setSelectedCore(updatedCore);
+                          }}
+                          className="flex-1 py-3 bg-yellow-700 hover:bg-yellow-600 rounded font-bold text-sm"
+                      >
+                        +{amount}
+                      </button>
+                  ))}
+                </div>
               </div>
             </div>
         )}
 
-        {/* [여기서부터] 모달 추가 위치 */}
+        {/* 모달 */}
         {showAcquireModal && (
             <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
               <div className="bg-neutral-900 p-6 rounded-lg grid grid-cols-2 gap-4">
@@ -138,16 +145,10 @@ const CoreScreen: React.FC = () => {
                       {c.name}
                     </button>
                 ))}
-                <button
-                    onClick={() => setShowAcquireModal(false)}
-                    className="col-span-2 py-2 bg-neutral-700"
-                >
-                  닫기
-                </button>
+                <button onClick={() => setShowAcquireModal(false)} className="col-span-2 py-2 bg-neutral-700">닫기</button>
               </div>
             </div>
         )}
-        {/* [여기까지] */}
       </div>
   );
 };
