@@ -56,4 +56,5 @@ export interface GameState {
     normal: number;
     core: number;
   };
+  battleStartTime: number;
 }
