@@ -87,11 +87,13 @@ const BattleScreen: React.FC = () => {
           <div className="font-bold text-yellow-400 text-sm flex flex-col items-center">
             <div>
               LAST DMG:
-              <span className="text-white ml-1">{lastDamageDealt.normal}</span>
-              {lastDamageDealt.core > 0 && (
+              <span className="text-white ml-1">
+                {lastDamageDealt?.normal ?? 0}
+              </span>
+              { (lastDamageDealt?.core ?? 0) > 0 && (
                   <span className="text-red-500 ml-1">
-          + {lastDamageDealt.core} (🔥)
-        </span>
+                    + {lastDamageDealt.core} (🔥)
+                  </span>
               )}
             </div>
             {/* 여기서 equippedCore를 사용합니다 (TS6133 해결) */}
