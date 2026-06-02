@@ -56,7 +56,15 @@ interface GameActions {
   removeCore: (coreId: string) => void;
 }
 
-const initialStats: Stats = { str: 10, dex: 10, con: 10, attack: 20, defense: 5, maxHealth: 100, attackSpeed: 1.0, evasion: 0.05 };
+const initialStats: Stats = { str: 10, dex: 10, con: 10 };
+// [추가] 실시간 계산 엔진
+export const getComputedStats = (stats: Stats) => ({
+  attack: 20 + (stats.str * 2),
+  defense: 5 + (stats.dex * 0.5),
+  maxHealth: 100 + (stats.con * 20),
+  attackSpeed: 1.0 + (stats.dex * 0.01),
+  evasion: 0.05 + (stats.dex * 0.001)
+});
 const initialPlayer: Player = { id: 'player', name: 'Slayer', level: 1, stats: initialStats, currentHealth: 100, experience: 0, nextLevelExperience: 100, statPoints: 0, gold: 0 };
 
 const getInitialStoreState = (): GameState => {
@@ -80,7 +88,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       currentEnemy: {
         id: `enemy-${state.stage}`, name: isBoss ? `Boss ${state.stage}` : `Box ${state.stage}`,
         level: state.stage, type: isBoss ? 'BOSS' : 'NORMAL',
-        stats: { ...initialStats, str: baseStr, attack: baseStr, maxHealth: baseCon * 10, defense: Math.floor(baseCon * 0.2) },
+        stats: { str: baseStr, dex: 10, con: baseCon },
         currentHealth: baseCon * 10, goldReward: Math.floor(10 * stageMultiplier * (isBoss ? 5 : 1)), expReward: Math.floor(20 * stageMultiplier * (isBoss ? 3 : 1)),
       },
       gameStatus: 'BATTLE',
@@ -97,13 +105,15 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const multiplier = config.multiplier;
 
     // 공격력 계산 (배율 적용)
-    const normalDamage = Math.max(1, (state.player.stats.attack - state.currentEnemy.stats.defense) * multiplier);
+    const playerComputed = getComputedStats(state.player.stats);
+    const enemyComputed = getComputedStats(state.currentEnemy.stats);
+    const normalDamage = Math.max(1, (playerComputed.attack - enemyComputed.defense) * multiplier);
 
     let coreDamage = 0;
     if (state.equippedCore) {
       const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
       if (state.equippedCore.type === 'FIRE') {
-        coreDamage = ((stats.fireDamage || 0) + Math.floor(state.player.stats.attack * (stats.fireDamageRatio || 0))) * multiplier;
+        coreDamage = ((stats.fireDamage || 0) + Math.floor(playerComputed.attack * (stats.fireDamageRatio || 0))) * multiplier;
       }
     }
 
@@ -115,8 +125,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       let { experience: e, level: l, nextLevelExperience: n, statPoints: s } = state.player;
       e += expReward;
       if (e >= n) { l += 1; e -= n; n = Math.floor(n * 1.2); s += 3; }
+      const playerComputed = getComputedStats(state.player.stats);
       return {
-        player: { ...state.player, experience: e, gold: state.player.gold + goldReward, level: l, nextLevelExperience: n, statPoints: s, currentHealth: state.player.stats.maxHealth },
+        player: { ...state.player, experience: e, gold: state.player.gold + goldReward, level: l, nextLevelExperience: n, statPoints: s, currentHealth: playerComputed.maxHealth },
         currentEnemy: null, stage: state.stage + 1, gameStatus: 'VICTORY',
         lastDamageDealt: { normal: normalDamage, core: coreDamage }
       };
@@ -161,7 +172,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (!state.currentEnemy) return {};
 
     // 2. 데미지 계산
-    const damage = Math.max(1, (state.currentEnemy.stats.attack || 0) - state.player.stats.defense);
+// 상단에서 적의 스탯도 계산해야 합니다
+    const enemyComputed = getComputedStats(state.currentEnemy.stats);
+    const playerComputed = getComputedStats(state.player.stats);
+    const damage = Math.max(1, enemyComputed.attack - playerComputed.defense);
     const nextHealth = Math.max(0, state.player.currentHealth - damage);
 
     // 3. 체력이 0이 되면 패배 처리
@@ -191,7 +205,15 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   }),
   unequipCore: () => set((state) => state.equippedCore ? { playerCores: [...state.playerCores, state.equippedCore], equippedCore: null } : {}),
   calculateOfflineRewards: () => { const s = get(); const b = 1 + (s.stage - 1) * 0.1; const g = Math.floor(10 * b), e = Math.floor(5 * b); set(st => ({ player: { ...st.player, gold: st.player.gold + g, experience: st.player.experience + e }, lastOnlineTime: Date.now() })); return { gold: g, exp: e }; },
-  retryCurrentFloor: () => set((state) => ({ player: { ...state.player, currentHealth: state.player.stats.maxHealth }, currentEnemy: null, stage: Math.max(1, Math.floor((state.stage - 1) / 5) * 5 + 1), gameStatus: 'IDLE' })),
+  retryCurrentFloor: () => set((state) => {
+    const computed = getComputedStats(state.player.stats); // 계산값 가져오기
+    return {
+      player: { ...state.player, currentHealth: computed.maxHealth },
+      currentEnemy: null,
+      stage: Math.max(1, Math.floor((state.stage - 1) / 5) * 5 + 1),
+      gameStatus: 'IDLE'
+    };
+  }),
   spendGold: (amount) => set((state) => ({ player: { ...state.player, gold: Math.max(0, state.player.gold - amount) } })),
   removeCore: (coreId) => set((state) => ({ playerCores: state.playerCores.filter(c => c.id !== coreId), equippedCore: state.equippedCore?.id === coreId ? null : state.equippedCore })),
 }));

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useGameStore } from './store/gameStore';
+import { useGameStore, getComputedStats } from './store/gameStore';
 // import type { Stats } from './types/game'; // Stats 타입 제거
 
 // Import new screen components
@@ -34,33 +34,39 @@ function App() {
 
   // Simple Auto-Battle Loop
   useEffect(() => {
-    // 전투 화면일 때만 전투 루프 실행
     if (screen !== 'BATTLE_SCREEN') return;
 
     if (gameStatus === 'IDLE') {
       spawnEnemy();
     }
 
+    // 1. 계산된 값을 useEffect 내부에서 안전하게 생성합니다.
+    const playerComputed = getComputedStats(player.stats);
+    const enemyComputed = currentEnemy ? getComputedStats(currentEnemy.stats) : null;
+
     let playerAttackTimer: number;
     let enemyAttackTimer: number;
 
-    if (gameStatus === 'BATTLE' && currentEnemy) {
+    // 2. if 조건문 안에서 enemyComputed가 null이 아님을 명시적으로 체크합니다.
+    if (gameStatus === 'BATTLE' && currentEnemy && enemyComputed) {
       // Player attacks enemy
       playerAttackTimer = window.setInterval(() => {
         attackEnemy();
-      }, 1000 / player.stats.attackSpeed);
+      }, 1000 / playerComputed.attackSpeed);
 
-      // Enemy attacks player
+      // Enemy attacks player (이제 enemyComputed가 null이 아님이 보장됨)
       enemyAttackTimer = window.setInterval(() => {
         attackPlayer();
-      }, 1000 / currentEnemy.stats.attackSpeed);
+      }, 1000 / enemyComputed.attackSpeed);
     }
 
     return () => {
       clearInterval(playerAttackTimer);
       clearInterval(enemyAttackTimer);
     };
-  }, [screen, gameStatus, currentEnemy, player.stats.attackSpeed, spawnEnemy, attackEnemy, attackPlayer]);
+
+// 3. 의존성 배열에서 계산값 속성을 빼고, 대상이 되는 원본 객체(player.stats, currentEnemy)를 넣습니다.
+  }, [screen, gameStatus, currentEnemy, player.stats, spawnEnemy, attackEnemy, attackPlayer]);
 
   // Handle Victory - Spawn next enemy after a short delay
   useEffect(() => {

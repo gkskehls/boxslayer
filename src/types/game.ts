@@ -4,11 +4,6 @@ export interface Stats {
   str: number;
   dex: number;
   con: number;
-  attack: number;
-  defense: number;
-  maxHealth: number;
-  attackSpeed: number;
-  evasion: number;
 }
 
 export interface Entity {

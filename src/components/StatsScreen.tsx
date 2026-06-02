@@ -1,9 +1,11 @@
 import React from 'react';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore, getComputedStats } from '../store/gameStore';
 
 const StatsScreen: React.FC = () => {
   // resetStats를 useGameStore에서 가져옵니다
   const { player, distributeStat, resetStats } = useGameStore();
+
+  const computed = getComputedStats(player.stats);
 
   const handleReset = () => {
     if (window.confirm("정말 스탯을 초기화하고 포인트를 반환받으시겠습니까?")) {
@@ -33,12 +35,12 @@ const StatsScreen: React.FC = () => {
         </div>
 
         {/* 현재 능력치 표시 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-sm text-neutral-300">
-          <div>공격력: {player.stats.attack.toFixed(0)}</div>
-          <div>공속: {player.stats.attackSpeed.toFixed(2)}</div>
-          <div>최대체력: {player.stats.maxHealth}</div>
-          <div>회피율: {(player.stats.evasion * 100).toFixed(0)}%</div>
-        </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-sm text-neutral-300">
+              <div>공격력: {computed.attack.toFixed(0)}</div>
+              <div>공속: {computed.attackSpeed.toFixed(2)}</div>
+              <div>최대체력: {computed.maxHealth.toFixed(0)}</div>
+              <div>회피율: {(computed.evasion * 100).toFixed(0)}%</div>
+          </div>
 
         {/* 스탯 투자 버튼 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

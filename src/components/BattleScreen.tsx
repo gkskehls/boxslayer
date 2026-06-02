@@ -1,7 +1,7 @@
 // src/components/BattleScreen.tsx
 
 import React, { useEffect } from 'react';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore, getComputedStats } from '../store/gameStore';
 
 const BattleScreen: React.FC = () => {
   const {
@@ -16,6 +16,8 @@ const BattleScreen: React.FC = () => {
     retryCurrentFloor,
     equippedCore, // 장착된 코어 정보 가져오기
   } = useGameStore();
+
+  const computed = getComputedStats(player.stats);
 
   const getDynamicStyle = (stats: { str: number; dex: number; con: number }) => {
     const S = stats.str + stats.dex + stats.con || 1;
@@ -37,7 +39,8 @@ const BattleScreen: React.FC = () => {
   };
 
   const currentEnemyId = currentEnemy?.id;
-  const enemyAttackSpeed = currentEnemy?.stats.attackSpeed || 1;
+  const enemyComputed = currentEnemy ? getComputedStats(currentEnemy.stats) : null;
+  const enemyAttackSpeed = enemyComputed?.attackSpeed ?? 1;
 
   useEffect(() => {
     if (gameStatus === 'IDLE') spawnEnemy();
@@ -48,7 +51,7 @@ const BattleScreen: React.FC = () => {
     if (gameStatus === 'BATTLE' && currentEnemyId) {
       playerAttackTimer = window.setInterval(() => {
         attackEnemy();
-      }, 1000 / player.stats.attackSpeed);
+      }, 1000 / computed.attackSpeed);
 
       enemyAttackTimer = window.setInterval(() => {
         attackPlayer();
@@ -59,7 +62,7 @@ const BattleScreen: React.FC = () => {
       clearInterval(playerAttackTimer);
       clearInterval(enemyAttackTimer);
     };
-  }, [gameStatus, currentEnemyId, player.stats.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer]);
+  }, [gameStatus, currentEnemyId, computed.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer]);
 
   useEffect(() => {
     if (gameStatus === 'VICTORY') {
@@ -126,8 +129,14 @@ const BattleScreen: React.FC = () => {
           {/* Player Side */}
           <div className="flex flex-col items-center z-10 p-4 bg-neutral-700/50 rounded-lg border border-neutral-600">
             <div className="mb-4 w-48">
-              <div className="flex justify-between text-xs mb-1"><span>HP</span><span>{Math.max(0, player.currentHealth)} / {player.stats.maxHealth}</span></div>
-              <div className="w-full bg-neutral-700 h-3 rounded-full"><div className="bg-green-500 h-full" style={{ width: `${(player.currentHealth / player.stats.maxHealth) * 100}%` }} /></div>
+              <div className="flex justify-between text-xs mb-1">
+                <span>HP</span>
+                <span>{Math.max(0, player.currentHealth)} / {computed.maxHealth.toFixed(0)}</span>
+              </div>
+              <div className="w-full bg-neutral-700 h-3 rounded-full">
+                <div className="bg-green-500 h-full" style={{ width: `${(player.currentHealth / computed.maxHealth) * 100}%` }} />
+              </div>
+              <div className="w-full bg-neutral-700 h-3 rounded-full"><div className="bg-green-500 h-full" style={{ width: `${(player.currentHealth / computed.maxHealth) * 100}%` }} /></div>
             </div>ㄿ
             <div
                 className="flex items-center justify-center font-bold text-xs border-2 border-white/20 transition-all duration-500"
@@ -142,8 +151,8 @@ const BattleScreen: React.FC = () => {
             {currentEnemy ? (
                 <>
                   <div className="mb-4 w-48">
-                    <div className="flex justify-between text-xs mb-1 text-red-400"><span>HP</span><span>{Math.max(0, currentEnemy.currentHealth)} / {currentEnemy.stats.maxHealth}</span></div>
-                    <div className="w-full bg-neutral-700 h-3 rounded-full"><div className="bg-red-500 h-full" style={{ width: `${(currentEnemy.currentHealth / currentEnemy.stats.maxHealth) * 100}%` }} /></div>
+                    <div className="flex justify-between text-xs mb-1 text-red-400"><span>HP</span><span>{Math.max(0, currentEnemy.currentHealth)} / {enemyComputed?.maxHealth.toFixed(0)}</span></div>
+                    <div className="w-full bg-neutral-700 h-3 rounded-full"><div className="bg-red-500 h-full" style={{ width: `${(currentEnemy.currentHealth / (enemyComputed?.maxHealth || 1)) * 100}%` }} /></div>
                   </div>
                   <div
                       className="flex items-center justify-center font-bold text-xs border-2 border-white/20 transition-all duration-500"
