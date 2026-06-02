@@ -89,7 +89,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         id: `enemy-${state.stage}`, name: isBoss ? `Boss ${state.stage}` : `Box ${state.stage}`,
         level: state.stage, type: isBoss ? 'BOSS' : 'NORMAL',
         stats: { str: baseStr, dex: 10, con: baseCon },
-        currentHealth: baseCon * 10, goldReward: Math.floor(10 * stageMultiplier * (isBoss ? 5 : 1)), expReward: Math.floor(20 * stageMultiplier * (isBoss ? 3 : 1)),
+        currentHealth: getComputedStats({ str: baseStr, dex: 10, con: baseCon }).maxHealth,
+        goldReward: Math.floor(10 * stageMultiplier * (isBoss ? 5 : 1)), expReward: Math.floor(20 * stageMultiplier * (isBoss ? 3 : 1)),
       },
       gameStatus: 'BATTLE',
       battleStartTime: Date.now() // 전투 시작 시간 기록
