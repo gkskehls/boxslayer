@@ -42,7 +42,7 @@ interface GameActions {
   attackEnemy: () => void;
   attackPlayer: () => void;
   levelUp: () => void;
-  distributeStat: (stat: 'str' | 'dex' | 'con') => void;
+  distributeStat: (stat: 'str' | 'dex' | 'con', amount: number) => void;
   resetStats: () => void;
   spawnEnemy: () => void;
   resetGame: () => void;
@@ -144,7 +144,17 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     };
   }),
 
-  distributeStat: (stat) => set((state) => ({ player: { ...state.player, stats: { ...state.player.stats, [stat]: state.player.stats[stat] + 1 }, statPoints: state.player.statPoints - 1 } })),
+  distributeStat: (stat, amount) => set((state) => {
+    const actualAmount = Math.min(amount, state.player.statPoints);
+    if (actualAmount <= 0) return state;
+    return {
+      player: {
+        ...state.player,
+        stats: { ...state.player.stats, [stat]: state.player.stats[stat] + actualAmount },
+        statPoints: state.player.statPoints - actualAmount
+      }
+    };
+  }),
   resetStats: () => set((state) => ({ player: { ...state.player, stats: initialStats, statPoints: (state.player.level - 1) * 3 } })),
   attackPlayer: () => set((state) => {
     // 1. 적이 없으면 공격받지 않음

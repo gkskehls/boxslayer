@@ -11,11 +11,11 @@ const StatsScreen: React.FC = () => {
     }
   };
 
-  const statsConfig = [
-    { key: 'str', label: '힘 (STR)', increase: '+1 (공격력 +2)' },
-    { key: 'dex', label: '민첩 (DEX)', increase: '+1 (공속/회피)' },
-    { key: 'con', label: '체력 (CON)', increase: '+1 (체력 +20)' },
-  ] as const;
+    const statsConfig = [
+        { key: 'str', label: '힘 (STR)', desc: '공격력 +2' },
+        { key: 'dex', label: '민첩 (DEX)', desc: '공속/회피' },
+        { key: 'con', label: '체력 (CON)', desc: '체력 +20' },
+    ] as const;
 
   return (
       <div className="max-w-4xl mx-auto bg-neutral-800 p-6 rounded-xl border border-neutral-700 w-full">
@@ -42,21 +42,27 @@ const StatsScreen: React.FC = () => {
 
         {/* 스탯 투자 버튼 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {statsConfig.map(({ key, label, increase }) => (
-              <div key={key} className="bg-neutral-700 p-4 rounded-lg flex flex-col items-center">
-                <span className="text-lg font-bold mb-1">{label}</span>
-                <span className="text-2xl font-bold mb-3">{player.stats[key]}</span>
-                <button
-                    disabled={player.statPoints <= 0}
-                    onClick={() => distributeStat(key)}
-                    className={`w-full py-2 px-4 rounded-lg font-bold transition-colors shadow-md
-                ${player.statPoints > 0
-                        ? 'bg-green-600 hover:bg-green-500 text-white'
-                        : 'bg-neutral-600 text-neutral-400 cursor-not-allowed'
-                    }`}
-                >
-                  {increase}
-                </button>
+            {statsConfig.map(({ key, label, desc }) => (
+                <div key={key} className="bg-neutral-700 p-4 rounded-lg flex flex-col items-center">
+                    <span className="text-lg font-bold mb-1">{label}</span>
+                    <span className="text-2xl font-bold mb-3">{player.stats[key]}</span>
+                    <span className="text-xs text-neutral-400 mb-2">{desc}</span> {/* 추가됨 */}
+                  <div className="flex gap-1 w-full">
+                      {[1, 10, 100].map((amount) => (
+                          <button
+                              key={amount}
+                              disabled={player.statPoints < amount}
+                              onClick={() => distributeStat(key, amount)}
+                              className={`flex-1 py-2 px-2 rounded-lg font-bold text-sm transition-colors shadow-md
+                                      ${player.statPoints >= amount
+                                  ? 'bg-green-600 hover:bg-green-500 text-white'
+                                  : 'bg-neutral-600 text-neutral-400 cursor-not-allowed'
+                              }`}
+                          >
+                              +{amount}
+                          </button>
+                      ))}
+                  </div>
               </div>
           ))}
         </div>
