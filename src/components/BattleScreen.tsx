@@ -3,6 +3,33 @@
 import React, { useEffect } from 'react';
 import { useGameStore, getComputedStats } from '../store/gameStore';
 
+// 1. 함수 선언 (export 제거, 로직 통합)
+const getDynamicStyle = (stats: { str: number; dex: number; con: number }, compareStats?: { str: number; dex: number; con: number }) => {
+  const { str, dex, con } = stats;
+  // 내 스탯 총합
+  const S = (str || 0) + (dex || 0) + (con || 0) || 1;
+  // 상대 스탯 총합 (없으면 내 스탯과 동일하게 계산)
+  const compareS = compareStats ? ((compareStats.str || 0) + (compareStats.dex || 0) + (compareStats.con || 0) || 1) : S;
+
+  // 색상 계산 (내 스탯 비중)
+  const r = Math.floor((str / S) * 255);
+  const g = Math.floor((dex / S) * 255);
+  const b = Math.floor((con / S) * 255);
+
+  // 크기 계산 (상대 스탯 대비 비율 반영, 40~160px 제한)
+  // ratio가 1보다 크면 커지고, 작으면 작아짐
+  const ratio = S / compareS;
+  const size = Math.max(40, Math.min(160, 80 * Math.sqrt(ratio)));
+
+  return {
+    backgroundColor: `rgb(${r}, ${g}, ${b})`,
+    width: `${size}px`,
+    height: `${size}px`,
+    borderRadius: '8px',
+    transition: 'all 0.5s ease'
+  };
+};
+
 const BattleScreen: React.FC = () => {
   const {
     player,
@@ -18,26 +45,6 @@ const BattleScreen: React.FC = () => {
   } = useGameStore();
 
   const computed = getComputedStats(player.stats);
-
-  const getDynamicStyle = (stats: { str: number; dex: number; con: number }) => {
-    const S = stats.str + stats.dex + stats.con || 1;
-    const baseTotal = 30; // 초기 스탯 총합 기준값
-
-    // 1. 색상 계산 (기존 로직)
-    const rRatio = stats.str / S;
-    const gRatio = stats.dex / S;
-    const bRatio = stats.con / S;
-    const brightness = Math.max(50, Math.min(220, 255 - (S * 0.5)));
-    const backgroundColor = `rgb(${Math.floor(rRatio * brightness)}, ${Math.floor(gRatio * brightness)}, ${Math.floor(bRatio * brightness)})`;
-
-    // 2. [기획 16.3] 크기 계산: 기본 크기(80px) * (스탯 총합^0.5 / 비교 대상 총합^0.5)
-    // Clamp 적용: 너무 커지거나 작아지지 않게 40px ~ 160px 사이로 제한
-    const sizeMultiplier = Math.sqrt(S) / Math.sqrt(baseTotal);
-    const size = Math.max(40, Math.min(160, 80 * sizeMultiplier));
-
-    return { backgroundColor, width: `${size}px`, height: `${size}px` };
-  };
-
   const currentEnemyId = currentEnemy?.id;
   const enemyComputed = currentEnemy ? getComputedStats(currentEnemy.stats) : null;
   const enemyAttackSpeed = enemyComputed?.attackSpeed ?? 1;
@@ -140,7 +147,7 @@ const BattleScreen: React.FC = () => {
             </div>ㄿ
             <div
                 className="flex items-center justify-center font-bold text-xs border-2 border-white/20 transition-all duration-500"
-                style={getDynamicStyle(player.stats)}
+                style={getDynamicStyle(player.stats, currentEnemy?.stats || player.stats)}
             >
               ME
             </div>
@@ -156,9 +163,9 @@ const BattleScreen: React.FC = () => {
                   </div>
                   <div
                       className="flex items-center justify-center font-bold text-xs border-2 border-white/20 transition-all duration-500"
-                      style={getDynamicStyle(currentEnemy.stats)}
+                      style={getDynamicStyle(currentEnemy?.stats || {str: 0, dex: 0, con: 0}, player.stats)}
                   >
-                    {currentEnemy.name}
+                    {currentEnemy?.name || "..."}
                   </div>
                 </>
             ) : (

@@ -26,7 +26,6 @@ function App() {
     attackEnemy,
     attackPlayer,
     // resetGame, // App.tsx에서 직접 사용하지 않으므로 제거
-    calculateOfflineRewards, // 오프라인 보상 계산 액션 임포트
   } = useGameStore();
 
   const [screen, setScreen] = useState<GameScreen>('TITLE_SCREEN');
@@ -80,16 +79,6 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [screen, gameStatus, spawnEnemy]);
-
-  // 오프라인 보상 계산 및 표시
-  useEffect(() => {
-    if (screen === 'TOWN_SCREEN') {
-      const rewards = calculateOfflineRewards();
-      if (rewards.gold > 0 || rewards.exp > 0) {
-        setOfflineRewards(rewards);
-      }
-    }
-  }, [screen, calculateOfflineRewards]);
 
   // 화면 전환 핸들러
   const handleNavigate = (targetScreen: GameScreen) => {

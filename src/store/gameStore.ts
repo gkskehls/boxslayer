@@ -54,6 +54,7 @@ interface GameActions {
   retryCurrentFloor: () => void;
   spendGold: (amount: number) => void;
   removeCore: (coreId: string) => void;
+  canClaimRewards: () => boolean;
 }
 
 const initialStats: Stats = { str: 10, dex: 10, con: 10 };
@@ -217,6 +218,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   }),
   spendGold: (amount) => set((state) => ({ player: { ...state.player, gold: Math.max(0, state.player.gold - amount) } })),
   removeCore: (coreId) => set((state) => ({ playerCores: state.playerCores.filter(c => c.id !== coreId), equippedCore: state.equippedCore?.id === coreId ? null : state.equippedCore })),
+  canClaimRewards: () => (Date.now() - get().lastOnlineTime) >= 60000,
 }));
 
 useGameStore.subscribe((state) => saveStateToLocalStorage(state));
