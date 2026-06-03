@@ -150,12 +150,13 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     // [수정] 스테이지 1에서 적 스탯이 (공 10, 체 20) 수준이 되도록 조정
     // 시작값: 공 10, 체 20
-    const baseStr = 8 + (state.stage * 0.5); // 스테이지당 0.5씩 증가
-    const baseCon = 10 + (state.stage * 2);  // 스테이지당 2씩 증가 (체력 비중 낮춤)
+    const baseStr = 1 + (state.stage * 0.3); // 스테이지당 0.5씩 증가
+    const baseDex = 1 + (state.stage * 0.3); // 스테이지당 0.5씩 증가
+    const baseCon = 1 + (state.stage * 0.3);  // 스테이지당 2씩 증가 (체력 비중 낮춤)
 
     const stats = {
       str: Math.floor(baseStr * bossMultiplier),
-      dex: 10,
+      dex: Math.floor(baseDex * bossMultiplier),
       con: Math.floor(baseCon * bossMultiplier)
     };
 
@@ -208,7 +209,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const playerComputed = getComputedStats(state.player.stats);
       return {
         player: { ...state.player, experience: e, gold: state.player.gold + goldReward, level: l, nextLevelExperience: n, statPoints: s, currentHealth: playerComputed.maxHealth },
-        currentEnemy: null, stage: state.stage + 1, gameStatus: 'VICTORY',
+        currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
+        stage: state.stage + 1,
+        gameStatus: 'VICTORY',
         lastDamageDealt: { normal: normalDamage, core: coreDamage }
       };
     }
