@@ -19,6 +19,15 @@ export interface CoreStats {
   stunDuration?: number;
 }
 
+// 환생 포인트 계산식 (스테이지 + 레벨 + 코어레벨 총합)
+export const calculateReincarnationPoints = (stage: number, level: number, cores: Core[]): number => {
+  const stagePoints = Math.floor(stage / 5); // 5스테이지당 1포인트
+  const levelPoints = Math.floor(level / 10); // 10레벨당 1포인트
+  const corePoints = Math.floor(cores.reduce((sum, core) => sum + core.level, 0) / 10); // 코어 레벨 합산 10당 1포인트
+
+  return Math.max(0, stagePoints + levelPoints + corePoints);
+};
+
 export const getCoreStats = (type: string, level: number): CoreStats => {
   switch (type) {
     case 'FIRE':
@@ -55,6 +64,7 @@ interface GameActions {
   spendGold: (amount: number) => void;
   removeCore: (coreId: string) => void;
   canClaimRewards: () => boolean;
+  reincarnate: () => void;
 }
 
 const initialStats: Stats = { str: 10, dex: 10, con: 10 };
@@ -66,21 +76,73 @@ export const getComputedStats = (stats: Stats) => ({
   attackSpeed: 1.0 + (stats.dex * 0.01),
   evasion: 0.05 + (stats.dex * 0.001)
 });
-const initialPlayer: Player = { id: 'player', name: 'Slayer', level: 1, stats: initialStats, currentHealth: 100, experience: 0, nextLevelExperience: 100, statPoints: 0, gold: 0 };
+// [확인] initialPlayer 정의
+const initialPlayer: Player = {
+  id: 'player',
+  name: 'Slayer',
+  level: 1,
+  stats: initialStats,
+  currentHealth: 100,
+  experience: 0,
+  nextLevelExperience: 100,
+  statPoints: 0,
+  gold: 0 // 확인 완료 (0이어야 합니다)
+};
 
+// [수정] getInitialStoreState 함수에서 reincarnationPoints 초기화
 const getInitialStoreState = (): GameState => {
   const loadedState = loadStateFromLocalStorage();
   if (loadedState) return loadedState;
 
   return {
-    player: initialPlayer, currentEnemy: null, stage: 1, isAutoBattle: true, gameStatus: 'IDLE',
-    playerCores: [], equippedCore: null, lastOnlineTime: Date.now(), lastDamageDealt: { normal: 0, core: 0 },
-    battleStartTime: 0
+    player: initialPlayer,
+    currentEnemy: null,
+    stage: 1,
+    isAutoBattle: true,
+    gameStatus: 'IDLE',
+    playerCores: [],
+    equippedCore: null,
+    lastOnlineTime: Date.now(),
+    lastDamageDealt: { normal: 0, core: 0 },
+    battleStartTime: 0,
+    reincarnationPoints: 0 // [추가] 초기값 0
   };
 };
 
 export const useGameStore = create<GameState & GameActions>((set, get) => ({
   ...getInitialStoreState(),
+
+  reincarnate: () => set((state) => {
+    const pointsEarned = calculateReincarnationPoints(
+        state.stage,
+        state.player.level,
+        [...state.playerCores, ...(state.equippedCore ? [state.equippedCore] : [])]
+    );
+
+    return {
+      // 1. 포인트 누적 및 초기화
+      reincarnationPoints: (state.reincarnationPoints || 0) + pointsEarned,
+
+      // 2. 플레이어 초기화
+      player: {
+        ...initialPlayer,
+        gold: 0 // 골드는 초기화
+      },
+
+      // 3. 게임 상태 초기화
+      stage: 1,
+      currentEnemy: null,
+      gameStatus: 'IDLE',
+
+      // 4. 코어 레벨 초기화 (레벨만 1로 되돌림)
+      playerCores: state.playerCores.map(c => ({ ...c, level: 1 })),
+      equippedCore: state.equippedCore ? { ...state.equippedCore, level: 1 } : null,
+
+      // 5. 기타 상태
+      battleStartTime: 0,
+      lastDamageDealt: { normal: 0, core: 0 }
+    };
+  }),
 
   spawnEnemy: () => set((state) => {
     const stageMultiplier = 1 + (state.stage - 1) * 0.1;

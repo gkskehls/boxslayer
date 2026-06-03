@@ -52,4 +52,5 @@ export interface GameState {
     core: number;
   };
   battleStartTime: number;
+  reincarnationPoints: number; // [추가] 환생 포인트 필드
 }
