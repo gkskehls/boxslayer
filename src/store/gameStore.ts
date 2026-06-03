@@ -72,7 +72,7 @@ const initialStats: Stats = { str: 10, dex: 10, con: 10 };
 export const getComputedStats = (stats: Stats) => ({
   attack: 20 + (stats.str * 2),
   defense: 5 + (stats.dex * 0.5),
-  maxHealth: 100 + (stats.con * 20),
+  maxHealth: 100 + (stats.con * 2),
   attackSpeed: 1.0 + (stats.dex * 0.01),
   evasion: 0.05 + (stats.dex * 0.001)
 });
@@ -145,20 +145,34 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   }),
 
   spawnEnemy: () => set((state) => {
-    const stageMultiplier = 1 + (state.stage - 1) * 0.1;
     const isBoss = state.stage % 5 === 0;
-    const baseStr = Math.floor(10 * stageMultiplier * (isBoss ? 5 : 1));
-    const baseCon = Math.floor(10 * stageMultiplier * (isBoss ? 10 : 1));
+    const bossMultiplier = isBoss ? 2 : 1; // 보스 배율도 약간 낮춤
+
+    // [수정] 스테이지 1에서 적 스탯이 (공 10, 체 20) 수준이 되도록 조정
+    // 시작값: 공 10, 체 20
+    const baseStr = 8 + (state.stage * 0.5); // 스테이지당 0.5씩 증가
+    const baseCon = 10 + (state.stage * 2);  // 스테이지당 2씩 증가 (체력 비중 낮춤)
+
+    const stats = {
+      str: Math.floor(baseStr * bossMultiplier),
+      dex: 10,
+      con: Math.floor(baseCon * bossMultiplier)
+    };
+
     return {
       currentEnemy: {
-        id: `enemy-${state.stage}`, name: isBoss ? `Boss ${state.stage}` : `Box ${state.stage}`,
-        level: state.stage, type: isBoss ? 'BOSS' : 'NORMAL',
-        stats: { str: baseStr, dex: 10, con: baseCon },
-        currentHealth: getComputedStats({ str: baseStr, dex: 10, con: baseCon }).maxHealth,
-        goldReward: Math.floor(10 * stageMultiplier * (isBoss ? 5 : 1)), expReward: Math.floor(20 * stageMultiplier * (isBoss ? 3 : 1)),
+        id: `enemy-${state.stage}`,
+        name: isBoss ? `BOSS ${state.stage}` : `BOX ${state.stage}`,
+        level: state.stage,
+        type: isBoss ? 'BOSS' : 'NORMAL',
+        stats: stats,
+        // 이제 stats.con이 작으므로 체력이 1300이 되지 않음
+        currentHealth: getComputedStats(stats).maxHealth,
+        goldReward: Math.floor((10 + state.stage) * (isBoss ? 2 : 1)),
+        expReward: Math.floor((20 + (state.stage * 2)) * (isBoss ? 2 : 1)),
       },
       gameStatus: 'BATTLE',
-      battleStartTime: Date.now() // 전투 시작 시간 기록
+      battleStartTime: Date.now()
     };
   }),
 
