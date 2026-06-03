@@ -70,10 +70,12 @@ const initialPlayer: Player = { id: 'player', name: 'Slayer', level: 1, stats: i
 
 const getInitialStoreState = (): GameState => {
   const loadedState = loadStateFromLocalStorage();
-  return loadedState || {
+  if (loadedState) return loadedState;
+
+  return {
     player: initialPlayer, currentEnemy: null, stage: 1, isAutoBattle: true, gameStatus: 'IDLE',
     playerCores: [], equippedCore: null, lastOnlineTime: Date.now(), lastDamageDealt: { normal: 0, core: 0 },
-    battleStartTime: 0 // 전투 시작 시간 추가
+    battleStartTime: 0
   };
 };
 
@@ -206,7 +208,24 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     return { playerCores: newInventory, equippedCore: target };
   }),
   unequipCore: () => set((state) => state.equippedCore ? { playerCores: [...state.playerCores, state.equippedCore], equippedCore: null } : {}),
-  calculateOfflineRewards: () => { const s = get(); const b = 1 + (s.stage - 1) * 0.1; const g = Math.floor(10 * b), e = Math.floor(5 * b); set(st => ({ player: { ...st.player, gold: st.player.gold + g, experience: st.player.experience + e }, lastOnlineTime: Date.now() })); return { gold: g, exp: e }; },
+  calculateOfflineRewards: () => {
+    const s = get();
+    // 접속하지 않은 시간만큼 보상을 계산하도록 변경 (분 단위)
+    const diff = Date.now() - s.lastOnlineTime;
+    const minutes = Math.floor(diff / 60000);
+
+    if (minutes < 1) return { gold: 0, exp: 0 };
+
+    const b = 1 + (s.stage - 1) * 0.1;
+    // 경과한 시간(분)만큼 보상 곱하기
+    const g = Math.floor(10 * b * minutes), e = Math.floor(5 * b * minutes);
+
+    set(st => ({
+      player: { ...st.player, gold: st.player.gold + g, experience: st.player.experience + e },
+      lastOnlineTime: Date.now()
+    }));
+    return { gold: g, exp: e };
+  },
   retryCurrentFloor: () => set((state) => {
     const computed = getComputedStats(state.player.stats); // 계산값 가져오기
     return {
