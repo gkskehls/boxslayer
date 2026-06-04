@@ -89,9 +89,16 @@ const BattleScreen: React.FC = () => {
       <div className="max-w-4xl mx-auto p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-6">
 
         {/* 실시간 데미지 및 코어 상태 표시 */}
-        <div className="flex justify-between items-center text-[11px] text-neutral-400 bg-neutral-950 p-3 rounded border border-neutral-800">
-          <div>
-            내: 공 {player.stats.str} / 민 {player.stats.dex} / 체 {player.stats.con}
+        <div className="flex justify-between items-start text-[11px] text-neutral-400 bg-neutral-950 p-3 rounded border border-neutral-800">
+
+          <div className="flex flex-col gap-1">
+            <div className="font-bold text-white">
+              내: 공 {player.stats.str} / 민 {player.stats.dex} / 체 {player.stats.con}
+            </div>
+            <div className="text-[9px] text-neutral-500">
+              ⚔️ {computed.attack.toFixed(1)} | 🛡️ {computed.defense.toFixed(1)} | ❤️ {computed.maxHealth.toFixed(0)}<br/>
+              ⚡ {computed.attackSpeed.toFixed(2)} | 💨 {(computed.evasion * 100).toFixed(1)}%
+            </div>
           </div>
 
           <div className="font-bold text-yellow-400 text-sm flex flex-col items-center">
@@ -112,23 +119,48 @@ const BattleScreen: React.FC = () => {
             </div>
           </div>
 
-          <div>
-            적: 공 {currentEnemy?.stats.str || 0} / 민 {currentEnemy?.stats.dex || 0} / 체 {currentEnemy?.stats.con || 0}
+          <div className="flex flex-col gap-1 text-right">
+            <div className="font-bold text-white">
+              적: 공 {currentEnemy?.stats.str || 0} / 민 {currentEnemy?.stats.dex || 0} / 체 {currentEnemy?.stats.con || 0}
+            </div>
+            {enemyComputed && (
+                <div className="text-[9px] text-neutral-500">
+                  ⚔️ {enemyComputed.attack.toFixed(1)} | 🛡️ {enemyComputed.defense.toFixed(1)} | ❤️ {enemyComputed.maxHealth.toFixed(0)}<br/>
+                  ⚡ {enemyComputed.attackSpeed.toFixed(2)} | 💨 {(enemyComputed.evasion * 100).toFixed(1)}%
+                </div>
+            )}
           </div>
         </div>
 
-        {/* Header Info */}
-        <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="w-full sm:w-auto text-center sm:text-left">
-            <h2 className="text-lg sm:text-xl font-bold text-yellow-500">STAGE {stage}</h2>
-            <p className="text-xs text-neutral-400">Level {player.level}</p>
+        {/* Header Info (모바일 세로모드 최적화) */}
+        <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 flex flex-col gap-2 w-full">
+
+          {/* 1층: 스테이지 & 잔여 스탯 포인트 */}
+          <div className="flex justify-between items-end">
+            <h2 className="text-xl font-bold text-yellow-500 leading-none">STAGE {stage}</h2>
+            {player.statPoints > 0 && (
+                <span className="bg-green-900/40 text-green-400 px-2 py-0.5 rounded text-[10px] font-bold border border-green-700/50 animate-pulse">
+                잔여 스탯: {player.statPoints}
+              </span>
+            )}
           </div>
 
-          <div className="flex-1 w-full sm:mx-8">
-            <div className="w-full bg-neutral-700 h-2 rounded-full overflow-hidden">
-              <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${(player.experience / player.nextLevelExperience) * 100}%` }} />
-            </div>
+          {/* 2층: 레벨 & 경험치 텍스트 */}
+          <div className="flex justify-between items-center mt-1">
+            <span className="text-sm font-bold text-white">Lv. {player.level}</span>
+            <span className="text-[10px] text-neutral-400 font-mono">
+              {Math.floor(player.experience)} / {player.nextLevelExperience} EXP
+            </span>
           </div>
+
+          {/* 3층: 경험치 바 */}
+          <div className="w-full bg-neutral-900 h-2.5 rounded-full overflow-hidden border border-neutral-700">
+            <div
+                className="bg-blue-500 h-full transition-all duration-300"
+                style={{ width: `${Math.min(100, (player.experience / player.nextLevelExperience) * 100)}%` }}
+            />
+          </div>
+
         </div>
 
         {/* Battle Area */}
