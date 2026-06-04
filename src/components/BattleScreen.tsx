@@ -163,51 +163,71 @@ const BattleScreen: React.FC = () => {
 
         </div>
 
-        {/* Battle Area */}
-        <div className="bg-neutral-800/50 rounded-xl p-8 min-h-[400px] flex flex-col sm:flex-row justify-center items-center gap-8 border border-neutral-700 relative">
-          {/* Player Side */}
-          <div className="flex flex-col items-center z-10 p-4 bg-neutral-700/50 rounded-lg border border-neutral-600">
-            <div className="mb-4 w-48">
-              <div className="flex justify-between text-xs mb-1">
-                <span>HP</span>
-                <span>{Math.max(0, player.currentHealth)} / {computed.maxHealth.toFixed(0)}</span>
+        {/* Battle Area (격투 게임 스타일 대치 구조) */}
+        <div className="bg-neutral-800/50 rounded-xl p-6 min-h-[350px] flex flex-col justify-between border border-neutral-700 relative overflow-hidden">
+
+          {/* 1. 상단: 격투 게임 스타일 체력바 영역 */}
+          <div className="flex justify-between items-start w-full gap-4 relative z-10">
+            {/* 플레이어 체력바 (왼쪽) */}
+            <div className="flex-1 flex flex-col">
+              {/* 이름 제거, 숫자만 우측(VS 쪽) 정렬 */}
+              <div className="text-right text-xs mb-1 font-bold text-green-400">
+                {Math.max(0, player.currentHealth)} / {computed.maxHealth.toFixed(0)}
               </div>
-              <div className="w-full bg-neutral-700 h-3 rounded-full">
-                <div className="bg-green-500 h-full" style={{ width: `${(player.currentHealth / computed.maxHealth) * 100}%` }} />
+              <div className="w-full bg-neutral-700 h-3 rounded border border-neutral-600 flex justify-end">
+                <div
+                    className="bg-green-500 h-full transition-all duration-300"
+                    style={{ width: `${(player.currentHealth / computed.maxHealth) * 100}%` }}
+                />
               </div>
-              <div className="w-full bg-neutral-700 h-3 rounded-full"><div className="bg-green-500 h-full" style={{ width: `${(player.currentHealth / computed.maxHealth) * 100}%` }} /></div>
             </div>
+
+            {/* VS 로고 */}
+            <div className="text-2xl font-black text-yellow-500/50 italic pt-2 shrink-0">VS</div>
+
+            {/* 적 체력바 (오른쪽) */}
+            <div className="flex-1 flex flex-col">
+              {/* 이름 제거, 숫자만 좌측(VS 쪽) 정렬 */}
+              <div className="text-left text-xs mb-1 font-bold text-red-400">
+                {Math.max(0, currentEnemy?.currentHealth || 0)} / {enemyComputed?.maxHealth.toFixed(0) || 1}
+              </div>
+              <div className="w-full bg-neutral-700 h-3 rounded border border-neutral-600 flex justify-start">
+                <div
+                    className="bg-red-500 h-full transition-all duration-300"
+                    style={{ width: `${((currentEnemy?.currentHealth || 0) / (enemyComputed?.maxHealth || 1)) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 2. 하단: 캐릭터 박스 대치 영역 */}
+          <div className="flex justify-center items-end gap-8 pb-4 z-10 mt-auto">
+            {/* 플레이어 박스 */}
             <div
-                className="flex items-center justify-center font-bold text-xs border-2 border-white/20 transition-all duration-500"
+                className="flex items-center justify-center font-bold text-xs border-2 border-white/20 transition-all duration-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]"
                 style={getDynamicStyle(player.stats, currentEnemy?.stats || player.stats)}
             >
               ME
             </div>
-          </div>
 
-          {/* Enemy Side */}
-          <div className="flex flex-col items-center z-10 p-4 bg-neutral-700/50 rounded-lg border border-neutral-600">
+            {/* 적 박스 */}
             {currentEnemy ? (
-                <>
-                  <div className="mb-4 w-48">
-                    <div className="flex justify-between text-xs mb-1 text-red-400"><span>HP</span><span>{Math.max(0, currentEnemy.currentHealth)} / {enemyComputed?.maxHealth.toFixed(0)}</span></div>
-                    <div className="w-full bg-neutral-700 h-3 rounded-full"><div className="bg-red-500 h-full" style={{ width: `${(currentEnemy.currentHealth / (enemyComputed?.maxHealth || 1)) * 100}%` }} /></div>
-                  </div>
-                  <div
-                      className="flex items-center justify-center font-bold text-xs border-2 border-white/20 transition-all duration-500"
-                      style={getDynamicStyle(currentEnemy?.stats || {str: 0, dex: 0, con: 0}, player.stats)}
-                  >
-                    {currentEnemy?.name || "..."}
-                  </div>
-                </>
+                <div
+                    className="flex items-center justify-center font-bold text-xs border-2 border-white/20 transition-all duration-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                    style={getDynamicStyle(currentEnemy.stats, player.stats)}
+                >
+                  BOX
+                </div>
             ) : (
-                <div className="h-48 flex items-center text-neutral-500 italic">Waiting...</div>
+                <div className="w-[80px] h-[80px] flex items-center justify-center text-neutral-500 italic">...</div>
             )}
           </div>
 
+          {/* 패배 시 오버레이 */}
           {gameStatus === 'DEFEAT' && (
               <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50">
-                <h2 className="text-4xl font-bold text-red-500">GAME OVER</h2>
+                <h2 className="text-4xl font-bold text-red-500 mb-4 animate-bounce">GAME OVER</h2>
+                <p className="text-neutral-300 text-sm">잠시 후 이전 층으로 돌아갑니다...</p>
               </div>
           )}
         </div>
