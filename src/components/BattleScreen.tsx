@@ -176,7 +176,7 @@ const BattleScreen: React.FC = () => {
                 <div className="bg-green-500 h-full" style={{ width: `${(player.currentHealth / computed.maxHealth) * 100}%` }} />
               </div>
               <div className="w-full bg-neutral-700 h-3 rounded-full"><div className="bg-green-500 h-full" style={{ width: `${(player.currentHealth / computed.maxHealth) * 100}%` }} /></div>
-            </div>ㄿ
+            </div>
             <div
                 className="flex items-center justify-center font-bold text-xs border-2 border-white/20 transition-all duration-500"
                 style={getDynamicStyle(player.stats, currentEnemy?.stats || player.stats)}

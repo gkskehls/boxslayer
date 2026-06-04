@@ -144,21 +144,43 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     };
   }),
 
-  spawnEnemy: () => set((state) => {
-    const isBoss = state.stage % 5 === 0;
-    const bossMultiplier = isBoss ? 2 : 1; // 보스 배율도 약간 낮춤
+    spawnEnemy: () => set((state) => {
+        const isBoss = state.stage % 5 === 0;
 
-    // [수정] 스테이지 1에서 적 스탯이 (공 10, 체 20) 수준이 되도록 조정
-    // 시작값: 공 10, 체 20
-    const baseStr = 1 + (state.stage * 0.3); // 스테이지당 0.5씩 증가
-    const baseDex = 1 + (state.stage * 0.3); // 스테이지당 0.5씩 증가
-    const baseCon = 1 + (state.stage * 0.3);  // 스테이지당 2씩 증가 (체력 비중 낮춤)
+        // 기본이 되는 뼈대 스탯
+        const baseStat = 1 + (state.stage * 0.3);
 
-    const stats = {
-      str: Math.floor(baseStr * bossMultiplier),
-      dex: Math.floor(baseDex * bossMultiplier),
-      con: Math.floor(baseCon * bossMultiplier)
-    };
+        // 층별 가중치 초기화
+        let strMult = 1.0, dexMult = 1.0, conMult = 1.0;
+
+        // 100층 단위 통곡의 벽 (체력 10배 기믹)
+        if (state.stage % 100 === 0) {
+            strMult = 2.0;
+            dexMult = 2.0;
+            conMult = 10.0;
+        } else {
+            // 1~10층 단위 로테이션 테마
+            const stageMod = state.stage % 10;
+            switch (stageMod) {
+                case 1: strMult = 1.0; dexMult = 1.0; conMult = 1.0; break; // 표준
+                case 2: strMult = 1.6; dexMult = 0.7; conMult = 0.7; break; // 힘 특화
+                case 3: strMult = 0.7; dexMult = 1.6; conMult = 0.7; break; // 민첩 특화
+                case 4: strMult = 0.7; dexMult = 0.7; conMult = 1.6; break; // 체력 특화
+                case 5: strMult = 1.5; dexMult = 1.5; conMult = 1.5; break; // 5층 소형 보스
+                case 6: strMult = 1.3; dexMult = 1.3; conMult = 0.4; break; // 힘+민 하이브리드
+                case 7: strMult = 0.4; dexMult = 1.3; conMult = 1.3; break; // 민+체 하이브리드
+                case 8: strMult = 1.3; dexMult = 0.4; conMult = 1.3; break; // 체+힘 하이브리드
+                case 9: strMult = 1.0; dexMult = 1.0; conMult = 1.1; break; // 체력 10% 추가
+                case 0: strMult = 2.0; dexMult = 2.0; conMult = 2.0; break; // 10층 중간 보스
+            }
+        }
+
+        const stats = {
+            // 스탯이 0으로 떨어지지 않게 최소값 1 보장
+            str: Math.max(1, Math.floor(baseStat * strMult)),
+            dex: Math.max(1, Math.floor(baseStat * dexMult)),
+            con: Math.max(1, Math.floor(baseStat * conMult))
+        };
 
     return {
       currentEnemy: {
