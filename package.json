@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "npm run build && firebase deploy"
+    "deploy": "npm version patch --no-git-tag-version && npm run build && firebase deploy"
   },
   "dependencies": {
     "firebase": "^12.13.0",
