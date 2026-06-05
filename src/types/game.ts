@@ -69,6 +69,10 @@ export interface SkillEffects {
   rpBonusMultiplier?: number;
   offlineRewardMultiplier?: number;
   coreBonus?: number;
+  // [신규 추가] 바람 코어 및 특수 기믹용 스탯
+  multiHitRequired?: number; // 연격에 필요한 타격 횟수 (예: 15, 5 등)
+  multiHitDamageBonus?: number; // 연격 데미지 추가 증가율 (%)
+  evasionChanceBonus?: number; // 추가 회피 확률 (%)
 }
 
 export interface SkillNode {
