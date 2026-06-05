@@ -71,10 +71,10 @@ const initialStats: Stats = { str: 10, dex: 10, con: 10 };
 // [추가] 실시간 계산 엔진
 export const getComputedStats = (stats: Stats) => ({
   attack: 20 + (stats.str * 2),
-  defense: 5 + (stats.dex * 0.5),
+  defense: 5 + (stats.con * 0.2), // dex에서 con 영역으로 이관 (CON * 0.2)
   maxHealth: 100 + (stats.con * 2),
   attackSpeed: 1.0 + (stats.dex * 0.01),
-  evasion: 0.05 + (stats.dex * 0.001)
+  evasion: stats.dex // 회피/적중 계산을 위해 원본 dex 값 보존
 });
 // [확인] initialPlayer 정의
 const initialPlayer: Player = {
