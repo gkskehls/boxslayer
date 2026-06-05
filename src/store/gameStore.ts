@@ -58,7 +58,7 @@ interface GameActions {
   acquireCore: (core: Core) => void;
   equipCore: (coreId: string) => void;
   unequipCore: () => void;
-  upgradeCore: (coreId: string, amount?: number) => void;
+  upgradeCore: (amount?: number) => void;
   calculateOfflineRewards: () => { gold: number; exp: number };
   retryCurrentFloor: () => void;
   spendGold: (amount: number) => void;
@@ -134,9 +134,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       currentEnemy: null,
       gameStatus: 'IDLE',
 
-      // 4. 코어 레벨 초기화 (레벨만 1로 되돌림)
-      playerCores: state.playerCores.map(c => ({ ...c, level: 1 })),
-      equippedCore: state.equippedCore ? { ...state.equippedCore, level: 1 } : null,
+      // 4. 코어 초기화: 환생 시 4대 속성 코어를 1레벨 기본 상태로 지급하며 장착 해제
+      playerCores: [
+        { id: `core_fire_${Date.now()}`, name: '불의 코어', type: 'FIRE', level: 1 },
+        { id: `core_water_${Date.now()}`, name: '물의 코어', type: 'WATER', level: 1 },
+        { id: `core_wind_${Date.now()}`, name: '바람의 코어', type: 'WIND', level: 1 },
+        { id: `core_elec_${Date.now()}`, name: '번개의 코어', type: 'ELECTRIC', level: 1 }
+      ],
+      equippedCore: null,
 
       // 5. 기타 상태
       battleStartTime: 0,
@@ -258,23 +263,28 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     };
   }),
 
-  upgradeCore: (coreId: string, amount: number = 1) => set((state) => {
-    const isEquipped = state.equippedCore?.id === coreId;
-    const targetIndex = state.playerCores.findIndex(c => c.id === coreId);
-    const target = isEquipped ? state.equippedCore : state.playerCores[targetIndex];
-    if (!target) return state;
+  // [수정 후]
+  upgradeCore: (amount: number = 1) => set((state) => {
+    // [제약 추가] 장착된 코어만 강화 가능. ID를 받을 필요도 없이 무조건 장착 코어 대상.
+    const target = state.equippedCore;
+    if (!target) {
+      alert("장착된 코어가 없습니다.");
+      return state;
+    }
+
     let totalCost = 0;
     for (let i = 0; i < amount; i++) totalCost += 100 * (target.level + i);
+
     if (state.player.gold < totalCost) {
       state.player.gold += 1000000000; // 테스트용
       alert("골드가 부족합니다.");
       return state;
     }
+
     const upgraded = { ...target, level: target.level + amount };
     return {
       player: { ...state.player, gold: state.player.gold - totalCost },
-      equippedCore: isEquipped ? upgraded : state.equippedCore,
-      playerCores: isEquipped ? state.playerCores : state.playerCores.map(c => c.id === coreId ? upgraded : c)
+      equippedCore: upgraded
     };
   }),
 
@@ -323,13 +333,22 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   levelUp: () => set((state) => ({ player: { ...state.player, level: state.player.level + 1, statPoints: state.player.statPoints + 3 } })),
   resetGame: () => set(getInitialStoreState()),
   acquireCore: (core) => set((state) => ({ playerCores: [...state.playerCores, { ...core, id: `${core.id}_${Date.now()}` }] })),
+// [수정 후]
   equipCore: (coreId) => set((state) => {
+    // [제약 추가] 이미 장착된 코어가 있다면 교체 불가
+    if (state.equippedCore) {
+      alert("이번 회차에서는 이미 코어를 장착했습니다. 코어 교체는 환생 후에만 가능합니다.");
+      return state;
+    }
+
     const target = state.playerCores.find(c => c.id === coreId);
-    if (!target) return {};
+    if (!target) return state;
+
+    // 장착 시 인벤토리에서 해당 코어를 제거하고 장착 슬롯에 올림
     const newInventory = state.playerCores.filter(c => c.id !== coreId);
-    if (state.equippedCore) newInventory.push(state.equippedCore);
     return { playerCores: newInventory, equippedCore: target };
   }),
+  // unequipCore 액션은 시스템 규칙상 영구 삭제
   unequipCore: () => set((state) => state.equippedCore ? { playerCores: [...state.playerCores, state.equippedCore], equippedCore: null } : {}),
   calculateOfflineRewards: () => {
     const s = get();
