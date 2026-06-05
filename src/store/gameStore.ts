@@ -291,26 +291,30 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   }),
   resetStats: () => set((state) => ({ player: { ...state.player, stats: initialStats, statPoints: (state.player.level - 1) * 3 } })),
   attackPlayer: () => set((state) => {
-    // 1. 적이 없으면 공격받지 않음
     if (!state.currentEnemy) return {};
 
-    // 2. 데미지 계산
-// 상단에서 적의 스탯도 계산해야 합니다
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
     const playerComputed = getComputedStats(state.player.stats);
+
+    // [플레이어가 적의 공격을 회피할 확률 계산]
+    const dexDifference = playerComputed.evasion - enemyComputed.evasion;
+    const evasionChance = Math.min(1, Math.max(0, dexDifference / 50));
+
+    if (Math.random() < evasionChance) {
+      return {}; // 플레이어가 적의 공격을 회피함
+    }
+
     const damage = Math.max(1, enemyComputed.attack - playerComputed.defense);
     const nextHealth = Math.max(0, state.player.currentHealth - damage);
 
-    // 3. 체력이 0이 되면 패배 처리
     if (nextHealth <= 0) {
       return {
         player: { ...state.player, currentHealth: 0 },
-        currentEnemy: null,   // 적을 없애야 전투 루프가 멈춤
-        gameStatus: 'DEFEAT'  // 패배 상태로 전환
+        currentEnemy: null,
+        gameStatus: 'DEFEAT'
       };
     }
 
-    // 4. 생존 시 체력만 갱신
     return {
       player: { ...state.player, currentHealth: nextHealth }
     };
