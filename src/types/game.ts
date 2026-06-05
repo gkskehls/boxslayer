@@ -53,8 +53,9 @@ export interface GameState {
   };
   battleStartTime: number;
   reincarnationPoints: number;
-  unlockedSkills: string[];
-  playerShield?: number; // [신규] 물 코어용 쉴드 상태값
+  unlockedSkills: string[];playerShield?: number; // [신규] 물 코어용 쉴드 상태값
+  windHitCount?: number;  // [신규] 바람 코어: 연격 및 회피용 누적 타격 수
+  hasWindEvasion?: boolean; // [신규] 바람 코어: 확정 회피 충전 여부 (true일 때 다음 적 공격 1회 무조건 무시)
 }
 
 export type SkillNodeType = 'NORMAL' | 'NOTABLE' | 'KEYSTONE';

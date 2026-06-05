@@ -252,9 +252,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       },
       gameStatus: 'BATTLE',
       battleStartTime: Date.now(),
-      playerShield: initialShield // [신규] 상태 반환에 추가
+      playerShield: initialShield, // [신규] 상태 반환에 추가
+      windHitCount: 0,             // [신규] 층 이동 시 바람 코어 누적 타격 초기화
+      hasWindEvasion: false        // [신규] 층 이동 시 바람 코어 확정 회피 버프 초기화
     };
-  }),
+    }),
 
   attackEnemy: () => set((state) => {
     if (state.gameStatus !== 'BATTLE' || !state.currentEnemy) return state;
@@ -278,13 +280,17 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let coreDamage = 0;
     let nextShield = state.playerShield || 0; // 현재 쉴드량 가져오기
 
+    // [버그 픽스] 스코프 분리를 위해 바람 코어 상태 변수를 if문 밖으로 빼냅니다.
+    let currentWindHits = state.windHitCount || 0;
+    let nextWindEvasion = state.hasWindEvasion || false;
+
     // [버그 픽스] 공격이 빗나가지 않았을 때만 데미지와 쉴드 회복을 계산합니다.
     if (!isEvaded) {
       // 3. 기본 데미지 계산 (방어력 적용 후 피버 배율 곱함)
       const baseNormalDamage = Math.max(1, playerComputed.attack - enemyComputed.defense);
       normalDamage = baseNormalDamage * hitCount;
 
-      // 4. [신규] 코어 특수 효과 적용 (🔥 불 코어: 방어 무시 트루 데미지)
+      // 4. [신규] 코어 특수 효과 적용
       if (state.equippedCore) {
         const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
 
@@ -304,11 +310,31 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           const regenAmount = Math.floor(playerComputed.maxHealth * (stats.regenRatio || 0));
           const totalRegen = regenAmount * hitCount;
 
-          // [수정됨] 쉴드 최대치 제한(2배) 완전 해제! 타격할 때마다 무한히 누적됩니다.
-          nextShield = nextShield + totalRegen;
+          // 무한 증식 방지를 위해 최대 쉴드량은 최대 체력의 2배까지만 허용
+          nextShield = Math.min(playerComputed.maxHealth * 2, nextShield + totalRegen);
+        }
+        else if (state.equippedCore.type === 'WIND') {
+          // [신규] 바람 코어 연격 및 확정 회피 충전 로직
+          // 내가 유효 타격을 입힐 때마다 피버 모드의 연타 횟수(hitCount)만큼 스택 누적
+          currentWindHits += hitCount;
+
+          // 기획 명세: 15회 타격마다 확정 연격 및 20회 타격마다 확정 회피 충전
+          const comboThreshold = 15;
+          const evasionThreshold = 20;
+
+          if (currentWindHits >= comboThreshold) {
+            // 연격 발동: 내 기본 공격력 만큼의 추가 바람 속성 트루 데미지 가산
+            coreDamage += playerComputed.attack;
+            currentWindHits -= comboThreshold; // 발동 후 스택 소모
+          }
+
+          if (currentWindHits >= evasionThreshold) {
+            // 잔상 생성: 적의 다음 공격을 100% 흘려버리는 무적 버프 활성화
+            nextWindEvasion = true;
+          }
         }
       }
-    }
+    } // <--- [핵심 해결] 여기서 if (!isEvaded) 블록을 반드시 닫아주어야 TypeScript가 혼란에 빠지지 않습니다!!
 
     // 최종 데미지 합산
     const totalDamage = normalDamage + coreDamage;
@@ -345,7 +371,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         stage: state.stage + 1, // 스테이지 1 증가 복구됨!
         gameStatus: 'VICTORY',
         lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage) },
-        playerShield: nextShield
+        playerShield: nextShield,
+        windHitCount: currentWindHits,       // [버그 픽스] 계산된 바람 스택 반환
+        hasWindEvasion: nextWindEvasion      // [버그 픽스] 계산된 확정 회피 반환
       };
     }
 
@@ -353,7 +381,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     return {
       currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
       lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage) },
-      playerShield: nextShield
+      playerShield: nextShield,
+      windHitCount: currentWindHits,       // [버그 픽스] 계산된 바람 스택 반환
+      hasWindEvasion: nextWindEvasion      // [버그 픽스] 계산된 확정 회피 반환
     };
   }),
 
@@ -402,15 +432,23 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
     const playerComputed = getComputedStats(state.player.stats);
 
-    // [플레이어가 적의 공격을 회피할 확률 계산]
-    const dexDifference = playerComputed.evasion - enemyComputed.evasion;
-    const evasionChance = Math.min(1, Math.max(0, dexDifference / 50));
+      // [플레이어가 적의 공격을 회피할 확률 계산]
+      const dexDifference = playerComputed.evasion - enemyComputed.evasion;
+      const evasionChance = Math.min(1, Math.max(0, dexDifference / 50));
 
-    if (Math.random() < evasionChance) {
-      return {}; // 플레이어가 적의 공격을 회피함
-    }
+      // [신규] 바람 코어: 확정 회피(잔상) 버프 체크
+      if (state.equippedCore?.type === 'WIND' && state.hasWindEvasion) {
+        // 적의 데미지를 계산하기도 전에 무조건 회피 처리하고 잔상 버프만 꺼버립니다.
+        return {
+          hasWindEvasion: false
+        };
+      }
 
-    const damage = Math.max(1, enemyComputed.attack - playerComputed.defense);
+      if (Math.random() < evasionChance) {
+        return {}; // 플레이어가 일반 주사위 굴림(DEX 차이)으로 적의 공격을 회피함
+      }
+
+      const damage = Math.max(1, enemyComputed.attack - playerComputed.defense);
     // 1. [신규] 물 코어: 쉴드 방어 로직 (쉴드가 먼저 깎이고, 남은 데미지만 체력 차감)
     let remainingShield = state.playerShield || 0;
     let actualHealthDamage = 0;
