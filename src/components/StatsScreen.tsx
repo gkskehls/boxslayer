@@ -35,12 +35,13 @@ const StatsScreen: React.FC = () => {
         </div>
 
           {/* 현재 능력치 표시 */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 text-sm text-neutral-300">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 text-sm text-neutral-300 text-center md:text-left">
               <div>공격력: {computed.attack.toFixed(0)}</div>
-              <div>방어력: {computed.defense.toFixed(1)}</div> {/* 방어력 수치 추가 */}
+              <div>방어력: {computed.defense.toFixed(1)}</div>
               <div>공속: {computed.attackSpeed.toFixed(2)}</div>
               <div>최대체력: {computed.maxHealth.toFixed(0)}</div>
-              <div>회피율: {(computed.evasion * 100).toFixed(0)}%</div>
+              {/* 회피율(%) 대신 원본 DEX 점수를 보여주어 상대평가임을 명확히 함 */}
+              <div>회피/적중력: {computed.evasion.toFixed(0)}</div>
           </div>
 
         {/* 스탯 투자 버튼 */}
