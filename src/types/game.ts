@@ -54,6 +54,7 @@ export interface GameState {
   battleStartTime: number;
   reincarnationPoints: number;
   unlockedSkills: string[];
+  playerShield?: number; // [신규] 물 코어용 쉴드 상태값
 }
 
 export type SkillNodeType = 'NORMAL' | 'NOTABLE' | 'KEYSTONE';

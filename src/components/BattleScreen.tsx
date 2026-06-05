@@ -33,6 +33,7 @@ const getDynamicStyle = (stats: { str: number; dex: number; con: number }, compa
 const BattleScreen: React.FC = () => {
   const {
     player,
+    playerShield, // [추가됨]
     currentEnemy,
     stage,
     gameStatus,
@@ -169,16 +170,30 @@ const BattleScreen: React.FC = () => {
           {/* 1. 상단: 격투 게임 스타일 체력바 영역 */}
           <div className="flex justify-between items-start w-full gap-4 relative z-10">
             {/* 플레이어 체력바 (왼쪽) */}
+            {/* 2. 플레이어 체력바 (왼쪽) 수정 */}
             <div className="flex-1 flex flex-col">
-              {/* 이름 제거, 숫자만 우측(VS 쪽) 정렬 */}
-              <div className="text-right text-xs mb-1 font-bold text-green-400">
-                {Math.max(0, player.currentHealth)} / {computed.maxHealth.toFixed(0)}
+              <div className="text-right text-xs mb-1 font-bold">
+                {/* 쉴드가 존재하면 체력 숫자 옆에 파란색으로 쉴드량을 표시 */}
+                {(playerShield || 0) > 0 && (
+                    <span className="text-blue-400 mr-2">🛡️ {Math.floor(playerShield || 0)}</span>
+                )}
+                <span className="text-green-400">{Math.max(0, player.currentHealth)} / {computed.maxHealth.toFixed(0)}</span>
               </div>
-              <div className="w-full bg-neutral-700 h-3 rounded border border-neutral-600 flex justify-end">
+              <div className="w-full bg-neutral-700 h-3 rounded border border-neutral-600 flex justify-end relative">
+
+                {/* 기존 체력바 */}
                 <div
                     className="bg-green-500 h-full transition-all duration-300"
                     style={{ width: `${(player.currentHealth / computed.maxHealth) * 100}%` }}
                 />
+
+                {/* 쉴드 오버레이 (체력바 위에 반투명하게 덮임) */}
+                {(playerShield || 0) > 0 && (
+                    <div
+                        className="absolute right-0 top-0 bg-blue-500/60 h-full transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                        style={{ width: `${Math.min(100, ((playerShield || 0) / computed.maxHealth) * 100)}%` }}
+                    />
+                )}
               </div>
             </div>
 

@@ -14,7 +14,11 @@ export interface CoreStats {
   desc: string;
   fireDamage?: number;
   fireDamageRatio?: number;
-  shieldAmount?: number;
+  // [신규] 물 코어용 스탯 추가
+  reflectRatio?: number;
+  regenRatio?: number;
+  initialRatio?: number;
+
   attackSpeedBonus?: number;
   stunChance?: number;
   stunDuration?: number;
@@ -31,14 +35,27 @@ export const calculateReincarnationPoints = (stage: number, level: number, cores
 
 export const getCoreStats = (type: string, level: number): CoreStats => {
   switch (type) {
-    case 'FIRE':
+    case 'FIRE': { // [수정됨] 중괄호 추가
+      const baseFire = 10 + (level * 5);
+      const strRatio = 0.2 + (level * 0.02);
       return {
-        desc: `화속성 데미지: ${Math.floor(10 + (level * 5) + (100 * (0.05 + (level * 0.01))))}`,
-        fireDamage: Math.floor(10 + (level * 5)),
-        fireDamageRatio: 0.05 + (level * 0.01)
+        desc: `방어무시 화염 피해 ${baseFire} + (STR의 ${Math.floor(strRatio * 100)}%)`,
+        fireDamage: baseFire,
+        fireDamageRatio: strRatio
       };
-    case 'WATER':
-      return { desc: `보호막: ${5 + (level * 2)}`, shieldAmount: 5 + (level * 2) };
+    }
+    case 'WATER': { // [수정됨] 중괄호 추가
+      // [신규] 물 코어 기믹: 최대 체력(CON) 기반 비율 산정
+      const initialRatio = 0.5 + (level * 0.1); // 시작 쉴드 50%~
+      const regenRatio = 0.01 + (level * 0.002); // 타격 쉴드 회복 1%~
+      const reflectRatio = 0.1 + (level * 0.02); // 반사 데미지 10%~
+      return {
+        desc: `시작 쉴드 ${Math.floor(initialRatio * 100)}% / 타격 회복 ${Math.floor(regenRatio * 100)}% / 데미지 반사 ${Math.floor(reflectRatio * 100)}%`,
+        initialRatio,
+        regenRatio,
+        reflectRatio
+      };
+    }
     case 'WIND':
       return { desc: `공격 속도 +${(0.1 + (level * 0.02)).toFixed(2)}`, attackSpeedBonus: 0.1 + (level * 0.02) };
     case 'ELECTRIC':
@@ -214,6 +231,13 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
             con: Math.max(1, Math.floor(baseStat * conMult))
         };
 
+// [신규] 전투 시작 시 물 코어 쉴드 대량 생성 로직
+      let initialShield = 0;
+      if (state.equippedCore?.type === 'WATER') {
+        const waterStats = getCoreStats('WATER', state.equippedCore.level);
+        const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills);
+        initialShield = Math.floor(playerComputed.maxHealth * (waterStats.initialRatio || 0));
+      }
     return {
       currentEnemy: {
         id: `enemy-${state.stage}`,
@@ -227,66 +251,109 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         expReward: Math.floor((20 + (state.stage * 2)) * (isBoss ? 2 : 1)),
       },
       gameStatus: 'BATTLE',
-      battleStartTime: Date.now()
+      battleStartTime: Date.now(),
+      playerShield: initialShield // [신규] 상태 반환에 추가
     };
   }),
 
   attackEnemy: () => set((state) => {
-    if (!state.currentEnemy) return {};
+    if (state.gameStatus !== 'BATTLE' || !state.currentEnemy) return state;
 
     const playerComputed = getComputedStats(state.player.stats);
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
 
-    // [DEX 차이에 따른 회피 및 적중 로직]
-    // 공식: 회피율(%) = (상대 DEX - 내 DEX) / 50. 차이가 50 이상이면 100% 강제 회피.
+// 1. 회피 판정 (상대 DEX와 내 DEX의 차이 기반)
     const dexDifference = enemyComputed.evasion - playerComputed.evasion;
     const evasionChance = Math.min(1, Math.max(0, dexDifference / 50));
 
-    if (Math.random() < evasionChance) {
-      // 회피 발생 시 데미지 0 처리 및 즉시 반환
-      return {
-        lastDamageDealt: { normal: 0, core: 0 }
-      };
-    }
+    // [버그 픽스] 무조건 early return 하지 않고 변수에만 저장해둡니다.
+    const isEvaded = Math.random() < evasionChance;
 
-    // [피버 모드] 데미지 증폭이 아닌 '연타(Hit Count)' 개념으로 최종 데미지에 곱함
+    // 2. [복구됨] 피버 모드: 시간에 따른 연타(Hit Count) 배율 계산
     const elapsedTime = Date.now() - (state.battleStartTime || Date.now());
     const config = BATTLE_SPEED_CONFIG.slice().reverse().find(c => elapsedTime >= c.threshold) || BATTLE_SPEED_CONFIG[0];
     const hitCount = config.multiplier;
 
-    // 방어력을 먼저 뺀 순수 데미지에 연타 횟수를 곱함 (방어력 가치 보존)
-    const baseNormalDamage = Math.max(1, playerComputed.attack - enemyComputed.defense);
-    const normalDamage = baseNormalDamage * hitCount;
-
+    let normalDamage = 0;
     let coreDamage = 0;
-    if (state.equippedCore) {
-      const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
-      if (state.equippedCore.type === 'FIRE') {
-        // 불 코어의 고정 화속성 데미지도 연타 횟수만큼 적용 (방어력 무시 및 회피 불가 판정)
-        const baseCoreDamage = (stats.fireDamage || 0) + Math.floor(playerComputed.attack * (stats.fireDamageRatio || 0));
-        coreDamage = baseCoreDamage * hitCount;
+    let nextShield = state.playerShield || 0; // 현재 쉴드량 가져오기
+
+    // [버그 픽스] 공격이 빗나가지 않았을 때만 데미지와 쉴드 회복을 계산합니다.
+    if (!isEvaded) {
+      // 3. 기본 데미지 계산 (방어력 적용 후 피버 배율 곱함)
+      const baseNormalDamage = Math.max(1, playerComputed.attack - enemyComputed.defense);
+      normalDamage = baseNormalDamage * hitCount;
+
+      // 4. [신규] 코어 특수 효과 적용 (🔥 불 코어: 방어 무시 트루 데미지)
+      if (state.equippedCore) {
+        const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
+
+        if (state.equippedCore.type === 'FIRE') {
+          // 내 힘(STR) 가져와서 비율만큼 보너스 데미지 계산
+          const myStr = state.player.stats.str;
+          const strBonusDamage = myStr * (stats.fireDamageRatio || 0);
+
+          // 고정 데미지 + 보너스 데미지 (적 방어력을 1도 빼지 않음)
+          const baseCoreDamage = (stats.fireDamage || 0) + strBonusDamage;
+
+          // 방어 무시 데미지에도 피버 모드(hitCount) 배율 적용
+          coreDamage = Math.floor(baseCoreDamage * hitCount);
+        }
+        else if (state.equippedCore.type === 'WATER') {
+          // [신규] 타격 시 최대 체력 비례 쉴드 회복 (피버 모드 시 폭발적으로 회복!)
+          const regenAmount = Math.floor(playerComputed.maxHealth * (stats.regenRatio || 0));
+          const totalRegen = regenAmount * hitCount;
+
+          // [수정됨] 쉴드 최대치 제한(2배) 완전 해제! 타격할 때마다 무한히 누적됩니다.
+          nextShield = nextShield + totalRegen;
+        }
       }
     }
 
+    // 최종 데미지 합산
     const totalDamage = normalDamage + coreDamage;
     const newEnemyHealth = state.currentEnemy.currentHealth - totalDamage;
+    // (이후 if (newEnemyHealth <= 0) 코드는 그대로 둡니다. 회피했어도 반사뎀에 죽었으면 여기서 승리 처리됨!)
 
+    // 5. [복구됨] 체력 차감, 처치 보상 및 스테이지 증가 처리
     if (newEnemyHealth <= 0) {
       const { expReward, goldReward } = state.currentEnemy;
-      let { experience: e, level: l, nextLevelExperience: n, statPoints: s } = state.player;
-      e += expReward;
-      if (e >= n) { l += 1; e -= n; n = Math.floor(n * 1.2); s += 3; }
+
+      let newExp = state.player.experience + expReward;
+      let newLevel = state.player.level;
+      let newNextExp = state.player.nextLevelExperience;
+      let statPointsGained = 0;
+
+      while (newExp >= newNextExp) {
+        newExp -= newNextExp;
+        newLevel++;
+        newNextExp = Math.floor(newNextExp * 1.5);
+        statPointsGained += 3;
+      }
+
       return {
-        player: { ...state.player, experience: e, gold: state.player.gold + goldReward, level: l, nextLevelExperience: n, statPoints: s, currentHealth: playerComputed.maxHealth },
-        currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
-        stage: state.stage + 1,
+        currentEnemy: { ...state.currentEnemy, currentHealth: 0 },
+        player: {
+          ...state.player,
+          experience: newExp,
+          level: newLevel,
+          nextLevelExperience: newNextExp,
+          statPoints: state.player.statPoints + statPointsGained,
+          gold: state.player.gold + goldReward,
+          currentHealth: playerComputed.maxHealth // 처치 시 체력 회복
+        },
+        stage: state.stage + 1, // 스테이지 1 증가 복구됨!
         gameStatus: 'VICTORY',
-        lastDamageDealt: { normal: normalDamage, core: coreDamage }
+        lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage) },
+        playerShield: nextShield
       };
     }
+
+    // 적이 살아있을 경우
     return {
       currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
-      lastDamageDealt: { normal: normalDamage, core: coreDamage }
+      lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage) },
+      playerShield: nextShield
     };
   }),
 
@@ -327,8 +394,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     };
   }),
   resetStats: () => set((state) => ({ player: { ...state.player, stats: initialStats, statPoints: (state.player.level - 1) * 3 } })),
+
   attackPlayer: () => set((state) => {
-    if (!state.currentEnemy) return {};
+    // [버그 픽스] 전투 중이 아닐 때(예: 이미 전투가 끝났을 때) 적이 마지막 발악을 하는 것을 원천 차단
+    if (state.gameStatus !== 'BATTLE' || !state.currentEnemy) return state;
 
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
     const playerComputed = getComputedStats(state.player.stats);
@@ -342,18 +411,48 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     const damage = Math.max(1, enemyComputed.attack - playerComputed.defense);
-    const nextHealth = Math.max(0, state.player.currentHealth - damage);
+    // 1. [신규] 물 코어: 쉴드 방어 로직 (쉴드가 먼저 깎이고, 남은 데미지만 체력 차감)
+    let remainingShield = state.playerShield || 0;
+    let actualHealthDamage = 0;
+
+    if (remainingShield >= damage) {
+      remainingShield -= damage; // 쉴드로 100% 방어 성공
+    } else {
+      actualHealthDamage = damage - remainingShield; // 쉴드 파괴 후 본체 타격
+      remainingShield = 0;
+    }
+
+    // [버그 픽스] 원본 damage가 아니라 쉴드가 막아주고 남은 actualHealthDamage만 뺍니다!
+    const nextHealth = Math.max(0, state.player.currentHealth - actualHealthDamage);
+
+    // 2. [신규] 물 코어: 가시 방패 (데미지 반사) 로직
+    // (미사용 더미 변수 enemyDamageTaken 삭제 완료)
+    let enemyNextHealth = state.currentEnemy.currentHealth;
+
+    if (state.equippedCore?.type === 'WATER') {
+      const stats = getCoreStats('WATER', state.equippedCore.level);
+      // 적이 나에게 입힌 원본 데미지(damage)를 기준으로 비율만큼 반사
+      const reflectDmg = Math.floor(damage * (stats.reflectRatio || 0));
+
+      if (reflectDmg > 0) {
+        // 반사 데미지로 인해 적의 체력이 깎임
+        enemyNextHealth = Math.max(0, enemyNextHealth - reflectDmg);
+      }
+    }
 
     if (nextHealth <= 0) {
       return {
         player: { ...state.player, currentHealth: 0 },
+        playerShield: 0,
         currentEnemy: null,
         gameStatus: 'DEFEAT'
       };
     }
 
     return {
-      player: { ...state.player, currentHealth: nextHealth }
+      player: { ...state.player, currentHealth: nextHealth },
+      playerShield: remainingShield,
+      currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth }
     };
   }),
 
