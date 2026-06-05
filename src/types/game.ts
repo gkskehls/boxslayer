@@ -52,5 +52,31 @@ export interface GameState {
     core: number;
   };
   battleStartTime: number;
-  reincarnationPoints: number; // [추가] 환생 포인트 필드
+  reincarnationPoints: number;
+  unlockedSkills: string[];
+}
+
+export type SkillNodeType = 'NORMAL' | 'NOTABLE' | 'KEYSTONE';
+
+export interface SkillEffects {
+  str?: number;
+  dex?: number;
+  con?: number;
+  goldMultiplier?: number;
+  expMultiplier?: number;
+  feverMultiplier?: number;
+  startStageBonus?: number;
+  rpBonusMultiplier?: number;
+  offlineRewardMultiplier?: number;
+  coreBonus?: number;
+}
+
+export interface SkillNode {
+  id: string;
+  name: string;
+  description: string;
+  type: SkillNodeType;
+  cost: number;
+  requires: string[];
+  effects: SkillEffects;
 }

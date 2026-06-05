@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { GameState, Player, Stats, Core } from '../types/game';
 import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage';
+import { SKILL_TREE_DATA } from '../constants/skills';
 
 // [피버 모드 설정] 5초 단위 가속 배율
 const BATTLE_SPEED_CONFIG = [
@@ -65,17 +66,32 @@ interface GameActions {
   removeCore: (coreId: string) => void;
   canClaimRewards: () => boolean;
   reincarnate: () => void;
+  unlockSkill: (skillId: string) => void;
 }
 
 const initialStats: Stats = { str: 10, dex: 10, con: 10 };
 // [추가] 실시간 계산 엔진
-export const getComputedStats = (stats: Stats) => ({
-  attack: 20 + (stats.str * 2),
-  defense: 5 + (stats.con * 0.2), // dex에서 con 영역으로 이관 (CON * 0.2)
-  maxHealth: 100 + (stats.con * 2),
-  attackSpeed: 1.0 + (stats.dex * 0.01),
-  evasion: stats.dex // 회피/적중 계산을 위해 원본 dex 값 보존
-});
+export const getComputedStats = (stats: Stats, unlockedSkills: string[] = []) => {
+  const finalStats = { ...stats };
+
+  unlockedSkills.forEach(skillId => {
+    const skill = SKILL_TREE_DATA[skillId];
+    if (skill && skill.effects) {
+      if (skill.effects.str) finalStats.str += skill.effects.str;
+      if (skill.effects.dex) finalStats.dex += skill.effects.dex;
+      if (skill.effects.con) finalStats.con += skill.effects.con;
+    }
+  });
+
+  return {
+    attack: 20 + (finalStats.str * 2),
+    defense: 5 + (finalStats.con * 0.2),
+    maxHealth: 100 + (finalStats.con * 2),
+    attackSpeed: 1.0 + (finalStats.dex * 0.01),
+    evasion: finalStats.dex
+  };
+};
+
 // [확인] initialPlayer 정의
 const initialPlayer: Player = {
   id: 'player',
@@ -89,7 +105,7 @@ const initialPlayer: Player = {
   gold: 0 // 확인 완료 (0이어야 합니다)
 };
 
-// [수정] getInitialStoreState 함수에서 reincarnationPoints 초기화
+// [수정] getInitialStoreState 함수에서 reincarnationPoints 및 unlockedSkills 초기화
 const getInitialStoreState = (): GameState => {
   const loadedState = loadStateFromLocalStorage();
   if (loadedState) return loadedState;
@@ -105,7 +121,8 @@ const getInitialStoreState = (): GameState => {
     lastOnlineTime: Date.now(),
     lastDamageDealt: { normal: 0, core: 0 },
     battleStartTime: 0,
-    reincarnationPoints: 0 // [추가] 초기값 0
+    reincarnationPoints: 0,
+    unlockedSkills: ['core_origin']
   };
 };
 
@@ -380,6 +397,31 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   spendGold: (amount) => set((state) => ({ player: { ...state.player, gold: Math.max(0, state.player.gold - amount) } })),
   removeCore: (coreId) => set((state) => ({ playerCores: state.playerCores.filter(c => c.id !== coreId), equippedCore: state.equippedCore?.id === coreId ? null : state.equippedCore })),
   canClaimRewards: () => (Date.now() - get().lastOnlineTime) >= 60000,
+  unlockSkill: (skillId) => set((state) => {
+    const skill = SKILL_TREE_DATA[skillId];
+    if (!skill) return state;
+
+    if (state.unlockedSkills.includes(skillId)) {
+      alert("이미 해금한 스킬입니다.");
+      return state;
+    }
+
+    if (state.reincarnationPoints < skill.cost) {
+      alert("환생 포인트(RP)가 부족합니다.");
+      return state;
+    }
+
+    const hasPrerequisites = skill.requires.every(reqId => state.unlockedSkills.includes(reqId));
+    if (!hasPrerequisites) {
+      alert("먼저 연결된 선행 스킬을 해금해야 합니다.");
+      return state;
+    }
+
+    return {
+      reincarnationPoints: state.reincarnationPoints - skill.cost,
+      unlockedSkills: [...state.unlockedSkills, skillId]
+    };
+  }),
 }));
 
 useGameStore.subscribe((state) => saveStateToLocalStorage(state));
