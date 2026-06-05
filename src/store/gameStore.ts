@@ -202,21 +202,37 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   attackEnemy: () => set((state) => {
     if (!state.currentEnemy) return {};
 
-    // [피버 모드] 경과 시간 및 배율 계산
-    const elapsedTime = Date.now() - (state.battleStartTime || Date.now());
-    const config = BATTLE_SPEED_CONFIG.slice().reverse().find(c => elapsedTime >= c.threshold) || BATTLE_SPEED_CONFIG[0];
-    const multiplier = config.multiplier;
-
-    // 공격력 계산 (배율 적용)
     const playerComputed = getComputedStats(state.player.stats);
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
-    const normalDamage = Math.max(1, (playerComputed.attack - enemyComputed.defense) * multiplier);
+
+    // [DEX 차이에 따른 회피 및 적중 로직]
+    // 공식: 회피율(%) = (상대 DEX - 내 DEX) / 50. 차이가 50 이상이면 100% 강제 회피.
+    const dexDifference = enemyComputed.evasion - playerComputed.evasion;
+    const evasionChance = Math.min(1, Math.max(0, dexDifference / 50));
+
+    if (Math.random() < evasionChance) {
+      // 회피 발생 시 데미지 0 처리 및 즉시 반환
+      return {
+        lastDamageDealt: { normal: 0, core: 0 }
+      };
+    }
+
+    // [피버 모드] 데미지 증폭이 아닌 '연타(Hit Count)' 개념으로 최종 데미지에 곱함
+    const elapsedTime = Date.now() - (state.battleStartTime || Date.now());
+    const config = BATTLE_SPEED_CONFIG.slice().reverse().find(c => elapsedTime >= c.threshold) || BATTLE_SPEED_CONFIG[0];
+    const hitCount = config.multiplier;
+
+    // 방어력을 먼저 뺀 순수 데미지에 연타 횟수를 곱함 (방어력 가치 보존)
+    const baseNormalDamage = Math.max(1, playerComputed.attack - enemyComputed.defense);
+    const normalDamage = baseNormalDamage * hitCount;
 
     let coreDamage = 0;
     if (state.equippedCore) {
       const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
       if (state.equippedCore.type === 'FIRE') {
-        coreDamage = ((stats.fireDamage || 0) + Math.floor(playerComputed.attack * (stats.fireDamageRatio || 0))) * multiplier;
+        // 불 코어의 고정 화속성 데미지도 연타 횟수만큼 적용 (방어력 무시 및 회피 불가 판정)
+        const baseCoreDamage = (stats.fireDamage || 0) + Math.floor(playerComputed.attack * (stats.fireDamageRatio || 0));
+        coreDamage = baseCoreDamage * hitCount;
       }
     }
 
@@ -228,7 +244,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       let { experience: e, level: l, nextLevelExperience: n, statPoints: s } = state.player;
       e += expReward;
       if (e >= n) { l += 1; e -= n; n = Math.floor(n * 1.2); s += 3; }
-      const playerComputed = getComputedStats(state.player.stats);
       return {
         player: { ...state.player, experience: e, gold: state.player.gold + goldReward, level: l, nextLevelExperience: n, statPoints: s, currentHealth: playerComputed.maxHealth },
         currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
@@ -237,7 +252,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         lastDamageDealt: { normal: normalDamage, core: coreDamage }
       };
     }
-    return { currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth }, lastDamageDealt: { normal: normalDamage, core: coreDamage } };
+    return {
+      currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
+      lastDamageDealt: { normal: normalDamage, core: coreDamage }
+    };
   }),
 
   upgradeCore: (coreId: string, amount: number = 1) => set((state) => {
