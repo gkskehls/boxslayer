@@ -16,7 +16,7 @@ const StatsScreen: React.FC = () => {
     const statsConfig = [
         { key: 'str', label: '힘 (STR)', desc: '공격력 +2' },
         { key: 'dex', label: '민첩 (DEX)', desc: '공속/회피' },
-        { key: 'con', label: '체력 (CON)', desc: '체력 +20' },
+        { key: 'con', label: '체력 (CON)', desc: '체력 +2 / 방어 +0.2' }, // 체력 증가량 수정 및 방어력 명시
     ] as const;
 
   return (
@@ -34,9 +34,10 @@ const StatsScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* 현재 능력치 표시 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-sm text-neutral-300">
+          {/* 현재 능력치 표시 */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 text-sm text-neutral-300">
               <div>공격력: {computed.attack.toFixed(0)}</div>
+              <div>방어력: {computed.defense.toFixed(1)}</div> {/* 방어력 수치 추가 */}
               <div>공속: {computed.attackSpeed.toFixed(2)}</div>
               <div>최대체력: {computed.maxHealth.toFixed(0)}</div>
               <div>회피율: {(computed.evasion * 100).toFixed(0)}%</div>
