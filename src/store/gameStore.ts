@@ -183,7 +183,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         { id: `core_fire_${Date.now()}`, name: '불의 코어', type: 'FIRE', level: 1 },
         { id: `core_water_${Date.now()}`, name: '물의 코어', type: 'WATER', level: 1 },
         { id: `core_wind_${Date.now()}`, name: '바람의 코어', type: 'WIND', level: 1 },
-        { id: `core_elec_${Date.now()}`, name: '번개의 코어', type: 'ELECTRIC', level: 1 }
+        { id: `core_elec_${Date.now()}`, name: '번개의 코어(미구현)', type: 'ELECTRIC', level: 1 }
       ],
       equippedCore: null,
 

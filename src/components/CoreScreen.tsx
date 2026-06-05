@@ -73,7 +73,7 @@ const CoreScreen: React.FC = () => {
                            setIsEquippedSelected(false);
                          }
                        }}>
-                    <span className="font-bold text-[10px] mb-1">{core.name.substring(0, 2)}</span>
+                    <span className="font-bold text-[10px] mb-1">{core.name}</span>
                     <span className="font-bold text-[14px]">Lv.{core.level}</span>
                   </div>
               );
