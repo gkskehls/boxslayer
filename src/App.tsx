@@ -9,9 +9,10 @@ import TownScreen from './components/TownScreen';
 import NavigationBar from './components/NavigationBar'; // NavigationBar 임포트
 import CoreScreen from './components/CoreScreen'; // CoreScreen 임포트
 import Shop from './components/Shop'; // Shop 컴포넌트 임포트
+import SkillTreeScreen from './components/SkillTreeScreen'; // [추가] 스킬 트리 화면 임포트
 
-// 화면 상태를 정의합니다.
-type GameScreen = 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN' | 'TOWN_SCREEN' | 'BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN';
+// 화면 상태를 정의합니다. (SKILL_TREE_SCREEN 추가)
+type GameScreen = 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN' | 'TOWN_SCREEN' | 'BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN';
 type NavigableScreen = Exclude<GameScreen, 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN'>; // NavigationBar에서 이동 가능한 화면 타입
 
 // package.json의 버전을 가져옵니다.
@@ -174,6 +175,10 @@ function App() {
 
         {screen === 'SHOP_SCREEN' && (
             <Shop /> 
+        )}
+
+        {screen === 'SKILL_TREE_SCREEN' && (
+            <SkillTreeScreen />
         )}
 
         {/* Version Display */}

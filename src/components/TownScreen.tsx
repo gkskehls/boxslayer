@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useGameStore, calculateReincarnationPoints } from '../store/gameStore';
 
+// [수정됨] SKILL_TREE_SCREEN 타입 추가
 interface TownScreenProps {
-    onNavigate: (screen: 'BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN') => void;
+    onNavigate: (screen: 'BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN') => void;
 }
 
 const TownScreen: React.FC<TownScreenProps> = ({ onNavigate }) => {
@@ -104,11 +105,19 @@ const TownScreen: React.FC<TownScreenProps> = ({ onNavigate }) => {
                         <span className="text-sm font-bold text-yellow-500">교역소 (상점)</span>
                     </button>
 
-                    {/* [환생] 환생의 제단 (기존 최상단 박스를 여기로 편입) */}
+                    {/* [추가됨] 스킬 트리 (특성 기원석) 진입 버튼 */}
+                    <button
+                        onClick={() => onNavigate('SKILL_TREE_SCREEN')}
+                        className="py-5 bg-indigo-950/30 border-2 border-indigo-800/50 rounded-xl flex flex-col items-center justify-center gap-1 active:scale-95 transition-all"
+                    >
+                        <span className="text-2xl">🌌</span>
+                        <span className="text-sm font-bold text-indigo-400">특성 기원석 (스킬)</span>
+                    </button>
+
                     <button
                         onClick={handleReincarnate}
                         disabled={points === 0}
-                        className={`py-5 border-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+                        className={`py-5 border-2 rounded-xl flex flex-col items-center justify-center gap-1 transition-all col-span-2 ${
                             points > 0
                                 ? 'bg-purple-950/40 border-purple-700/50 active:scale-95 shadow-[0_4px_10px_rgba(168,85,247,0.1)]'
                                 : 'bg-neutral-900 border-neutral-800/50 cursor-not-allowed opacity-60'

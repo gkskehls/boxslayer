@@ -105,11 +105,21 @@ const initialPlayer: Player = {
   gold: 0 // 확인 완료 (0이어야 합니다)
 };
 
-// [수정] getInitialStoreState 함수에서 reincarnationPoints 및 unlockedSkills 초기화
+// [수정된 블록: 세이브 파일 마이그레이션 로직 추가]
 const getInitialStoreState = (): GameState => {
   const loadedState = loadStateFromLocalStorage();
-  if (loadedState) return loadedState;
 
+  // 기존 세이브 파일이 있을 경우
+  if (loadedState) {
+    return {
+      ...loadedState,
+      // 예전 세이브 파일에 스킬 데이터나 RP가 없으면 기본값으로 덮어씀
+      reincarnationPoints: loadedState.reincarnationPoints || 0,
+      unlockedSkills: loadedState.unlockedSkills || ['core_origin']
+    };
+  }
+
+  // 세이브 파일이 없는 완전 뉴비일 경우
   return {
     player: initialPlayer,
     currentEnemy: null,
