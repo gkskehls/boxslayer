@@ -310,8 +310,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           const regenAmount = Math.floor(playerComputed.maxHealth * (stats.regenRatio || 0));
           const totalRegen = regenAmount * hitCount;
 
-          // 무한 증식 방지를 위해 최대 쉴드량은 최대 체력의 2배까지만 허용
-          nextShield = Math.min(playerComputed.maxHealth * 2, nextShield + totalRegen);
+          // 무한 증식 방지를 위해 최대 쉴드량은 최대 체력의 20000배까지만 허용
+          nextShield = Math.min(playerComputed.maxHealth * 20000, nextShield + totalRegen);
         }
         else if (state.equippedCore.type === 'WIND') {
           // [신규] 바람 코어 연격 및 확정 회피 충전 로직
