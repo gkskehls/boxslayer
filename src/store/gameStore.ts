@@ -266,7 +266,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let totalCost = 0;
     for (let i = 0; i < amount; i++) totalCost += 100 * (target.level + i);
     if (state.player.gold < totalCost) {
-      state.player.gold += 100000000;
+      state.player.gold += 1000000000; // 테스트용
       alert("골드가 부족합니다.");
       return state;
     }
