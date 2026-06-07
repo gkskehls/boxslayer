@@ -3,64 +3,79 @@ import { useGameStore } from '../store/gameStore';
 import { SKILL_TREE_DATA } from '../constants/skills';
 import type { SkillNode } from '../types/game';
 
-// 거대한 캔버스 내부에서의 노드 좌표 (가로 1500px, 세로 1500px 기준 퍼센트)
-const NODE_POSITIONS: Record<string, { x: number; y: number }> = {
-    // ==========================================
-    // [중앙 시작점]
-    // ==========================================
-    'core_origin': { x: 50, y: 50 },
+// [신규] 스킬 트리의 연결 관계(requires)를 분석하여 방사형(Radial)으로 자동 배치하는 엔진
+const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
+    const positions: Record<string, { x: number; y: number }> = {};
+    const angles: Record<string, number> = {};
+    const depths: Record<string, number> = {};
 
-    // ==========================================
-    // 상/하/우 기본 유틸 (기존 데이터 유지)
-    // ==========================================
-    'util_fever_1': { x: 50, y: 40 },
-    'util_core_1': { x: 50, y: 60 },
-    'stat_str_1': { x: 55, y: 45 },
-    'util_idle_1': { x: 60, y: 50 },
-    'util_reincarnate_1': { x: 70, y: 50 },
+    // 1. 깊이(Depth) 계산: 중심점(core_origin)에서 몇 칸 떨어져 있는지 파악
+    const calcDepth = (id: string): number => {
+        if (depths[id] !== undefined) return depths[id];
+        if (!nodes[id] || nodes[id].requires.length === 0) {
+            depths[id] = 0;
+            return 0;
+        }
+        // 부모 노드들 중 가장 깊은 곳을 기준으로 +1
+        depths[id] = Math.max(...nodes[id].requires.map(calcDepth)) + 1;
+        return depths[id];
+    };
+    Object.keys(nodes).forEach(calcDepth);
 
-    // ==========================================
-    // [좌측 상단] 불(Fire) 속성 트리 (STR 특화)
-    // ==========================================
-    'fire_str_1': { x: 45, y: 45 },
-    'fire_str_2': { x: 40, y: 40 },
-    'fire_notable_1': { x: 35, y: 35 },
-    'fire_branch_dmg': { x: 30, y: 30 },
-    'fire_branch_pen': { x: 30, y: 40 },
-    'fire_keystone_1': { x: 20, y: 35 },
+    // 2. 1티어 노드(중앙에서 바로 뻗어나온 가지)들에게 360도를 N등분하여 기본 각도 배정
+    const originChildren = Object.keys(nodes).filter(id => depths[id] === 1);
+    originChildren.forEach((id, index) => {
+        angles[id] = (360 / originChildren.length) * index;
+    });
 
-    // ==========================================
-    // [우측 하단] 물(Water) 속성 트리 (CON 특화)
-    // ==========================================
-    'water_con_1': { x: 55, y: 55 },
-    'water_con_2': { x: 60, y: 60 },
-    'water_notable_1': { x: 65, y: 65 },
-    'water_branch_ref': { x: 70, y: 60 },
-    'water_branch_hp': { x: 70, y: 70 },
-    'water_keystone_1': { x: 80, y: 65 },
+    // 3. 자식 노드들에게 부모의 각도 상속 및 형제간 겹침 방지 벌림 처리
+    const calcAngle = (id: string): number => {
+        if (angles[id] !== undefined) return angles[id];
+        if (depths[id] === 0) return 0;
 
-    // ==========================================
-    // [좌측 하단] 바람(Wind) 속성 트리 (기존 데이터 유지)
-    // ==========================================
-    'wind_dex_1': { x: 45, y: 55 },
-    'wind_atkspd_1': { x: 40, y: 60 },
-    'wind_notable_1': { x: 35, y: 65 },
-    'wind_branch_dmg_1': { x: 30, y: 60 },
-    'wind_dex_2': { x: 20, y: 60 },
-    'wind_branch_eva_1': { x: 30, y: 70 },
-    'wind_dex_3': { x: 20, y: 70 },
-    'wind_keystone_1': { x: 10, y: 65 },
+        const parents = nodes[id].requires;
+        // 키스톤처럼 부모가 둘 이상이면 부모들의 평균 각도를 구해서 딱 정중앙에서 만나도록 함
+        const parentAngles = parents.map(p => calcAngle(p));
+        const avgAngle = parentAngles.reduce((sum, val) => sum + val, 0) / parentAngles.length;
 
-    // ==========================================
-    // [우측 상단] 번개(Electric) 속성 트리 (유틸)
-    // ==========================================
-    'elec_util_1': { x: 55, y: 45 },
-    'elec_util_2': { x: 60, y: 40 },
-    'elec_notable_1': { x: 65, y: 35 },
-    'elec_branch_dur': { x: 70, y: 30 },
-    'elec_branch_dmg': { x: 70, y: 40 },
-    'elec_keystone_1': { x: 80, y: 35 }
+        // 같은 부모를 공유하는 형제들끼리 선이 겹치지 않게 부채꼴로 살짝씩 벌림 (-20도 ~ +20도)
+        const mainParent = parents[0];
+        const siblings = Object.keys(nodes).filter(n => nodes[n].requires.includes(mainParent));
+
+        if (siblings.length > 1) {
+            const myIndex = siblings.indexOf(id);
+            const offset = (myIndex - (siblings.length - 1) / 2) * 20;
+            angles[id] = avgAngle + offset;
+        } else {
+            angles[id] = avgAngle;
+        }
+        return angles[id];
+    };
+    Object.keys(nodes).forEach(calcAngle);
+
+    // 4. 삼각함수를 활용하여 최종 X, Y % 좌표 산출
+    Object.keys(nodes).forEach(id => {
+        if (depths[id] === 0) {
+            positions[id] = { x: 50, y: 50 }; // 중앙은 무조건 50,50
+            return;
+        }
+
+        // 깊이가 1 증가할 때마다 캔버스 밖으로 8%씩 뻗어나감
+        const radius = depths[id] * 8;
+        const radian = (angles[id] * Math.PI) / 180;
+
+        // 화면 바깥으로 노드가 튀어나가지 않도록 최소 5%, 최대 95% 내에 강제 고정 (Clamp)
+        const x = Math.max(5, Math.min(95, 50 + radius * Math.cos(radian)));
+        const y = Math.max(5, Math.min(95, 50 + radius * Math.sin(radian)));
+
+        positions[id] = { x, y };
+    });
+
+    return positions;
 };
+
+// 화면이 렌더링될 때 딱 한 번만 알고리즘을 돌려서 좌표 객체를 만들어둡니다.
+const AUTO_NODE_POSITIONS = calculateAutoPositions(SKILL_TREE_DATA);
 
 const SkillTreeScreen: React.FC = () => {
     const { reincarnationPoints = 0, unlockedSkills = ['core_origin'], unlockSkill } = useGameStore();
@@ -124,8 +139,8 @@ const SkillTreeScreen: React.FC = () => {
                     <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
                         {Object.values(SKILL_TREE_DATA).map(node => {
                             return node.requires.map(reqId => {
-                                const start = NODE_POSITIONS[reqId];
-                                const end = NODE_POSITIONS[node.id];
+                                const start = AUTO_NODE_POSITIONS[reqId];
+                                const end = AUTO_NODE_POSITIONS[node.id];
                                 if (!start || !end) return null;
 
                                 const isPathActive = unlockedSkills.includes(reqId) && unlockedSkills.includes(node.id);
@@ -148,7 +163,7 @@ const SkillTreeScreen: React.FC = () => {
 
                     {/* 노드 렌더링 */}
                     {Object.values(SKILL_TREE_DATA).map(node => {
-                        const pos = NODE_POSITIONS[node.id];
+                        const pos = AUTO_NODE_POSITIONS[node.id];
                         if (!pos) return null;
 
                         const isUnlocked = unlockedSkills.includes(node.id);
