@@ -80,16 +80,45 @@ const AUTO_NODE_POSITIONS = calculateAutoPositions(SKILL_TREE_DATA);
 const SkillTreeScreen: React.FC = () => {
     const { reincarnationPoints = 0, unlockedSkills = ['core_origin'], unlockSkill } = useGameStore();
     const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
+    // [신규] 화면 확대/축소를 위한 상태 추가 (기본 100%)
+    const [zoom, setZoom] = useState(1);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // 컴포넌트 마운트 시 스크롤을 중앙(core_origin)으로 자동 이동
+    // 컴포넌트 마운트 시 스크롤을 줌 비율에 맞춰 중앙(core_origin)으로 자동 이동
     useEffect(() => {
         if (scrollContainerRef.current) {
             const container = scrollContainerRef.current;
-            container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
-            container.scrollTop = (container.scrollHeight - container.clientHeight) / 2;
+            container.scrollLeft = ((1500 * zoom) - container.clientWidth) / 2;
+            container.scrollTop = ((1500 * zoom) - container.clientHeight) / 2;
         }
-    }, []);
+    }, []); // 처음 렌더링될 때 한 번만 실행
+
+    // [신규 추가] 화면 중앙을 유지하며 줌 인/아웃을 처리하는 함수
+    const handleZoom = (delta: number) => {
+        // 소수점 연산 오류 방지를 위해 Math.round 활용 (0.4 ~ 2.0 사이 제한)
+        const nextZoom = Math.max(0.4, Math.min(Math.round((zoom + delta) * 10) / 10, 2.0));
+        if (nextZoom === zoom) return;
+
+        if (scrollContainerRef.current) {
+            const container = scrollContainerRef.current;
+            // 1. 현재 스크롤바 기준 화면의 정중앙 픽셀 좌표 구하기
+            const W = container.clientWidth;
+            const H = container.clientHeight;
+            const currentCenterX = (container.scrollLeft + W / 2) / zoom;
+            const currentCenterY = (container.scrollTop + H / 2) / zoom;
+
+            // 2. 줌 상태 업데이트
+            setZoom(nextZoom);
+
+            // 3. React 렌더링이 끝나고 캔버스 크기가 변한 직후(setTimeout 0), 스크롤바 위치를 새로운 배율에 맞춰 보정
+            setTimeout(() => {
+                if (scrollContainerRef.current) {
+                    scrollContainerRef.current.scrollLeft = currentCenterX * nextZoom - W / 2;
+                    scrollContainerRef.current.scrollTop = currentCenterY * nextZoom - H / 2;
+                }
+            }, 0);
+        }
+    };
 
     const getNodeStyle = (type: string, isUnlocked: boolean, isSelectable: boolean) => {
         const baseStyle = "absolute transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center cursor-pointer transition-all shadow-lg text-xs font-bold text-white z-10 hover:scale-110";
@@ -113,117 +142,128 @@ const SkillTreeScreen: React.FC = () => {
     };
 
     return (
-        <div className="max-w-5xl mx-auto p-4 md:p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-4">
+        // [수정됨] 마을 화면과 동일하게 폭 조정 (max-w-4xl) 및 간격 축소 (gap-3)
+        <div className="max-w-4xl mx-auto p-4 md:p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-3">
 
-            {/* 헤더 */}
-            <div className="flex justify-between items-center bg-neutral-950 p-4 rounded-xl border border-neutral-800 shadow-inner">
-                <h2 className="text-xl font-extrabold text-purple-400 flex items-center gap-2">
+            {/* [수정됨] 헤더: 불필요한 공백을 줄이고 한 줄(flex)로 묶어 슬림화 */}
+            <div className="flex justify-between items-center bg-neutral-950 px-4 py-2 rounded-xl border border-neutral-800 shadow-inner">
+                <h2 className="text-base md:text-lg font-extrabold text-purple-400 flex items-center gap-2">
                     <span>🌌</span> 특성 기원석
                 </h2>
-                <div className="text-right">
-                    <div className="text-xs text-neutral-400">보유 환생 포인트</div>
-                    <div className="text-2xl font-mono font-bold text-yellow-400">{reincarnationPoints} RP</div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-400">잔여:</span>
+                    <span className="text-lg font-mono font-bold text-yellow-400">{reincarnationPoints} RP</span>
                 </div>
             </div>
 
-            {/* 스크롤 가능한 방대한 캔버스 영역 */}
-            {/* overflow-auto 로 설정하여 내부 1500px 캔버스를 상하좌우 스크롤 가능하게 만듭니다 */}
+            {/* [신규] 줌 컨트롤러 바 */}
+            <div className="flex justify-end items-center gap-2 mb-[-8px] z-10 pr-2">
+                <button onClick={() => handleZoom(-0.2)} className="bg-neutral-800 border border-neutral-600 px-3 py-1 rounded text-xs text-white active:scale-95 transition-transform">-</button>
+                <span className="text-xs text-neutral-400 w-10 text-center">{Math.round(zoom * 100)}%</span>
+                <button onClick={() => handleZoom(0.2)} className="bg-neutral-800 border border-neutral-600 px-3 py-1 rounded text-xs text-white active:scale-95 transition-transform">+</button>
+            </div>
+
+            {/* [수정됨] 스크롤 캔버스: 세로 높이를 축소하여 하단 패널 시야 확보 (h-[45vh]) */}
             <div
                 ref={scrollContainerRef}
-                className="relative w-full h-100 md:h-125 bg-neutral-950 rounded-xl border border-neutral-800 overflow-auto custom-scrollbar"
+                className="relative w-full h-[45vh] md:h-80 bg-neutral-950 rounded-xl border border-neutral-800 overflow-auto custom-scrollbar"
             >
-                {/* 실제 스킬 트리가 그려지는 거대한 배경 (1500px x 1500px) */}
-                <div className="relative w-[1500px] h-[1500px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-900 to-neutral-950">
+                {/* [신규] 스크롤바와 줌 비율을 완벽히 동기화하기 위한 Wrapper 크기 제어 */}
+                <div style={{ width: `${1500 * zoom}px`, height: `${1500 * zoom}px` }} className="relative">
+                    {/* 실제 스킬 트리가 그려지는 거대한 배경 (Transform으로 Scale 처리) */}
+                    <div
+                        className="absolute top-0 left-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-900 to-neutral-950"
+                        style={{
+                            width: '1500px',
+                            height: '1500px',
+                            transform: `scale(${zoom})`,
+                            transformOrigin: '0 0'
+                        }}
+                    >
+                        {/* SVG 연결선 */}
+                        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+                            {Object.values(SKILL_TREE_DATA).map(node => {
+                                return node.requires.map(reqId => {
+                                    const start = AUTO_NODE_POSITIONS[reqId];
+                                    const end = AUTO_NODE_POSITIONS[node.id];
+                                    if (!start || !end) return null;
 
-                    {/* SVG 연결선 */}
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+                                    const isPathActive = unlockedSkills.includes(reqId) && unlockedSkills.includes(node.id);
+
+                                    return (
+                                        <line
+                                            key={`${reqId}-${node.id}`}
+                                            x1={`${start.x}%`}
+                                            y1={`${start.y}%`}
+                                            x2={`${end.x}%`}
+                                            y2={`${end.y}%`}
+                                            stroke={isPathActive ? '#facc15' : '#333333'}
+                                            strokeWidth={isPathActive ? "4" : "2"}
+                                            className="transition-colors duration-500"
+                                        />
+                                    );
+                                });
+                            })}
+                        </svg>
+
+                        {/* 노드 렌더링 */}
                         {Object.values(SKILL_TREE_DATA).map(node => {
-                            return node.requires.map(reqId => {
-                                const start = AUTO_NODE_POSITIONS[reqId];
-                                const end = AUTO_NODE_POSITIONS[node.id];
-                                if (!start || !end) return null;
+                            const pos = AUTO_NODE_POSITIONS[node.id];
+                            if (!pos) return null;
 
-                                const isPathActive = unlockedSkills.includes(reqId) && unlockedSkills.includes(node.id);
+                            const isUnlocked = unlockedSkills.includes(node.id);
+                            const hasPrerequisites = node.requires.every(reqId => unlockedSkills.includes(reqId));
+                            const isSelectable = !isUnlocked && hasPrerequisites && reincarnationPoints >= node.cost;
 
-                                return (
-                                    <line
-                                        key={`${reqId}-${node.id}`}
-                                        x1={`${start.x}%`}
-                                        y1={`${start.y}%`}
-                                        x2={`${end.x}%`}
-                                        y2={`${end.y}%`}
-                                        stroke={isPathActive ? '#facc15' : '#333333'}
-                                        strokeWidth={isPathActive ? "4" : "2"}
-                                        className="transition-colors duration-500"
-                                    />
-                                );
-                            });
-                        })}
-                    </svg>
-
-                    {/* 노드 렌더링 */}
-                    {Object.values(SKILL_TREE_DATA).map(node => {
-                        const pos = AUTO_NODE_POSITIONS[node.id];
-                        if (!pos) return null;
-
-                        const isUnlocked = unlockedSkills.includes(node.id);
-                        const hasPrerequisites = node.requires.every(reqId => unlockedSkills.includes(reqId));
-                        const isSelectable = !isUnlocked && hasPrerequisites && reincarnationPoints >= node.cost;
-
-                        return (
-                            <div
-                                key={node.id}
-                                className={getNodeStyle(node.type, isUnlocked, isSelectable)}
-                                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                                onClick={() => setSelectedNode(node)}
-                            >
-                                <div className={node.type === 'NOTABLE' ? '-rotate-45' : ''}>
-                                    {isUnlocked ? '✓' : ''}
+                            return (
+                                <div
+                                    key={node.id}
+                                    className={getNodeStyle(node.type, isUnlocked, isSelectable)}
+                                    style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                                    onClick={() => setSelectedNode(node)}
+                                >
+                                    <div className={node.type === 'NOTABLE' ? '-rotate-45' : ''}>
+                                        {isUnlocked ? '✓' : ''}
+                                    </div>
                                 </div>
-                                {/* 디버깅용 텍스트 (옵션): 노드 이름 첫 글자 표시 */}
-                                {!isUnlocked && <span className={`absolute ${node.type === 'NOTABLE' ? '-rotate-45' : ''} text-[10px] opacity-30`}>{node.name.substring(0,1)}</span>}
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 
-            {/* 선택된 노드 상세 패널 */}
+            {/* [수정됨] 상세 패널: 모바일에서 한 화면에 보이도록 여백(Padding)과 폰트 크기 대폭 축소 (Compact Size) */}
             {selectedNode && (
-                <div className="bg-neutral-800 p-5 rounded-xl border border-neutral-600 shadow-2xl animate-fade-in-up">
-                    <div className="flex justify-between items-start mb-2">
-                        <div>
-                            <div className="text-xs font-bold text-blue-400 mb-1">{selectedNode.type}</div>
-                            <h3 className="text-xl font-bold text-white">{selectedNode.name}</h3>
+                <div className="bg-neutral-800 p-3 rounded-xl border border-neutral-600 shadow-xl animate-fade-in-up">
+                    <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] bg-neutral-700 px-2 py-0.5 rounded font-bold text-blue-400 tracking-wider">{selectedNode.type}</span>
+                            <h3 className="text-sm md:text-base font-bold text-white leading-none">{selectedNode.name}</h3>
                         </div>
-                        <button onClick={() => setSelectedNode(null)} className="w-8 h-8 rounded-full bg-neutral-700 hover:bg-neutral-600 text-white font-bold">✕</button>
+                        <button onClick={() => setSelectedNode(null)} className="w-6 h-6 flex justify-center items-center rounded bg-neutral-700 hover:bg-neutral-600 text-white font-bold text-xs">✕</button>
                     </div>
 
-                    <p className="text-sm text-neutral-300 bg-neutral-900 p-3 rounded-lg mb-4">
+                    <p className="text-xs text-neutral-300 bg-neutral-900 p-2 rounded-lg mb-2">
                         {selectedNode.description}
                     </p>
 
-                    <div className="flex items-center justify-between mt-4 border-t border-neutral-700 pt-4">
-                        <div className="text-sm font-bold">
-                            요구 포인트: <span className={reincarnationPoints >= selectedNode.cost ? 'text-green-400' : 'text-red-400'}>{selectedNode.cost} RP</span>
+                    <div className="flex items-center justify-between border-t border-neutral-700 pt-2">
+                        <div className="text-xs font-bold">
+                            요구: <span className={reincarnationPoints >= selectedNode.cost ? 'text-green-400' : 'text-red-400'}>{selectedNode.cost} RP</span>
                         </div>
 
                         {unlockedSkills.includes(selectedNode.id) ? (
-                            <div className="py-2 px-6 bg-neutral-700 text-neutral-400 font-bold rounded-lg cursor-not-allowed">이미 획득함</div>
+                            <div className="py-1 px-4 bg-neutral-700 text-neutral-400 font-bold rounded text-xs cursor-not-allowed">획득함</div>
                         ) : (
                             <button
                                 onClick={handleUnlock}
                                 disabled={!selectedNode.requires.every(reqId => unlockedSkills.includes(reqId)) || reincarnationPoints < selectedNode.cost}
-                                className="py-2 px-6 bg-purple-600 hover:bg-purple-500 disabled:bg-neutral-700 disabled:text-neutral-500 text-white font-bold rounded-lg transition-colors shadow-lg"
+                                className="py-1 px-4 bg-purple-600 hover:bg-purple-500 disabled:bg-neutral-700 disabled:text-neutral-500 text-white font-bold rounded text-xs transition-colors shadow-lg"
                             >
                                 특성 해금
                             </button>
                         )}
                     </div>
-
-                    {!unlockedSkills.includes(selectedNode.id) && !selectedNode.requires.every(reqId => unlockedSkills.includes(reqId)) && (
-                        <div className="mt-2 text-xs text-red-400 text-right">* 이전 특성을 모두 해금해야 합니다.</div>
-                    )}
                 </div>
             )}
         </div>
