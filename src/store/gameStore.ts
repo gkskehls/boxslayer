@@ -254,7 +254,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       battleStartTime: Date.now(),
       playerShield: initialShield, // [신규] 상태 반환에 추가
       windHitCount: 0,             // [신규] 층 이동 시 바람 코어 누적 타격 초기화
-      hasWindEvasion: false        // [신규] 층 이동 시 바람 코어 확정 회피 버프 초기화
+      hasWindEvasion: false,       // [신규] 층 이동 시 바람 코어 확정 회피 버프 초기화
+      elecHitCount: 0,             // [신규] 층 이동 시 번개 코어 누적 타격 초기화
+      isEnemyStunned: false        // [신규] 층 이동 시 적 기절 상태 초기화
     };
     }),
 
@@ -283,6 +285,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     // [버그 픽스] 스코프 분리를 위해 바람 코어 상태 변수를 if문 밖으로 빼냅니다.
     let currentWindHits = state.windHitCount || 0;
     let nextWindEvasion = state.hasWindEvasion || false;
+
+    // [신규] 번개 코어 상태 변수 선언
+    let currentElecHits = state.elecHitCount || 0;
+    let nextEnemyStunned = state.isEnemyStunned || false;
 
     // [버그 픽스] 공격이 빗나가지 않았을 때만 데미지와 쉴드 회복을 계산합니다.
     if (!isEvaded) {
@@ -333,6 +339,21 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
             nextWindEvasion = true;
           }
         }
+        else if (state.equippedCore.type === 'ELECTRIC') {
+          // [신규] 번개 코어 기믹
+          if (nextEnemyStunned) {
+            // 1. 처형(Execution): 기절 상태인 적 타격 시 방어력을 100% 무시하고 내 공격력의 50% 추가 피해
+            coreDamage += Math.floor(playerComputed.attack * 0.5);
+            nextEnemyStunned = false; // 처형 강타 후 기절 해제 (밸런스 조절)
+          } else {
+            // 2. 기절 스택 누적: 10회 타격 시 적 기절
+            currentElecHits += hitCount;
+            if (currentElecHits >= 10) {
+              nextEnemyStunned = true;
+              currentElecHits = 0;
+            }
+          }
+        }
       }
     } // <--- [핵심 해결] 여기서 if (!isEvaded) 블록을 반드시 닫아주어야 TypeScript가 혼란에 빠지지 않습니다!!
 
@@ -368,22 +389,27 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           gold: state.player.gold + goldReward,
           currentHealth: playerComputed.maxHealth // 처치 시 체력 회복
         },
+        // 처치 성공 시 return 구문 안
         stage: state.stage + 1, // 스테이지 1 증가 복구됨!
         gameStatus: 'VICTORY',
         lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage) },
         playerShield: nextShield,
         windHitCount: currentWindHits,       // [버그 픽스] 계산된 바람 스택 반환
-        hasWindEvasion: nextWindEvasion      // [버그 픽스] 계산된 확정 회피 반환
+        hasWindEvasion: nextWindEvasion,     // [버그 픽스] 계산된 확정 회피 반환
+        elecHitCount: currentElecHits,       // [신규] 번개 스택 상태 반환
+        isEnemyStunned: nextEnemyStunned     // [신규] 적 기절 상태 반환
       };
     }
 
-    // 적이 살아있을 경우
+    // 적이 살아있을 경우 return 구문 안
     return {
       currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
       lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage) },
       playerShield: nextShield,
       windHitCount: currentWindHits,       // [버그 픽스] 계산된 바람 스택 반환
-      hasWindEvasion: nextWindEvasion      // [버그 픽스] 계산된 확정 회피 반환
+      hasWindEvasion: nextWindEvasion,     // [버그 픽스] 계산된 확정 회피 반환
+      elecHitCount: currentElecHits,       // [신규] 번개 스택 상태 반환
+      isEnemyStunned: nextEnemyStunned     // [신규] 적 기절 상태 반환
     };
   }),
 
@@ -428,6 +454,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   attackPlayer: () => set((state) => {
     // [버그 픽스] 전투 중이 아닐 때(예: 이미 전투가 끝났을 때) 적이 마지막 발악을 하는 것을 원천 차단
     if (state.gameStatus !== 'BATTLE' || !state.currentEnemy) return state;
+
+    // [신규] 번개 코어: 적이 기절(Stun) 상태라면 공격 타이머가 돌아도 공격을 수행하지 못함
+    if (state.isEnemyStunned) {
+      return state;
+    }
 
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
     const playerComputed = getComputedStats(state.player.stats);
