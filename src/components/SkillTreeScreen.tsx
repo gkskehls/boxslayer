@@ -16,7 +16,6 @@ const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
             depths[id] = 0;
             return 0;
         }
-        // 부모 노드들 중 가장 깊은 곳을 기준으로 +1
         depths[id] = Math.max(...nodes[id].requires.map(calcDepth)) + 1;
         return depths[id];
     };
@@ -34,11 +33,9 @@ const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
         if (depths[id] === 0) return 0;
 
         const parents = nodes[id].requires;
-        // 키스톤처럼 부모가 둘 이상이면 부모들의 평균 각도를 구해서 딱 정중앙에서 만나도록 함
         const parentAngles = parents.map(p => calcAngle(p));
         const avgAngle = parentAngles.reduce((sum, val) => sum + val, 0) / parentAngles.length;
 
-        // 같은 부모를 공유하는 형제들끼리 선이 겹치지 않게 부채꼴로 살짝씩 벌림 (-20도 ~ +20도)
         const mainParent = parents[0];
         const siblings = Object.keys(nodes).filter(n => nodes[n].requires.includes(mainParent));
 
@@ -53,29 +50,37 @@ const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
     };
     Object.keys(nodes).forEach(calcAngle);
 
-    // 4. 삼각함수를 활용하여 최종 X, Y % 좌표 산출
+    // [신규 개선] 최대 깊이를 기반으로 캔버스의 절대적인 픽셀 사이즈를 먼저 결정합니다.
+    const maxDepth = Math.max(0, ...Object.values(depths));
+    // 깊이 1단계당 350px씩 여유를 주고, 기본 여백 300px을 더합니다. (최소 1500px 보장)
+    const dynamicCanvasSize = Math.max(1500, maxDepth * 350 + 300);
+
+    // 4. 삼각함수를 활용하여 최종 X, Y % 좌표 산출 (강제 고정 로직 제거)
     Object.keys(nodes).forEach(id => {
         if (depths[id] === 0) {
             positions[id] = { x: 50, y: 50 }; // 중앙은 무조건 50,50
             return;
         }
 
-        // 깊이가 1 증가할 때마다 캔버스 밖으로 8%씩 뻗어나감
-        const radius = depths[id] * 8;
+        // 깊이 1단계마다 160픽셀 단위로 정확히 거리를 벌립니다.
+        const pixelRadius = depths[id] * 160;
+        // 픽셀 거리를 커진 캔버스 사이즈에 비례하는 퍼센트(%)로 변환합니다.
+        const percentRadius = (pixelRadius / dynamicCanvasSize) * 100;
         const radian = (angles[id] * Math.PI) / 180;
 
-        // 화면 바깥으로 노드가 튀어나가지 않도록 최소 5%, 최대 95% 내에 강제 고정 (Clamp)
-        const x = Math.max(5, Math.min(95, 50 + radius * Math.cos(radian)));
-        const y = Math.max(5, Math.min(95, 50 + radius * Math.sin(radian)));
+        // 찌그러뜨리던 억제기(Math.max, min)를 삭제하고 무한 확장을 허용합니다.
+        const x = 50 + percentRadius * Math.cos(radian);
+        const y = 50 + percentRadius * Math.sin(radian);
 
         positions[id] = { x, y };
     });
 
-    return positions;
+    // 알고리즘이 계산한 좌표와 캔버스 사이즈를 같이 반환합니다.
+    return { positions, dynamicCanvasSize };
 };
 
-// 화면이 렌더링될 때 딱 한 번만 알고리즘을 돌려서 좌표 객체를 만들어둡니다.
-const AUTO_NODE_POSITIONS = calculateAutoPositions(SKILL_TREE_DATA);
+// [수정됨] 반환받은 좌표와 동적 캔버스 사이즈를 전역 상수로 꺼내옵니다.
+const { positions: AUTO_NODE_POSITIONS, dynamicCanvasSize: DYNAMIC_CANVAS_SIZE } = calculateAutoPositions(SKILL_TREE_DATA);
 
 const SkillTreeScreen: React.FC = () => {
     const { reincarnationPoints = 0, unlockedSkills = ['core_origin'], unlockSkill } = useGameStore();
@@ -88,15 +93,16 @@ const SkillTreeScreen: React.FC = () => {
     useEffect(() => {
         if (scrollContainerRef.current) {
             const container = scrollContainerRef.current;
-            container.scrollLeft = ((1500 * zoom) - container.clientWidth) / 2;
-            container.scrollTop = ((1500 * zoom) - container.clientHeight) / 2;
+            // [수정됨] 고정값 1500 대신 계산된 DYNAMIC_CANVAS_SIZE 적용
+            container.scrollLeft = ((DYNAMIC_CANVAS_SIZE * zoom) - container.clientWidth) / 2;
+            container.scrollTop = ((DYNAMIC_CANVAS_SIZE * zoom) - container.clientHeight) / 2;
         }
     }, []); // 처음 렌더링될 때 한 번만 실행
 
     // [신규 추가] 화면 중앙을 유지하며 줌 인/아웃을 처리하는 함수
     const handleZoom = (delta: number) => {
-        // 소수점 연산 오류 방지를 위해 Math.round 활용 (0.4 ~ 2.0 사이 제한)
-        const nextZoom = Math.max(0.4, Math.min(Math.round((zoom + delta) * 10) / 10, 2.0));
+        // [수정됨] 최소 줌을 0.1 (10%)로 낮춰서 전체 보기가 가능하도록 수정 (0.1 ~ 2.0 제한)
+        const nextZoom = Math.max(0.1, Math.min(Math.round((zoom + delta) * 10) / 10, 2.0));
         if (nextZoom === zoom) return;
 
         if (scrollContainerRef.current) {
@@ -158,9 +164,10 @@ const SkillTreeScreen: React.FC = () => {
 
             {/* [신규] 줌 컨트롤러 바 */}
             <div className="flex justify-end items-center gap-2 mb-[-8px] z-10 pr-2">
-                <button onClick={() => handleZoom(-0.2)} className="bg-neutral-800 border border-neutral-600 px-3 py-1 rounded text-xs text-white active:scale-95 transition-transform">-</button>
+                {/* [수정됨] 줌 인/아웃 단위를 0.1 (10%)씩 세밀하게 조절하도록 변경 */}
+                <button onClick={() => handleZoom(-0.1)} className="bg-neutral-800 border border-neutral-600 px-3 py-1 rounded text-xs text-white active:scale-95 transition-transform">-</button>
                 <span className="text-xs text-neutral-400 w-10 text-center">{Math.round(zoom * 100)}%</span>
-                <button onClick={() => handleZoom(0.2)} className="bg-neutral-800 border border-neutral-600 px-3 py-1 rounded text-xs text-white active:scale-95 transition-transform">+</button>
+                <button onClick={() => handleZoom(0.1)} className="bg-neutral-800 border border-neutral-600 px-3 py-1 rounded text-xs text-white active:scale-95 transition-transform">+</button>
             </div>
 
             {/* [수정됨] 스크롤 캔버스: 세로 높이를 축소하여 하단 패널 시야 확보 (h-[45vh]) */}
@@ -169,13 +176,14 @@ const SkillTreeScreen: React.FC = () => {
                 className="relative w-full h-[45vh] md:h-80 bg-neutral-950 rounded-xl border border-neutral-800 overflow-auto custom-scrollbar"
             >
                 {/* [신규] 스크롤바와 줌 비율을 완벽히 동기화하기 위한 Wrapper 크기 제어 */}
-                <div style={{ width: `${1500 * zoom}px`, height: `${1500 * zoom}px` }} className="relative">
+                {/* [수정됨] 하드코딩된 1500 대신 동적으로 계산된 DYNAMIC_CANVAS_SIZE 적용 */}
+                <div style={{ width: `${DYNAMIC_CANVAS_SIZE * zoom}px`, height: `${DYNAMIC_CANVAS_SIZE * zoom}px` }} className="relative">
                     {/* 실제 스킬 트리가 그려지는 거대한 배경 (Transform으로 Scale 처리) */}
                     <div
                         className="absolute top-0 left-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-900 to-neutral-950"
                         style={{
-                            width: '1500px',
-                            height: '1500px',
+                            width: `${DYNAMIC_CANVAS_SIZE}px`,
+                            height: `${DYNAMIC_CANVAS_SIZE}px`,
                             transform: `scale(${zoom})`,
                             transformOrigin: '0 0'
                         }}

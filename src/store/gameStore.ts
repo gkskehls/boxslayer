@@ -148,7 +148,8 @@ const getInitialStoreState = (): GameState => {
       ...loadedState,
       // 예전 세이브 파일에 스킬 데이터나 RP가 없으면 기본값으로 덮어씀
       reincarnationPoints: loadedState.reincarnationPoints || 0,
-      unlockedSkills: loadedState.unlockedSkills || ['core_origin']
+      unlockedSkills: loadedState.unlockedSkills || ['core_origin'],
+      maxStage: loadedState.maxStage || loadedState.stage || 1 // [신규] 기존 세이브 호환
     };
   }
 
@@ -165,7 +166,8 @@ const getInitialStoreState = (): GameState => {
     lastDamageDealt: { normal: 0, core: 0 },
     battleStartTime: 0,
     reincarnationPoints: 0,
-    unlockedSkills: ['core_origin']
+    unlockedSkills: ['core_origin'],
+    maxStage: 1 // [신규] 완전 뉴비 초기값
   };
 };
 
@@ -192,6 +194,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       // 3. 게임 상태 초기화
       // [신규] 환생 시 차원 도약(startStageBonus) 스킬 효과를 읽어와서 시작 스테이지를 결정합니다.
       stage: 1 + (getComputedStats(state.player.stats, state.unlockedSkills).modifiers.startStageBonus || 0),
+      // [추가] 환생 시 '이번 회차'의 최고 스테이지 기록도 시작 층으로 깔끔하게 초기화합니다.
+      maxStage: 1 + (getComputedStats(state.player.stats, state.unlockedSkills).modifiers.startStageBonus || 0),
       currentEnemy: null,
       gameStatus: 'IDLE',
 
@@ -410,6 +414,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         },
         // 처치 성공 시 return 구문 안
         stage: state.stage + 1, // 스테이지 1 증가 복구됨!
+        maxStage: Math.max(state.maxStage || 1, state.stage + 1), // [신규] 최고 기록 갱신 확인
         gameStatus: 'VICTORY',
         lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage) },
         playerShield: nextShield,

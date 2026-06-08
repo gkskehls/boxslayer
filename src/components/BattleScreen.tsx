@@ -36,6 +36,7 @@ const BattleScreen: React.FC = () => {
     playerShield, // [추가됨]
     currentEnemy,
     stage,
+    maxStage, // [신규] 최고 도달 스테이지
     gameStatus,
     lastDamageDealt, // 추가된 상태
     spawnEnemy,
@@ -138,7 +139,15 @@ const BattleScreen: React.FC = () => {
 
           {/* 1층: 스테이지 & 잔여 스탯 포인트 */}
           <div className="flex justify-between items-end">
-            <h2 className="text-xl font-bold text-yellow-500 leading-none">STAGE {stage}</h2>
+            <h2 className="text-xl font-bold text-yellow-500 leading-none flex items-center gap-2">
+              STAGE {stage}
+              {/* 최고 기록이 현재 스테이지보다 높을 때만 붉은색으로 표기 */}
+              {(maxStage || 1) > stage && (
+                  <span className="text-red-500 text-sm md:text-base">
+                  ({maxStage})
+                </span>
+              )}
+            </h2>
             {player.statPoints > 0 && (
                 <span className="bg-green-900/40 text-green-400 px-2 py-0.5 rounded text-[10px] font-bold border border-green-700/50 animate-pulse">
                 잔여 스탯: {player.statPoints}
