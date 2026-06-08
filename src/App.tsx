@@ -9,10 +9,11 @@ import TownScreen from './components/TownScreen';
 import NavigationBar from './components/NavigationBar'; // NavigationBar 임포트
 import CoreScreen from './components/CoreScreen'; // CoreScreen 임포트
 import Shop from './components/Shop'; // Shop 컴포넌트 임포트
-import SkillTreeScreen from './components/SkillTreeScreen'; // [추가] 스킬 트리 화면 임포트
+import SkillTreeScreen from './components/SkillTreeScreen';
+import AnimatedBattleScreen from './components/AnimatedBattleScreen'; // [신규] 애니메이션 전투 화면 임포트
 
-// 화면 상태를 정의합니다. (SKILL_TREE_SCREEN 추가)
-type GameScreen = 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN' | 'TOWN_SCREEN' | 'BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN';
+// 화면 상태를 정의합니다. (ANIMATED_BATTLE_SCREEN 추가)
+type GameScreen = 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN' | 'TOWN_SCREEN' | 'BATTLE_SCREEN' | 'ANIMATED_BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN';
 type NavigableScreen = Exclude<GameScreen, 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN'>; // NavigationBar에서 이동 가능한 화면 타입
 
 // package.json의 버전을 가져옵니다.
@@ -34,7 +35,8 @@ function App() {
 
   // Simple Auto-Battle Loop
   useEffect(() => {
-    if (screen !== 'BATTLE_SCREEN') return;
+    // [수정됨] 신규 애니메이션 화면에서도 전투 루프가 돌아가도록 조건 추가
+    if (screen !== 'BATTLE_SCREEN' && screen !== 'ANIMATED_BATTLE_SCREEN') return;
 
     if (gameStatus === 'IDLE') {
       spawnEnemy();
@@ -70,8 +72,8 @@ function App() {
 
   // Handle Victory - Spawn next enemy after a short delay
   useEffect(() => {
-    // 전투 화면일 때만 승리 로직 실행
-    if (screen !== 'BATTLE_SCREEN') return;
+    // [수정됨] 신규 애니메이션 화면에서도 전투 루프가 돌아가도록 조건 추가
+    if (screen !== 'BATTLE_SCREEN' && screen !== 'ANIMATED_BATTLE_SCREEN') return;
 
     if (gameStatus === 'VICTORY') {
       const timer = setTimeout(() => {
@@ -163,7 +165,11 @@ function App() {
 
         {screen === 'BATTLE_SCREEN' && (
             <BattleScreen />
-          )}
+        )}
+
+        {screen === 'ANIMATED_BATTLE_SCREEN' && (
+            <AnimatedBattleScreen />
+        )}
 
         {screen === 'STATS_SCREEN' && (
             <StatsScreen />

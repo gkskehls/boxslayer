@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useGameStore, calculateReincarnationPoints } from '../store/gameStore';
 
-// [수정됨] SKILL_TREE_SCREEN 타입 추가
+// [수정됨] ANIMATED_BATTLE_SCREEN 타입 추가
 interface TownScreenProps {
-    onNavigate: (screen: 'BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN') => void;
+    onNavigate: (screen: 'BATTLE_SCREEN' | 'ANIMATED_BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN') => void;
 }
 
 const TownScreen: React.FC<TownScreenProps> = ({ onNavigate }) => {
@@ -67,14 +67,25 @@ const TownScreen: React.FC<TownScreenProps> = ({ onNavigate }) => {
 
             {/* 3. 마을 CSS 타일 메뉴 */}
             <div className="w-full flex flex-col gap-4">
-                {/* [전투] 차원의 문 */}
-                <button
-                    onClick={() => onNavigate('BATTLE_SCREEN')}
-                    className="w-full py-6 bg-red-950/40 border-2 border-red-700/50 rounded-xl flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-[0_4px_10px_rgba(239,68,68,0.1)]"
-                >
-                    <span className="text-3xl">⚔️</span>
-                    <span className="text-base font-bold text-red-400">차원의 문 (전투)</span>
-                </button>
+                <div className="flex gap-4 w-full">
+                    {/* [기존 전투] 차원의 문 */}
+                    <button
+                        onClick={() => onNavigate('BATTLE_SCREEN')}
+                        className="w-1/2 py-6 bg-red-950/40 border-2 border-red-700/50 rounded-xl flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-[0_4px_10px_rgba(239,68,68,0.1)]"
+                    >
+                        <span className="text-3xl">⚔️</span>
+                        <span className="text-sm font-bold text-red-400">차원의 문 (기존)</span>
+                    </button>
+
+                    {/* [신규 전투] 테스트용 차원의 문 */}
+                    <button
+                        onClick={() => onNavigate('ANIMATED_BATTLE_SCREEN')}
+                        className="w-1/2 py-6 bg-purple-950/40 border-2 border-purple-500/50 border-dashed rounded-xl flex flex-col items-center justify-center gap-1 active:scale-95 transition-all shadow-[0_4px_10px_rgba(168,85,247,0.1)]"
+                    >
+                        <span className="text-3xl">🧪</span>
+                        <span className="text-sm font-bold text-purple-400">신규 전투 (테스트)</span>
+                    </button>
+                </div>
 
                 {/* 하단 4개 타일 (그리드) */}
                 <div className="grid grid-cols-2 gap-4 w-full">
