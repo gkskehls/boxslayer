@@ -91,12 +91,27 @@ const initialStats: Stats = { str: 10, dex: 10, con: 10 };
 export const getComputedStats = (stats: Stats, unlockedSkills: string[] = []) => {
   const finalStats = { ...stats };
 
+  // [신규] 스킬 트리의 특수 기믹들을 담아둘 바구니
+  const modifiers = {
+    offlineRewardMultiplier: 0, // 방치 보상 증가율
+    startStageBonus: 0,         // 환생 시작 층 점프
+    feverMultiplier: 1.0,       // 피버 배율 증폭
+    evasionChanceBonus: 0       // 회피율 추가 보너스
+  };
+
   unlockedSkills.forEach(skillId => {
     const skill = SKILL_TREE_DATA[skillId];
     if (skill && skill.effects) {
+      // 1. 기본 3대 스탯 합산
       if (skill.effects.str) finalStats.str += skill.effects.str;
       if (skill.effects.dex) finalStats.dex += skill.effects.dex;
       if (skill.effects.con) finalStats.con += skill.effects.con;
+
+      // 2. [신규] 특수 기믹 합산
+      if (skill.effects.offlineRewardMultiplier) modifiers.offlineRewardMultiplier += skill.effects.offlineRewardMultiplier;
+      if (skill.effects.startStageBonus) modifiers.startStageBonus += skill.effects.startStageBonus;
+      if (skill.effects.feverMultiplier) modifiers.feverMultiplier = Math.max(modifiers.feverMultiplier, skill.effects.feverMultiplier); // 가장 높은 배율 적용
+      if (skill.effects.evasionChanceBonus) modifiers.evasionChanceBonus += skill.effects.evasionChanceBonus;
     }
   });
 
@@ -105,7 +120,8 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = []) =>
     defense: 5 + (finalStats.con * 0.2),
     maxHealth: 100 + (finalStats.con * 2),
     attackSpeed: 1.0 + (finalStats.dex * 0.01),
-    evasion: finalStats.dex
+    evasion: finalStats.dex,
+    modifiers // [신규] 계산된 특수 효과도 함께 반환
   };
 };
 
@@ -174,7 +190,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       },
 
       // 3. 게임 상태 초기화
-      stage: 1,
+      // [신규] 환생 시 차원 도약(startStageBonus) 스킬 효과를 읽어와서 시작 스테이지를 결정합니다.
+      stage: 1 + (getComputedStats(state.player.stats, state.unlockedSkills).modifiers.startStageBonus || 0),
       currentEnemy: null,
       gameStatus: 'IDLE',
 
@@ -183,7 +200,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         { id: `core_fire_${Date.now()}`, name: '불의 코어', type: 'FIRE', level: 1 },
         { id: `core_water_${Date.now()}`, name: '물의 코어', type: 'WATER', level: 1 },
         { id: `core_wind_${Date.now()}`, name: '바람의 코어', type: 'WIND', level: 1 },
-        { id: `core_elec_${Date.now()}`, name: '번개의 코어(미구현)', type: 'ELECTRIC', level: 1 }
+        { id: `core_elec_${Date.now()}`, name: '번개의 코어', type: 'ELECTRIC', level: 1 }
       ],
       equippedCore: null,
 
@@ -263,7 +280,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   attackEnemy: () => set((state) => {
     if (state.gameStatus !== 'BATTLE' || !state.currentEnemy) return state;
 
-    const playerComputed = getComputedStats(state.player.stats);
+    // [중요] 두 번째 인자로 state.unlockedSkills를 넘겨주어야 스킬 트리가 반영됩니다!
+    const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills);
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
 
 // 1. 회피 판정 (상대 DEX와 내 DEX의 차이 기반)
@@ -276,7 +294,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     // 2. [복구됨] 피버 모드: 시간에 따른 연타(Hit Count) 배율 계산
     const elapsedTime = Date.now() - (state.battleStartTime || Date.now());
     const config = BATTLE_SPEED_CONFIG.slice().reverse().find(c => elapsedTime >= c.threshold) || BATTLE_SPEED_CONFIG[0];
-    const hitCount = config.multiplier;
+    // [신규] 투지/광전사 스킬을 찍었다면 피버 배율(hitCount)이 뻥튀기됩니다.
+    const hitCount = Math.floor(config.multiplier * playerComputed.modifiers.feverMultiplier);
 
     let normalDamage = 0;
     let coreDamage = 0;
@@ -461,11 +480,13 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
-    const playerComputed = getComputedStats(state.player.stats);
+    // [중요] 두 번째 인자로 state.unlockedSkills를 넘겨주어야 스킬 트리가 반영됩니다!
+    const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills);
 
-      // [플레이어가 적의 공격을 회피할 확률 계산]
-      const dexDifference = playerComputed.evasion - enemyComputed.evasion;
-      const evasionChance = Math.min(1, Math.max(0, dexDifference / 50));
+    // [플레이어가 적의 공격을 회피할 확률 계산]
+    const dexDifference = playerComputed.evasion - enemyComputed.evasion;
+    // [신규] 바람 속성 스킬에서 얻은 회피율 보너스(evasionChanceBonus)를 최종 회피율에 더해줍니다.
+    const evasionChance = Math.min(1, Math.max(0, dexDifference / 50)) + playerComputed.modifiers.evasionChanceBonus;
 
       // [신규] 바람 코어: 확정 회피(잔상) 버프 체크
       if (state.equippedCore?.type === 'WIND' && state.hasWindEvasion) {
@@ -554,8 +575,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (minutes < 1) return { gold: 0, exp: 0 };
 
     const b = 1 + (s.stage - 1) * 0.1;
-    // 경과한 시간(분)만큼 보상 곱하기
-    const g = Math.floor(10 * b * minutes), e = Math.floor(5 * b * minutes);
+    // [신규] 스킬 특수 효과(offlineRewardMultiplier)를 불러와서 보상에 보너스를 곱해줍니다.
+    const computed = getComputedStats(s.player.stats, s.unlockedSkills);
+    const bonusMultiplier = 1 + computed.modifiers.offlineRewardMultiplier;
+
+    const g = Math.floor(10 * b * minutes * bonusMultiplier);
+    const e = Math.floor(5 * b * minutes * bonusMultiplier);
 
     set(st => ({
       player: { ...st.player, gold: st.player.gold + g, experience: st.player.experience + e },
@@ -564,7 +589,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     return { gold: g, exp: e };
   },
   retryCurrentFloor: () => set((state) => {
-    const computed = getComputedStats(state.player.stats); // 계산값 가져오기
+    const computed = getComputedStats(state.player.stats, state.unlockedSkills); // 계산값 가져오기
     return {
       player: { ...state.player, currentHealth: computed.maxHealth },
       currentEnemy: null,
