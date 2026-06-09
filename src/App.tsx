@@ -145,7 +145,8 @@ function App() {
 
         {screen === 'TOWN_SCREEN' && (
             <>
-              <TownScreen onNavigate={(s) => handleNavigate(s)} />
+              {/* [수정됨] 더 이상 쓰지 않는 onNavigate 속성을 제거했습니다. */}
+              <TownScreen />
               {/* Offline Rewards Modal - Only render in TOWN_SCREEN */}
               {offlineRewards && (offlineRewards.gold > 0 || offlineRewards.exp > 0) && (
                   <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
