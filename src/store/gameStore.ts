@@ -164,6 +164,7 @@ const getInitialStoreState = (): GameState => {
     equippedCore: null,
     lastOnlineTime: Date.now(),
     lastDamageDealt: { normal: 0, core: 0 },
+    lastReflectedDamage: 0, // [신규] 반사 데미지 초기화
     battleStartTime: 0,
     reincarnationPoints: 0,
     unlockedSkills: ['core_origin'],
@@ -210,7 +211,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
       // 5. 기타 상태
       battleStartTime: 0,
-      lastDamageDealt: { normal: 0, core: 0 }
+      lastDamageDealt: { normal: 0, core: 0 },
+      lastReflectedDamage: 0 // [신규] 환생 시 반사 데미지 초기화
     };
   }),
 
@@ -520,18 +522,19 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     // [버그 픽스] 원본 damage가 아니라 쉴드가 막아주고 남은 actualHealthDamage만 뺍니다!
     const nextHealth = Math.max(0, state.player.currentHealth - actualHealthDamage);
 
-    // 2. [신규] 물 코어: 가시 방패 (데미지 반사) 로직
+// 2. [신규] 물 코어: 가시 방패 (데미지 반사) 로직
     // (미사용 더미 변수 enemyDamageTaken 삭제 완료)
     let enemyNextHealth = state.currentEnemy.currentHealth;
+    let actualReflectedDmg = 0; // [신규] 리턴값에 넣어주기 위해 밖으로 빼낸 변수
 
     if (state.equippedCore?.type === 'WATER') {
       const stats = getCoreStats('WATER', state.equippedCore.level);
       // 적이 나에게 입힌 원본 데미지(damage)를 기준으로 비율만큼 반사
-      const reflectDmg = Math.floor(damage * (stats.reflectRatio || 0));
+      actualReflectedDmg = Math.floor(damage * (stats.reflectRatio || 0));
 
-      if (reflectDmg > 0) {
+      if (actualReflectedDmg > 0) {
         // 반사 데미지로 인해 적의 체력이 깎임
-        enemyNextHealth = Math.max(0, enemyNextHealth - reflectDmg);
+        enemyNextHealth = Math.max(0, enemyNextHealth - actualReflectedDmg);
       }
     }
 
@@ -540,14 +543,16 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         player: { ...state.player, currentHealth: 0 },
         playerShield: 0,
         currentEnemy: null,
-        gameStatus: 'DEFEAT'
+        gameStatus: 'DEFEAT',
+        lastReflectedDamage: actualReflectedDmg // [신규] 상태 업데이트
       };
     }
 
     return {
       player: { ...state.player, currentHealth: nextHealth },
       playerShield: remainingShield,
-      currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth }
+      currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
+      lastReflectedDamage: actualReflectedDmg // [신규] 상태 업데이트
     };
   }),
 

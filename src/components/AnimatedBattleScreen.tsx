@@ -33,6 +33,7 @@ const AnimatedBattleScreen: React.FC = () => {
     maxStage,
     gameStatus,
     lastDamageDealt,
+    lastReflectedDamage, // [신규] 반사 데미지 상태 가져오기
     spawnEnemy,
     attackEnemy,
     attackPlayer,
@@ -49,8 +50,8 @@ const AnimatedBattleScreen: React.FC = () => {
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
 
-  // [신규] 데미지 텍스트 팝업을 위한 배열
-  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, isCore: boolean }[]>([]);
+  // [신규] 데미지 텍스트 팝업을 위한 배열 (type 속성으로 세분화)
+  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' }[]>([]);
 
   useEffect(() => {
     if (gameStatus === 'IDLE') spawnEnemy();
@@ -90,10 +91,14 @@ const AnimatedBattleScreen: React.FC = () => {
     };
   }, [gameStatus, currentEnemyId, computed.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer]);
 
-  // [신규] 플레이어가 적을 때렸을 때 데미지 텍스트 띄우기
+// [신규] 플레이어가 적을 때렸을 때 데미지 텍스트 띄우기
   useEffect(() => {
     if (lastDamageDealt && (lastDamageDealt.normal > 0 || lastDamageDealt.core > 0)) {
-      const newPopup = { id: Date.now(), val: lastDamageDealt.normal + lastDamageDealt.core, isCore: lastDamageDealt.core > 0 };
+      const newPopup = {
+        id: Date.now(),
+        val: lastDamageDealt.normal + lastDamageDealt.core,
+        type: (lastDamageDealt.core > 0 ? 'core' : 'normal') as 'normal' | 'core' | 'reflect' // [수정됨] 명시적 타입 지정
+      };
       setDamagePopups(prev => [...prev, newPopup]);
 
       // 1초 뒤에 텍스트 삭제
@@ -102,6 +107,22 @@ const AnimatedBattleScreen: React.FC = () => {
       }, 1000);
     }
   }, [lastDamageDealt]);
+
+// [신규] 물 코어 반사 데미지가 발생했을 때 파란색 텍스트 띄우기
+  useEffect(() => {
+    if (lastReflectedDamage && lastReflectedDamage > 0) {
+      const newPopup = {
+        id: Date.now() + 1, // ID 충돌 방지
+        val: lastReflectedDamage,
+        type: 'reflect' as const // [수정됨] 문자열 상수로 고정
+      };
+      setDamagePopups(prev => [...prev, newPopup]);
+
+      setTimeout(() => {
+        setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
+      }, 1000);
+    }
+  }, [lastReflectedDamage]);
 
   useEffect(() => {
     if (gameStatus === 'VICTORY') {
@@ -272,18 +293,32 @@ const AnimatedBattleScreen: React.FC = () => {
 
               {/* 데미지 텍스트 팝업 (적 박스 위에서 떠오름) */}
               <AnimatePresence>
-                {damagePopups.map((popup) => (
-                    <motion.div
-                        key={popup.id}
-                        initial={{ opacity: 0, y: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, y: -60, scale: popup.isCore ? 1.5 : 1.2 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.6, ease: "easeOut" }}
-                        className={`absolute left-1/2 -translate-x-1/2 -top-4 font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-50 ${popup.isCore ? 'text-orange-500 text-xl' : 'text-white text-base'}`}
-                    >
-                      -{popup.val}
-                    </motion.div>
-                ))}
+                {damagePopups.map((popup) => {
+                  // 타입에 따른 스타일 분기
+                  let colorClass = 'text-white text-base';
+                  let scaleVal = 1.2;
+
+                  if (popup.type === 'core') {
+                    colorClass = 'text-orange-500 text-xl'; // 불 코어 등 추가 피해 (주황색)
+                    scaleVal = 1.5;
+                  } else if (popup.type === 'reflect') {
+                    colorClass = 'text-blue-400 text-lg'; // 물 코어 반사 피해 (파란색)
+                    scaleVal = 1.3;
+                  }
+
+                  return (
+                      <motion.div
+                          key={popup.id}
+                          initial={{ opacity: 0, y: 0, scale: 0.5 }}
+                          animate={{ opacity: 1, y: -60, scale: scaleVal }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-50 ${colorClass}`}
+                      >
+                        -{popup.val}
+                      </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
           </div>
