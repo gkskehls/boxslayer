@@ -19,10 +19,14 @@ const CoreScreen: React.FC = () => {
   const [selectedCore, setSelectedCore] = useState<Core | null>(null);
   const [isEquippedSelected, setIsEquippedSelected] = useState(false);
 
+  // [신규] 장착 코어를 볼 때는 최신 상태(equippedCore)를, 인벤토리를 볼 때는 선택된 코어(selectedCore)를 참조합니다.
+  const displayCore = isEquippedSelected ? equippedCore : selectedCore;
+
   const getBatchCost = (amount: number) => {
-    if (!selectedCore) return "0";
+    if (!displayCore) return "0";
     let cost = 0;
-    for (let i = 0; i < amount; i++) cost += 100 * (selectedCore.level + i);
+    // selectedCore 대신 실시간 displayCore를 사용해 비용 계산
+    for (let i = 0; i < amount; i++) cost += 100 * (displayCore.level + i);
     return cost.toLocaleString();
   };
 
@@ -82,12 +86,12 @@ const CoreScreen: React.FC = () => {
         </div>
 
         {/* 선택된 코어 상세 및 액션 영역 */}
-        {selectedCore && (
-            <div className={`p-4 rounded-lg border ${getCoreTypeColor(selectedCore.type)}`}>
-              <div className="text-lg font-extrabold mb-1">{selectedCore.name}</div>
-              <div className="text-xs font-bold mb-3">현재 레벨: {selectedCore.level}</div>
+        {displayCore && (
+            <div className={`p-4 rounded-lg border ${getCoreTypeColor(displayCore.type)}`}>
+              <div className="text-lg font-extrabold mb-1">{displayCore.name}</div>
+              <div className="text-xs font-bold mb-3">현재 레벨: {displayCore.level}</div>
               <p className="mb-4 p-2 bg-black/20 rounded text-[13px] leading-relaxed">
-                {getCoreStats(selectedCore.type, selectedCore.level).desc}
+                {getCoreStats(displayCore.type, displayCore.level).desc}
               </p>
 
               {/* 장착 전 (인벤토리 선택 상태) */}
