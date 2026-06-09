@@ -200,7 +200,8 @@ const AnimatedBattleScreen: React.FC = () => {
         </div>
 
         {/* 격투 영역 */}
-        <div className="bg-neutral-800/50 rounded-xl p-6 min-h-[350px] flex flex-col justify-between border border-neutral-700 relative overflow-hidden">
+        {/* [수정됨] 박스가 커지고 데미지가 뜰 때 윗부분이 짤리지 않도록 min-h-[350px]를 min-h-[450px]로 넉넉하게 수정했습니다. */}
+        <div className="bg-neutral-800/50 rounded-xl p-6 min-h-[450px] flex flex-col justify-between border border-neutral-700 relative overflow-hidden">
 
           <div className="flex justify-between items-start w-full gap-4 relative z-10">
             {/* 플레이어 체력바 */}
