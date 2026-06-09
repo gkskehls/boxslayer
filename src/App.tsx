@@ -106,7 +106,10 @@ function App() {
       <div className="min-h-screen bg-neutral-900 text-white p-4 font-mono flex flex-col items-center justify-center pb-20"> {/* pb-20 for nav bar */}
         {screen === 'TITLE_SCREEN' && (
             <div
-                onClick={() => handleNavigate('LOGIN_CHOICE_SCREEN')}
+                onClick={() => {
+                  const hasLoggedIn = localStorage.getItem('hasLoggedIn');
+                  handleNavigate(hasLoggedIn === 'true' ? 'TOWN_SCREEN' : 'LOGIN_CHOICE_SCREEN');
+                }}
                 className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer z-50 text-center"
             >
               <h1 className="text-5xl font-bold mb-8 text-yellow-400">BoxSlayer</h1>
@@ -122,7 +125,10 @@ function App() {
               <h2 className="text-3xl font-bold mb-8 text-yellow-400">로그인 방식을 선택하세요</h2>
               <div className="flex flex-col items-center gap-4">
                 <button
-                    onClick={() => handleNavigate('TOWN_SCREEN')} // 게스트 로그인 시 마을 화면으로
+                    onClick={() => {
+                      localStorage.setItem('hasLoggedIn', 'true');
+                      handleNavigate('TOWN_SCREEN');
+                    }}
                     className="px-6 py-3 bg-green-600 text-white text-xl font-bold rounded-lg hover:bg-green-500 transition-colors w-64"
                 >
                   게스트 로그인
