@@ -97,9 +97,11 @@ const AnimatedBattleScreen: React.FC = () => {
       const newPopup = {
         id: Date.now(),
         val: lastDamageDealt.normal + lastDamageDealt.core,
-        type: (lastDamageDealt.core > 0 ? 'core' : 'normal') as 'normal' | 'core' | 'reflect' // [수정됨] 명시적 타입 지정
+        type: (lastDamageDealt.core > 0 ? 'core' : 'normal') as 'normal' | 'core' | 'reflect'
       };
-      setDamagePopups(prev => [...prev, newPopup]);
+
+      // [수정됨] setTimeout을 이용해 비동기로 처리하여 ESLint 연속 렌더링 경고 해결
+      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
 
       // 1초 뒤에 텍스트 삭제
       setTimeout(() => {
@@ -114,9 +116,11 @@ const AnimatedBattleScreen: React.FC = () => {
       const newPopup = {
         id: Date.now() + 1, // ID 충돌 방지
         val: lastReflectedDamage,
-        type: 'reflect' as const // [수정됨] 문자열 상수로 고정
+        type: 'reflect' as const
       };
-      setDamagePopups(prev => [...prev, newPopup]);
+
+      // [수정됨] setTimeout을 이용해 비동기로 처리하여 ESLint 연속 렌더링 경고 해결
+      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
 
       setTimeout(() => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
