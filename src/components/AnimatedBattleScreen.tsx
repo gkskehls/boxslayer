@@ -1,6 +1,6 @@
 // src/components/AnimatedBattleScreen.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react'; // [수정됨] useRef 추가
 import { useGameStore, getComputedStats } from '../store/gameStore';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 
@@ -53,7 +53,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
   // [수정됨] 팝업 타입에 MISS 분기 2종('miss-enemy', 'miss-player') 추가
   const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player' }[]>([]);
-  const [prevPlayerHealth, setPrevPlayerHealth] = useState(player.currentHealth);
+  const prevPlayerHealth = useRef(player.currentHealth); // [수정됨] 연속 렌더링 방지를 위해 useRef 사용
 
   useEffect(() => {
     if (gameStatus === 'IDLE') spawnEnemy();
@@ -163,10 +163,11 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [lastPlayerEvadedTime]);
 
-  // 적이 나에게 입힌 피격 데미지
+// 적이 나에게 입힌 피격 데미지 (ESLint 경고 완벽 해결)
   useEffect(() => {
-    if (gameStatus === 'BATTLE' && player.currentHealth < prevPlayerHealth) {
-      const damageTaken = prevPlayerHealth - player.currentHealth;
+    // .current를 붙여서 ref 값을 읽어옵니다.
+    if (gameStatus === 'BATTLE' && player.currentHealth < prevPlayerHealth.current) {
+      const damageTaken = prevPlayerHealth.current - player.currentHealth;
       const newPopup = {
         id: Date.now() + Math.random(),
         val: Math.floor(damageTaken),
@@ -179,8 +180,9 @@ const AnimatedBattleScreen: React.FC = () => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1000);
     }
-    setPrevPlayerHealth(player.currentHealth);
-  }, [player.currentHealth, prevPlayerHealth, gameStatus]);
+    // 상태 변경(setState) 대신 참조(ref) 값만 조용히 갱신하여 렌더링 폭주를 막습니다.
+    prevPlayerHealth.current = player.currentHealth;
+  }, [player.currentHealth, gameStatus]); // 의존성 배열에서 prevPlayerHealth 제거
 
   useEffect(() => {
     if (gameStatus === 'VICTORY') {
