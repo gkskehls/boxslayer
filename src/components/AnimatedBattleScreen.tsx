@@ -40,6 +40,7 @@ const AnimatedBattleScreen: React.FC = () => {
     attackEnemy,
     attackPlayer,
     retryCurrentFloor,
+    equippedCore,
   } = useGameStore();
 
   const computed = getComputedStats(player.stats, useGameStore.getState().unlockedSkills);
@@ -50,11 +51,11 @@ const AnimatedBattleScreen: React.FC = () => {
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
 
-  // [수정됨] 팝업 타입에 MISS 분기 2종('miss-enemy', 'miss-player') 추가
-  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player' }[]>([]);
+  // [수정됨] 팝업 시스템 고도화: 현재 어떤 코어 종류로 데미지가 들어갔는지 식별하기 위해 coreType 필드 추가
+  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player', coreType?: string }[]>([]);
   const prevPlayerHealth = useRef(player.currentHealth); // [수정됨] 연속 렌더링 방지를 위해 useRef 사용
 
-  // [신규] 상세 스탯 열고 닫기 토글 상태 추가
+  // 상세 스탯 열고 닫기 토글 상태 추가
   const [showStats, setShowStats] = useState<boolean>(false);
 
   // 한 방 컷 등으로 전투가 즉시 종료될 때 박스가 늘어난 채 멈추는 현상 방지 안전장치
@@ -118,7 +119,8 @@ const AnimatedBattleScreen: React.FC = () => {
         const corePopup = {
           id: Date.now() + 1, // 일반 데미지 팝업과 ID 충돌 방지
           val: lastDamageDealt.core,
-          type: 'core' as const
+          type: 'core' as const,
+          coreType: equippedCore?.type // [신규] 팝업 생성 당시 장착 중인 코어 타입을 기록
         };
         // 일반 데미지보다 150ms 늦게 띄워서 연타로 들어가는 느낌 연출
         setTimeout(() => setDamagePopups(prev => [...prev, corePopup]), 150);
@@ -128,7 +130,7 @@ const AnimatedBattleScreen: React.FC = () => {
         }, 1150);
       }
     }
-  }, [lastDamageDealt]);
+  }, [lastDamageDealt, equippedCore]);
 
   // 물 코어 반사 데미지
   useEffect(() => {
@@ -206,7 +208,7 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [gameStatus, retryCurrentFloor]);
 
-  // [수정됨] 크기, 회전 변형 모두 제거하고 x축 이동(돌진)만 하도록 변경하여 정사각형 무조건 유지
+  // 크기, 회전 변형 모두 제거하고 x축 이동(돌진)만 하도록 변경하여 정사각형 무조건 유지
   const playerVariants: Variants = {
     idle: { y: [0, -8, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut" } },
     attack: { x: [0, 65, 0], transition: { duration: 0.22, times: [0, 0.4, 1] } },
@@ -357,7 +359,7 @@ const AnimatedBattleScreen: React.FC = () => {
                   <div className="w-[80px] h-[80px] flex items-center justify-center text-neutral-500 italic">...</div>
               )}
 
-              {/* 적에게 들어간 데미지 & MISS 텍스트 팝업 */}
+              {/* [수정됨] 적에게 들어간 데미지 & MISS 텍스트 팝업 (코어 타입별 색상 커스텀 연출 적용) */}
               <AnimatePresence>
                 {damagePopups.filter(p => p.type !== 'taken' && p.type !== 'miss-player').map((popup) => {
                   let colorClass = 'text-white text-base';
@@ -365,10 +367,19 @@ const AnimatedBattleScreen: React.FC = () => {
                   let text = `-${popup.val}`;
 
                   if (popup.type === 'core') {
-                    colorClass = 'text-orange-500 text-xl';
                     scaleVal = 1.5;
+                    // 장착했던 코어의 고유 속성 타입에 따른 전용 시그니처 색상 매핑
+                    if (popup.coreType === 'FIRE') {
+                      colorClass = 'text-red-500 text-xl font-extrabold'; // 불: 파괴적인 레드
+                    } else if (popup.coreType === 'WIND') {
+                      colorClass = 'text-green-400 text-xl font-extrabold'; // 바람: 콤보 연타 그린
+                    } else if (popup.coreType === 'ELECTRIC') {
+                      colorClass = 'text-yellow-400 text-xl font-extrabold'; // 번개: 전격 기절 옐로우
+                    } else {
+                      colorClass = 'text-orange-500 text-xl'; // 기본 예외처리
+                    }
                   } else if (popup.type === 'reflect') {
-                    colorClass = 'text-blue-400 text-lg';
+                    colorClass = 'text-blue-400 text-lg font-bold'; // 물 코어 데미지 반사: 시원한 블루
                     scaleVal = 1.3;
                   } else if (popup.type === 'miss-enemy') {
                     colorClass = 'text-neutral-400 text-lg italic';
