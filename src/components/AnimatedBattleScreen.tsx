@@ -60,6 +60,7 @@ const AnimatedBattleScreen: React.FC = () => {
     let enemyAttackTimer: number;
 
     if (gameStatus === 'BATTLE' && currentEnemyId) {
+      // [수정됨] attackSpeed가 gameStore에서 2.0으로 고정되었으므로, 이제 정확히 500ms(0.5초)마다 공격을 주고받습니다!
       playerAttackTimer = window.setInterval(() => {
         // 1. 공격 애니메이션 트리거 (돌진)
         setPlayerAnim('attack');
@@ -166,7 +167,8 @@ const AnimatedBattleScreen: React.FC = () => {
             </div>
             <div className="text-[9px] text-neutral-500">
               ⚔️ {computed.attack.toFixed(1)} | 🛡️ {computed.defense.toFixed(1)} | ❤️ {computed.maxHealth.toFixed(0)}<br/>
-              ⚡ {computed.attackSpeed.toFixed(2)} | 💨 {(computed.evasion * 100).toFixed(1)}%
+              {/* [신규] 공속 고정(2.0/s) 표시 및 민첩 기반 명중(accuracy)/회피(evasion) 스탯 추가 */}
+              ⚡ {computed.attackSpeed.toFixed(1)}/s | 🎯 명중 {computed.accuracy.toFixed(0)} | 💨 회피 {computed.evasion.toFixed(0)}
             </div>
           </div>
 
@@ -187,7 +189,8 @@ const AnimatedBattleScreen: React.FC = () => {
             {enemyComputed && (
                 <div className="text-[9px] text-neutral-500">
                   ⚔️ {enemyComputed.attack.toFixed(1)} | 🛡️ {enemyComputed.defense.toFixed(1)} | ❤️ {enemyComputed.maxHealth.toFixed(0)}<br/>
-                  ⚡ {enemyComputed.attackSpeed.toFixed(2)} | 💨 {(enemyComputed.evasion * 100).toFixed(1)}%
+                  {/* [신규] 적의 공속 고정 표시 및 명중/회피 스탯 추가 */}
+                  ⚡ {enemyComputed.attackSpeed.toFixed(1)}/s | 🎯 명중 {enemyComputed.accuracy.toFixed(0)} | 💨 회피 {enemyComputed.evasion.toFixed(0)}
                 </div>
             )}
           </div>
