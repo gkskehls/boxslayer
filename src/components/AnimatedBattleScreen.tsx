@@ -87,20 +87,36 @@ const AnimatedBattleScreen: React.FC = () => {
     };
   }, [gameStatus, currentEnemyId, computed.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer]);
 
-  // 플레이어가 적을 때렸을 때 데미지 텍스트
+// 플레이어가 적을 때렸을 때 데미지 텍스트
   useEffect(() => {
     if (lastDamageDealt && (lastDamageDealt.normal > 0 || lastDamageDealt.core > 0)) {
-      const newPopup = {
-        id: Date.now(),
-        val: lastDamageDealt.normal + lastDamageDealt.core,
-        type: (lastDamageDealt.core > 0 ? 'core' : 'normal') as 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player'
-      };
+      // 1. 일반 데미지 팝업 (즉시 표시)
+      if (lastDamageDealt.normal > 0) {
+        const normalPopup = {
+          id: Date.now(),
+          val: lastDamageDealt.normal,
+          type: 'normal' as const
+        };
+        setTimeout(() => setDamagePopups(prev => [...prev, normalPopup]), 0);
+        setTimeout(() => {
+          setDamagePopups(prev => prev.filter(p => p.id !== normalPopup.id));
+        }, 1000);
+      }
 
-      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
-
-      setTimeout(() => {
-        setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
-      }, 1000);
+      // 2. 코어 데미지 팝업 (일반 데미지에 뒤따라서 표시되도록 약간의 지연 시간 적용)
+      if (lastDamageDealt.core > 0) {
+        const corePopup = {
+          id: Date.now() + 1, // 일반 데미지 팝업과 ID 충돌 방지
+          val: lastDamageDealt.core,
+          type: 'core' as const
+        };
+        // 일반 데미지보다 150ms 늦게 띄워서 연타로 들어가는 느낌 연출
+        setTimeout(() => setDamagePopups(prev => [...prev, corePopup]), 150);
+        // 지연된 시간만큼 팝업 유지/삭제 시간도 연장
+        setTimeout(() => {
+          setDamagePopups(prev => prev.filter(p => p.id !== corePopup.id));
+        }, 1150);
+      }
     }
   }, [lastDamageDealt]);
 
