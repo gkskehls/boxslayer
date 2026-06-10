@@ -40,7 +40,6 @@ const AnimatedBattleScreen: React.FC = () => {
     attackEnemy,
     attackPlayer,
     retryCurrentFloor,
-    equippedCore,
   } = useGameStore();
 
   const computed = getComputedStats(player.stats, useGameStore.getState().unlockedSkills);
@@ -54,6 +53,9 @@ const AnimatedBattleScreen: React.FC = () => {
   // [수정됨] 팝업 타입에 MISS 분기 2종('miss-enemy', 'miss-player') 추가
   const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player' }[]>([]);
   const prevPlayerHealth = useRef(player.currentHealth); // [수정됨] 연속 렌더링 방지를 위해 useRef 사용
+
+  // [신규] 상세 스탯 열고 닫기 토글 상태 추가
+  const [showStats, setShowStats] = useState<boolean>(false);
 
   useEffect(() => {
     if (gameStatus === 'IDLE') spawnEnemy();
@@ -210,42 +212,21 @@ const AnimatedBattleScreen: React.FC = () => {
     hit: { x: [10, -10, 10, -5, 0], filter: ["brightness(1)", "brightness(2) drop-shadow(0 0 10px white)", "brightness(1)"], transition: { duration: 0.3 } }
   };
 
+  // 1:1 비교를 위해 순회할 스탯 매핑 배열 (아이콘 제거 및 힘/민/체 포함 총 9종)
+  const statComparisonList = [
+    { label: '힘 (STR)', pValue: player.stats.str, eValue: currentEnemy?.stats.str },
+    { label: '민첩 (DEX)', pValue: player.stats.dex, eValue: currentEnemy?.stats.dex },
+    { label: '체력 (CON)', pValue: player.stats.con, eValue: currentEnemy?.stats.con },
+    { label: '공격력', pValue: computed.attack.toFixed(1), eValue: enemyComputed?.attack.toFixed(1) },
+    { label: '방어력', pValue: computed.defense.toFixed(1), eValue: enemyComputed?.defense.toFixed(1) },
+    { label: '공격속도', pValue: `${computed.attackSpeed.toFixed(1)}/s`, eValue: enemyComputed ? `${enemyComputed.attackSpeed.toFixed(1)}/s` : undefined },
+    { label: '최대체력', pValue: computed.maxHealth.toFixed(0), eValue: enemyComputed?.maxHealth.toFixed(0) },
+    { label: '명중', pValue: computed.accuracy.toFixed(0), eValue: enemyComputed?.accuracy.toFixed(0) },
+    { label: '회피', pValue: computed.evasion.toFixed(0), eValue: enemyComputed?.evasion.toFixed(0) },
+  ];
+
   return (
       <div className="max-w-4xl mx-auto p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-6">
-
-        {/* 상단: 스탯 정보 */}
-        <div className="flex justify-between items-start text-[11px] text-neutral-400 bg-neutral-950 p-3 rounded border border-neutral-800">
-          <div className="flex flex-col gap-1">
-            <div className="font-bold text-white">
-              내: 공 {player.stats.str} / 민 {player.stats.dex} / 체 {player.stats.con}
-            </div>
-            <div className="text-[9px] text-neutral-500">
-              ⚔️ {computed.attack.toFixed(1)} | 🛡️ {computed.defense.toFixed(1)} | ❤️ {computed.maxHealth.toFixed(0)}<br/>
-              ⚡ {computed.attackSpeed.toFixed(1)}/s | 🎯 명중 {computed.accuracy.toFixed(0)} | 💨 회피 {computed.evasion.toFixed(0)}
-            </div>
-          </div>
-
-          <div className="font-bold text-yellow-400 text-sm flex flex-col items-center">
-            <div className="text-[10px] text-purple-400 mt-1 animate-pulse">
-              [ 애니메이션 테스트룸 ]
-            </div>
-            <div className="text-[10px] text-purple-400 mt-1">
-              CORE: {equippedCore ? equippedCore.name : "None"}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1 text-right">
-            <div className="font-bold text-white">
-              적: 공 {currentEnemy?.stats.str || 0} / 민 {currentEnemy?.stats.dex || 0} / 체 {currentEnemy?.stats.con || 0}
-            </div>
-            {enemyComputed && (
-                <div className="text-[9px] text-neutral-500">
-                  ⚔️ {enemyComputed.attack.toFixed(1)} | 🛡️ {enemyComputed.defense.toFixed(1)} | ❤️ {enemyComputed.maxHealth.toFixed(0)}<br/>
-                  ⚡ {enemyComputed.attackSpeed.toFixed(1)}/s | 🎯 명중 {enemyComputed.accuracy.toFixed(0)} | 💨 회피 {enemyComputed.evasion.toFixed(0)}
-                </div>
-            )}
-          </div>
-        </div>
 
         {/* 헤더: 스테이지 및 경험치 바 */}
         <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 flex flex-col gap-2 w-full">
@@ -412,6 +393,51 @@ const AnimatedBattleScreen: React.FC = () => {
               </div>
           )}
         </div>
+
+        {/* [수정됨] 하단: 컴팩트 일체형 상세 스탯 창 */}
+        <div className="flex flex-col bg-neutral-950 rounded-xl border border-neutral-800 overflow-hidden">
+
+          {/* 토글 트리거 버튼 */}
+          <button
+              type="button"
+              onClick={() => setShowStats(!showStats)}
+              className="w-full py-2 bg-neutral-900/60 hover:bg-neutral-900 text-[11px] font-bold text-neutral-400 hover:text-neutral-200 transition-colors duration-150 flex items-center justify-center gap-1 border-b border-neutral-900"
+          >
+            {showStats ? '상세 스탯 접기 ▲' : '상세 스탯 보기 ▼'}
+          </button>
+
+          {/* 스탯 패널 본문 (단일 영역 내 3열 초압축 배치) */}
+          <AnimatePresence>
+            {showStats && (
+                <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                >
+                  <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-0.5 text-[11px] font-mono">
+                    {statComparisonList.map((item, idx) => (
+                        <div
+                            key={idx}
+                            className="flex justify-between items-center py-0.5 border-b border-neutral-900/40"
+                        >
+                          {/* 내 스탯 (그린) */}
+                          <span className="font-bold text-green-400 w-14 text-left">{item.pValue}</span>
+
+                          {/* 스탯 명칭 (순수 텍스트) */}
+                          <span className="text-neutral-500 font-sans text-center flex-1 text-[10px] tracking-tight">{item.label}</span>
+
+                          {/* 적 스탯 (레드) */}
+                          <span className="font-bold text-red-400 w-14 text-right">{item.eValue ?? '-'}</span>
+                        </div>
+                    ))}
+                  </div>
+                </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
       </div>
   );
 };
