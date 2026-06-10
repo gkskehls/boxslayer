@@ -57,6 +57,14 @@ const AnimatedBattleScreen: React.FC = () => {
   // [신규] 상세 스탯 열고 닫기 토글 상태 추가
   const [showStats, setShowStats] = useState<boolean>(false);
 
+  // 한 방 컷 등으로 전투가 즉시 종료될 때 박스가 늘어난 채 멈추는 현상 방지 안전장치
+  useEffect(() => {
+    if (gameStatus !== 'BATTLE') {
+      setPlayerAnim('idle');
+      setEnemyAnim('idle');
+    }
+  }, [gameStatus]);
+
   useEffect(() => {
     if (gameStatus === 'IDLE') spawnEnemy();
 
@@ -139,7 +147,7 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [lastReflectedDamage]);
 
-  // [신규] 적이 내 공격을 회피했을 때 팝업
+  // 적이 내 공격을 회피했을 때 팝업
   useEffect(() => {
     if (lastEnemyEvadedTime && lastEnemyEvadedTime > 0) {
       const newPopup = {
@@ -152,7 +160,7 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [lastEnemyEvadedTime]);
 
-  // [신규] 내가 적의 공격을 회피했을 때 팝업
+  // 내가 적의 공격을 회피했을 때 팝업
   useEffect(() => {
     if (lastPlayerEvadedTime && lastPlayerEvadedTime > 0) {
       const newPopup = {
@@ -165,9 +173,8 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [lastPlayerEvadedTime]);
 
-// 적이 나에게 입힌 피격 데미지 (ESLint 경고 완벽 해결)
+// 적이 나에게 입힌 피격 데미지
   useEffect(() => {
-    // .current를 붙여서 ref 값을 읽어옵니다.
     if (gameStatus === 'BATTLE' && player.currentHealth < prevPlayerHealth.current) {
       const damageTaken = prevPlayerHealth.current - player.currentHealth;
       const newPopup = {
@@ -182,9 +189,8 @@ const AnimatedBattleScreen: React.FC = () => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1000);
     }
-    // 상태 변경(setState) 대신 참조(ref) 값만 조용히 갱신하여 렌더링 폭주를 막습니다.
     prevPlayerHealth.current = player.currentHealth;
-  }, [player.currentHealth, gameStatus]); // 의존성 배열에서 prevPlayerHealth 제거
+  }, [player.currentHealth, gameStatus]);
 
   useEffect(() => {
     if (gameStatus === 'VICTORY') {
@@ -200,15 +206,16 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [gameStatus, retryCurrentFloor]);
 
+  // [수정됨] 크기, 회전 변형 모두 제거하고 x축 이동(돌진)만 하도록 변경하여 정사각형 무조건 유지
   const playerVariants: Variants = {
     idle: { y: [0, -8, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut" } },
-    attack: { x: [0, 60, 0], scaleX: [1, 1.3, 1], scaleY: [1, 0.8, 1], transition: { duration: 0.25, times: [0, 0.4, 1] } },
+    attack: { x: [0, 65, 0], transition: { duration: 0.22, times: [0, 0.4, 1] } },
     hit: { x: [-10, 10, -10, 5, 0], filter: ["brightness(1)", "brightness(2) drop-shadow(0 0 10px red)", "brightness(1)"], transition: { duration: 0.3 } }
   };
 
   const enemyVariants: Variants = {
     idle: { y: [0, -8, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut", delay: 0.5 } },
-    attack: { x: [0, -60, 0], scaleX: [1, 1.3, 1], scaleY: [1, 0.8, 1], transition: { duration: 0.25, times: [0, 0.4, 1] } },
+    attack: { x: [0, -65, 0], transition: { duration: 0.22, times: [0, 0.4, 1] } },
     hit: { x: [10, -10, 10, -5, 0], filter: ["brightness(1)", "brightness(2) drop-shadow(0 0 10px white)", "brightness(1)"], transition: { duration: 0.3 } }
   };
 
@@ -394,7 +401,7 @@ const AnimatedBattleScreen: React.FC = () => {
           )}
         </div>
 
-        {/* [수정됨] 하단: 컴팩트 일체형 상세 스탯 창 */}
+        {/* 하단: 컴팩트 일체형 상세 스탯 창 */}
         <div className="flex flex-col bg-neutral-950 rounded-xl border border-neutral-800 overflow-hidden">
 
           {/* 토글 트리거 버튼 */}
