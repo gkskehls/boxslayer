@@ -23,29 +23,34 @@ const TownScreen: React.FC = () => {
     return (
         <div className="max-w-4xl mx-auto p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-6 items-center justify-center">
 
-            {/* 1. 현재 상태 요약바 (대시보드 형태로 확장) */}
-            <div className="bg-neutral-950 px-6 py-8 rounded-xl border border-neutral-800 w-full flex flex-col gap-4 items-center justify-center shadow-inner">
-                <h2 className="text-xl font-bold text-neutral-500 mb-2">플레이어 정보</h2>
-                <div className="flex gap-8 text-lg text-neutral-400 font-mono">
-                    <span>STAGE: <span className="text-white font-bold text-2xl">{stage}</span></span>
-                    <span>LEVEL: <span className="text-white font-bold text-2xl">{player.level}</span></span>
+            {/* 1. 현재 상태 요약바 (모바일 공간 확보를 위해 패딩 슬림화) */}
+            <div className="bg-neutral-950 px-5 py-5 rounded-xl border border-neutral-800 w-full flex flex-col gap-3 items-center justify-center shadow-inner">
+                <h2 className="text-sm font-bold text-neutral-500 tracking-wider uppercase">플레이어 정보</h2>
+                <div className="flex gap-6 text-base text-neutral-400 font-mono">
+                    <span>STAGE: <span className="text-white font-bold text-xl">{stage}</span></span>
+                    <span>LEVEL: <span className="text-white font-bold text-xl">{player.level}</span></span>
                 </div>
-                <div className="text-lg text-neutral-400 font-mono mt-2">
-                    <span>RP: <span className="text-purple-400 font-bold text-2xl">{reincarnationPoints}</span></span>
+                <div className="text-base text-neutral-400 font-mono">
+                    <span>RP: <span className="text-purple-400 font-bold text-xl">{reincarnationPoints}</span></span>
                 </div>
             </div>
 
-            {/* 2. 오프라인 보상 알림 타일 (이모지 제거 및 텍스트 강조) */}
+            {/* 2. [개선됨] 오프라인 보상 알림 가로 배너 (1줄 컴팩트화 및 글자 잘림 방지) */}
             {canClaimRewards() && (
                 <button
                     onClick={() => setRewards(calculateOfflineRewards())}
-                    className="w-full py-6 bg-green-950/40 border-2 border-green-500/50 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_15px_rgba(34,197,94,0.2)] animate-pulse"
+                    className="w-full py-3 px-4 bg-green-950/30 border border-green-500/40 rounded-xl flex items-center justify-between gap-3 active:scale-95 transition-all shadow-[0_0_12px_rgba(34,197,94,0.15)] animate-pulse"
                 >
-                    <span className="text-lg font-bold text-green-400">오프라인 보상이 도착했습니다! (터치)</span>
+            <span className="text-xs sm:text-sm font-bold text-green-400 text-left break-keep leading-tight">
+                오프라인 보상이 도착했습니다.
+            </span>
+                    <span className="bg-green-500/20 border border-green-500/40 text-green-400 text-[10px] font-bold px-2 py-1 rounded shrink-0 uppercase tracking-wider">
+                수령
+            </span>
                 </button>
             )}
 
-            {/* 보상 획득 결과 팝업 (유지) */}
+            {/* 보상 획득 결과 팝업 (기존 로직 유지) */}
             {rewards && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
                     <div className="bg-neutral-800 p-8 rounded-2xl border border-neutral-700 text-center shadow-2xl max-w-sm mx-auto w-11/12">
@@ -65,21 +70,21 @@ const TownScreen: React.FC = () => {
                 </div>
             )}
 
-            {/* 3. 환생의 제단 (마을의 핵심 기능이므로 큼직하게 유지, 이모지 제거) */}
-            <div className="w-full mt-2">
+            {/* 3. [개선됨] 환생의 제단 (설명 문구 가독성 확보 및 컴팩트 크기 조율) */}
+            <div className="w-full mt-1">
                 <button
                     onClick={handleReincarnate}
                     disabled={points === 0}
-                    className={`w-full py-8 border-2 rounded-xl flex flex-col items-center justify-center gap-2 transition-all ${
+                    className={`w-full py-5 border rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
                         points > 0
                             ? 'bg-purple-950/40 border-purple-700/50 active:scale-95 shadow-[0_4px_10px_rgba(168,85,247,0.1)]'
                             : 'bg-neutral-900 border-neutral-800/50 cursor-not-allowed opacity-60'
                     }`}
                 >
-                    <span className={`text-2xl font-bold ${points > 0 ? 'text-purple-400' : 'text-neutral-500'}`}>환생의 제단</span>
-                    <span className="text-sm text-neutral-400 font-mono mt-1">
-                        {points > 0 ? `진행 상황을 초기화하고 +${points} RP를 획득합니다.` : '스테이지 5부터 환생이 가능합니다.'}
-                    </span>
+                    <span className={`text-xl font-bold ${points > 0 ? 'text-purple-400' : 'text-neutral-500'}`}>환생의 제단</span>
+                    <span className="text-[11px] text-neutral-400 font-mono mt-0.5 break-keep px-4 text-center leading-relaxed">
+                {points > 0 ? `진행 상황을 초기화하고 +${points} RP를 획득합니다.` : '스테이지 5부터 환생이 가능합니다.'}
+            </span>
                 </button>
             </div>
         </div>
