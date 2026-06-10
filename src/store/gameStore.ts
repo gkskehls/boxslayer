@@ -19,17 +19,15 @@ export interface CoreStats {
   reflectRatio?: number;
   regenRatio?: number;
   initialRatio?: number;
-  // [신규] 바람 코어: 공속 대신 명중/회피 보너스 부여
   hitEvasionBonus?: number;
   stunChance?: number;
   stunDuration?: number;
 }
 
-// 환생 포인트 계산식 (스테이지 + 레벨 + 코어레벨 총합)
 export const calculateReincarnationPoints = (stage: number, level: number, cores: Core[]): number => {
-  const stagePoints = Math.floor(stage / 5); // 5스테이지당 1포인트
-  const levelPoints = Math.floor(level / 10); // 10레벨당 1포인트
-  const corePoints = Math.floor(cores.reduce((sum, core) => sum + core.level, 0) / 10); // 코어 레벨 합산 10당 1포인트
+  const stagePoints = Math.floor(stage / 5);
+  const levelPoints = Math.floor(level / 10);
+  const corePoints = Math.floor(cores.reduce((sum, core) => sum + core.level, 0) / 10);
 
   return Math.max(0, stagePoints + levelPoints + corePoints);
 };
@@ -45,11 +43,10 @@ export const getCoreStats = (type: string, level: number): CoreStats => {
         fireDamageRatio: strRatio
       };
     }
-    case 'WATER': { // [수정됨] 중괄호 추가
-      // [신규] 물 코어 기믹: 최대 체력(CON) 기반 비율 산정
-      const initialRatio = 0.5 + (level * 0.1); // 시작 쉴드 50%~
-      const regenRatio = 0.01 + (level * 0.002); // 타격 쉴드 회복 1%~
-      const reflectRatio = 0.1 + (level * 0.02); // 반사 데미지 10%~
+    case 'WATER': {
+      const initialRatio = 0.5 + (level * 0.1);
+      const regenRatio = 0.01 + (level * 0.002);
+      const reflectRatio = 0.1 + (level * 0.02);
       return {
         desc: `시작 쉴드 ${Math.floor(initialRatio * 100)}% / 타격 회복 ${Math.floor(regenRatio * 100)}% / 데미지 반사 ${Math.floor(reflectRatio * 100)}%`,
         initialRatio,
@@ -58,7 +55,6 @@ export const getCoreStats = (type: string, level: number): CoreStats => {
       };
     }
     case 'WIND': {
-      // [수정됨] 공속 증가 대신 명중률 및 회피율 증가로 변경
       const bonus = 0.05 + (level * 0.01);
       return {
         desc: `명중/회피 확률 +${Math.floor(bonus * 100)}%`,
@@ -94,27 +90,24 @@ interface GameActions {
 }
 
 const initialStats: Stats = { str: 10, dex: 10, con: 10 };
-// [추가] 실시간 계산 엔진
+
 export const getComputedStats = (stats: Stats, unlockedSkills: string[] = []) => {
   const finalStats = { ...stats };
 
-  // [신규] 스킬 트리의 특수 기믹들을 담아둘 바구니
   const modifiers = {
-    offlineRewardMultiplier: 0, // 방치 보상 증가율
-    startStageBonus: 0,         // 환생 시작 층 점프
-    feverMultiplier: 1.0,       // 피버 배율 증폭
-    evasionChanceBonus: 0       // 회피율 추가 보너스
+    offlineRewardMultiplier: 0,
+    startStageBonus: 0,
+    feverMultiplier: 1.0,
+    evasionChanceBonus: 0
   };
 
   unlockedSkills.forEach(skillId => {
     const skill = SKILL_TREE_DATA[skillId];
     if (skill && skill.effects) {
-      // 1. 기본 3대 스탯 합산
       if (skill.effects.str) finalStats.str += skill.effects.str;
       if (skill.effects.dex) finalStats.dex += skill.effects.dex;
       if (skill.effects.con) finalStats.con += skill.effects.con;
 
-      // 2. [신규] 특수 기믹 합산
       if (skill.effects.offlineRewardMultiplier) modifiers.offlineRewardMultiplier += skill.effects.offlineRewardMultiplier;
       if (skill.effects.startStageBonus) modifiers.startStageBonus += skill.effects.startStageBonus;
       if (skill.effects.feverMultiplier) modifiers.feverMultiplier = Math.max(modifiers.feverMultiplier, skill.effects.feverMultiplier);
@@ -126,14 +119,13 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = []) =>
     attack: 20 + (finalStats.str * 2),
     defense: 5 + (finalStats.con * 0.2),
     maxHealth: 100 + (finalStats.con * 2),
-    attackSpeed: 2.0, // [수정됨] 공속을 무조건 초당 2회(0.5초)로 고정
-    accuracy: finalStats.dex, // [신규] DEX는 이제 명중률로 쓰임
-    evasion: finalStats.dex,  // [신규] DEX는 이제 회피율로 쓰임
+    attackSpeed: 2.0,
+    accuracy: finalStats.dex,
+    evasion: finalStats.dex,
     modifiers
   };
 };
 
-// [확인] initialPlayer 정의
 const initialPlayer: Player = {
   id: 'player',
   name: 'Slayer',
@@ -149,18 +141,15 @@ const initialPlayer: Player = {
 const getInitialStoreState = (): GameState => {
   const loadedState = loadStateFromLocalStorage();
 
-  // 기존 세이브 파일이 있을 경우
   if (loadedState) {
     return {
       ...loadedState,
-      // 예전 세이브 파일에 스킬 데이터나 RP가 없으면 기본값으로 덮어씀
       reincarnationPoints: loadedState.reincarnationPoints || 0,
       unlockedSkills: loadedState.unlockedSkills || ['core_origin'],
       maxStage: loadedState.maxStage || loadedState.stage || 1
     };
   }
 
-  // 세이브 파일이 없는 완전 뉴비일 경우
   return {
     player: initialPlayer,
     currentEnemy: null,
@@ -190,7 +179,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     );
 
     return {
-      // 1. 포인트 누적 및 초기화
       reincarnationPoints: (state.reincarnationPoints || 0) + pointsEarned,
       player: { ...initialPlayer, gold: 0 },
       stage: 1 + (getComputedStats(state.player.stats, state.unlockedSkills).modifiers.startStageBonus || 0),
@@ -198,7 +186,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       currentEnemy: null,
       gameStatus: 'IDLE',
 
-      // 4. 코어 초기화: 환생 시 4대 속성 코어를 1레벨 기본 상태로 지급하며 장착 해제
       playerCores: [
         { id: `core_fire_${Date.now()}`, name: '불의 코어', type: 'FIRE', level: 1 },
         { id: `core_water_${Date.now()}`, name: '물의 코어', type: 'WATER', level: 1 },
@@ -274,17 +261,15 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills);
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
 
-    // 1. [수정됨] 명중률 공식 전면 개편 (기본 90% + (내 DEX - 상대 DEX)%)
     let hitChance = 0.9 + ((playerComputed.accuracy - enemyComputed.evasion) * 0.01);
 
-    // 바람 코어 명중률 보너스 적용
     if (state.equippedCore?.type === 'WIND') {
       const windStats = getCoreStats('WIND', state.equippedCore.level);
       hitChance += (windStats.hitEvasionBonus || 0);
     }
 
-    const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance)); // 10% ~ 100% 사이로 보정
-    const isEvaded = Math.random() > finalHitChance; // 확률보다 주사위 값이 높으면 빗나감(회피됨)
+    const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
+    const isEvaded = Math.random() > finalHitChance;
 
     const elapsedTime = Date.now() - (state.battleStartTime || Date.now());
     const config = BATTLE_SPEED_CONFIG.slice().reverse().find(c => elapsedTime >= c.threshold) || BATTLE_SPEED_CONFIG[0];
@@ -431,16 +416,15 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   resetStats: () => set((state) => ({ player: { ...state.player, stats: initialStats, statPoints: (state.player.level - 1) * 3 } })),
 
   attackPlayer: () => set((state) => {
-    if (state.gameStatus !== 'BATTLE' || !state.currentEnemy) return state;
+    // [로직 선공권 핵심] 이미 적 체력이 0 이하라면 적의 반격은 취소됨
+    if (state.gameStatus !== 'BATTLE' || !state.currentEnemy || state.currentEnemy.currentHealth <= 0) return state;
     if (state.isEnemyStunned) return state;
 
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills);
 
-    // 1. [수정됨] 적의 명중률 vs 나의 회피율 공식 개편
     let hitChance = 0.9 + ((enemyComputed.accuracy - playerComputed.evasion) * 0.01);
 
-    // 내 스킬 및 코어 회피 보너스 차감
     hitChance -= playerComputed.modifiers.evasionChanceBonus;
     if (state.equippedCore?.type === 'WIND') {
       const windStats = getCoreStats('WIND', state.equippedCore.level);
@@ -449,13 +433,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
 
-    // 바람 코어 확정 회피(잔상) 버프 체크
     if (state.equippedCore?.type === 'WIND' && state.hasWindEvasion) {
       return { hasWindEvasion: false };
     }
 
     if (Math.random() > finalHitChance) {
-      return {}; // 적의 공격 빗나감 (내가 회피함)
+      return {};
     }
 
     const damage = Math.max(1, enemyComputed.attack - playerComputed.defense);

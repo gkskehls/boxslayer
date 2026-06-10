@@ -50,8 +50,10 @@ const AnimatedBattleScreen: React.FC = () => {
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
 
-  // [신규] 데미지 텍스트 팝업을 위한 배열 (type 속성으로 세분화)
-  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' }[]>([]);
+  // [신규] 데미지 텍스트 팝업을 위한 배열 (type 속성으로 세분화: 피격 데미지 'taken' 추가)
+  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' }[]>([]);
+  // [신규] 피격 데미지 계산을 위한 이전 체력 기억
+  const [prevPlayerHealth, setPrevPlayerHealth] = useState(player.currentHealth);
 
   useEffect(() => {
     if (gameStatus === 'IDLE') spawnEnemy();
@@ -92,13 +94,13 @@ const AnimatedBattleScreen: React.FC = () => {
     };
   }, [gameStatus, currentEnemyId, computed.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer]);
 
-// [신규] 플레이어가 적을 때렸을 때 데미지 텍스트 띄우기
+  // [신규] 플레이어가 적을 때렸을 때 데미지 텍스트 띄우기
   useEffect(() => {
     if (lastDamageDealt && (lastDamageDealt.normal > 0 || lastDamageDealt.core > 0)) {
       const newPopup = {
         id: Date.now(),
         val: lastDamageDealt.normal + lastDamageDealt.core,
-        type: (lastDamageDealt.core > 0 ? 'core' : 'normal') as 'normal' | 'core' | 'reflect'
+        type: (lastDamageDealt.core > 0 ? 'core' : 'normal') as 'normal' | 'core' | 'reflect' | 'taken'
       };
 
       // [수정됨] setTimeout을 이용해 비동기로 처리하여 ESLint 연속 렌더링 경고 해결
@@ -111,7 +113,7 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [lastDamageDealt]);
 
-// [신규] 물 코어 반사 데미지가 발생했을 때 파란색 텍스트 띄우기
+  // [신규] 물 코어 반사 데미지가 발생했을 때 파란색 텍스트 띄우기
   useEffect(() => {
     if (lastReflectedDamage && lastReflectedDamage > 0) {
       const newPopup = {
@@ -128,6 +130,25 @@ const AnimatedBattleScreen: React.FC = () => {
       }, 1000);
     }
   }, [lastReflectedDamage]);
+
+  // [신규] 적이 나에게 입힌 피격 데미지 감지 및 팝업 띄우기
+  useEffect(() => {
+    if (gameStatus === 'BATTLE' && player.currentHealth < prevPlayerHealth) {
+      const damageTaken = prevPlayerHealth - player.currentHealth;
+      const newPopup = {
+        id: Date.now() + Math.random(), // 동시 다발적 팝업 ID 충돌 방지
+        val: Math.floor(damageTaken),
+        type: 'taken' as const
+      };
+
+      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
+
+      setTimeout(() => {
+        setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
+      }, 1000);
+    }
+    setPrevPlayerHealth(player.currentHealth);
+  }, [player.currentHealth, prevPlayerHealth, gameStatus]);
 
   useEffect(() => {
     if (gameStatus === 'VICTORY') {
@@ -159,7 +180,7 @@ const AnimatedBattleScreen: React.FC = () => {
   return (
       <div className="max-w-4xl mx-auto p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-6">
 
-        {/* 상단: 스탯 정보 (getComputedStats 적용으로 스킬 보너스 수치가 화면에 보임) */}
+        {/* 상단: 스탯 정보 */}
         <div className="flex justify-between items-start text-[11px] text-neutral-400 bg-neutral-950 p-3 rounded border border-neutral-800">
           <div className="flex flex-col gap-1">
             <div className="font-bold text-white">
@@ -167,7 +188,6 @@ const AnimatedBattleScreen: React.FC = () => {
             </div>
             <div className="text-[9px] text-neutral-500">
               ⚔️ {computed.attack.toFixed(1)} | 🛡️ {computed.defense.toFixed(1)} | ❤️ {computed.maxHealth.toFixed(0)}<br/>
-              {/* [신규] 공속 고정(2.0/s) 표시 및 민첩 기반 명중(accuracy)/회피(evasion) 스탯 추가 */}
               ⚡ {computed.attackSpeed.toFixed(1)}/s | 🎯 명중 {computed.accuracy.toFixed(0)} | 💨 회피 {computed.evasion.toFixed(0)}
             </div>
           </div>
@@ -176,7 +196,6 @@ const AnimatedBattleScreen: React.FC = () => {
             <div className="text-[10px] text-purple-400 mt-1 animate-pulse">
               [ 애니메이션 테스트룸 ]
             </div>
-            {/* [수정됨] 장착된 코어 표시 부활 (미사용 변수 에러 해결) */}
             <div className="text-[10px] text-purple-400 mt-1">
               CORE: {equippedCore ? equippedCore.name : "None"}
             </div>
@@ -189,7 +208,6 @@ const AnimatedBattleScreen: React.FC = () => {
             {enemyComputed && (
                 <div className="text-[9px] text-neutral-500">
                   ⚔️ {enemyComputed.attack.toFixed(1)} | 🛡️ {enemyComputed.defense.toFixed(1)} | ❤️ {enemyComputed.maxHealth.toFixed(0)}<br/>
-                  {/* [신규] 적의 공속 고정 표시 및 명중/회피 스탯 추가 */}
                   ⚡ {enemyComputed.attackSpeed.toFixed(1)}/s | 🎯 명중 {enemyComputed.accuracy.toFixed(0)} | 💨 회피 {enemyComputed.evasion.toFixed(0)}
                 </div>
             )}
@@ -228,7 +246,6 @@ const AnimatedBattleScreen: React.FC = () => {
         </div>
 
         {/* 격투 영역 */}
-        {/* [수정됨] 데미지 텍스트가 UI를 시원하게 뚫고 나가는 연출을 위해 min-h-[350px]로 원복하고 overflow-hidden을 제거했습니다. */}
         <div className="bg-neutral-800/50 rounded-xl p-6 min-h-[350px] flex flex-col justify-between border border-neutral-700 relative">
 
           <div className="flex justify-between items-start w-full gap-4 relative z-10">
@@ -274,14 +291,32 @@ const AnimatedBattleScreen: React.FC = () => {
           <div className="flex justify-center items-end gap-16 pb-12 z-10 mt-auto relative">
 
             {/* 플레이어 박스 */}
-            <motion.div
-                variants={playerVariants}
-                animate={playerAnim}
-                className="flex items-center justify-center font-bold text-xs border-2 border-white/20 shadow-[0_0_15px_rgba(34,197,94,0.3)] z-20"
-                style={getDynamicStyle(player.stats, currentEnemy?.stats || player.stats)}
-            >
-              ME
-            </motion.div>
+            <div className="relative z-20">
+              <motion.div
+                  variants={playerVariants}
+                  animate={playerAnim}
+                  className="flex items-center justify-center font-bold text-xs border-2 border-white/20 shadow-[0_0_15px_rgba(34,197,94,0.3)] z-20"
+                  style={getDynamicStyle(player.stats, currentEnemy?.stats || player.stats)}
+              >
+                ME
+              </motion.div>
+
+              {/* 플레이어 피격 데미지 팝업 (내 박스 위에서 붉게 떠오름) */}
+              <AnimatePresence>
+                {damagePopups.filter(p => p.type === 'taken').map((popup) => (
+                    <motion.div
+                        key={popup.id}
+                        initial={{ opacity: 0, y: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, y: -60, scale: 1.3 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.6, ease: "easeOut" }}
+                        className="absolute left-1/2 -translate-x-1/2 -top-4 font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-50 text-red-500 text-lg"
+                    >
+                      -{popup.val}
+                    </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
 
             {/* 적 박스 */}
             <div className="relative z-20">
@@ -298,18 +333,17 @@ const AnimatedBattleScreen: React.FC = () => {
                   <div className="w-[80px] h-[80px] flex items-center justify-center text-neutral-500 italic">...</div>
               )}
 
-              {/* 데미지 텍스트 팝업 (적 박스 위에서 떠오름) */}
+              {/* 적에게 들어간 데미지 텍스트 팝업 (적 박스 위에서 떠오름) */}
               <AnimatePresence>
-                {damagePopups.map((popup) => {
-                  // 타입에 따른 스타일 분기
+                {damagePopups.filter(p => p.type !== 'taken').map((popup) => {
                   let colorClass = 'text-white text-base';
                   let scaleVal = 1.2;
 
                   if (popup.type === 'core') {
-                    colorClass = 'text-orange-500 text-xl'; // 불 코어 등 추가 피해 (주황색)
+                    colorClass = 'text-orange-500 text-xl';
                     scaleVal = 1.5;
                   } else if (popup.type === 'reflect') {
-                    colorClass = 'text-blue-400 text-lg'; // 물 코어 반사 피해 (파란색)
+                    colorClass = 'text-blue-400 text-lg';
                     scaleVal = 1.3;
                   }
 
