@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useGameStore, getComputedStats } from '../store/gameStore';
-import { motion, AnimatePresence, type Variants } from 'framer-motion'; // [수정됨] Variants 타입 추가
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 
 const getDynamicStyle = (stats: { str: number; dex: number; con: number }, compareStats?: { str: number; dex: number; con: number }) => {
   const { str, dex, con } = stats;
@@ -33,7 +33,9 @@ const AnimatedBattleScreen: React.FC = () => {
     maxStage,
     gameStatus,
     lastDamageDealt,
-    lastReflectedDamage, // [신규] 반사 데미지 상태 가져오기
+    lastReflectedDamage,
+    lastEnemyEvadedTime, // [신규] 적이 내 공격을 회피한 시점
+    lastPlayerEvadedTime, // [신규] 내가 적 공격을 회피한 시점
     spawnEnemy,
     attackEnemy,
     attackPlayer,
@@ -46,13 +48,11 @@ const AnimatedBattleScreen: React.FC = () => {
   const enemyComputed = currentEnemy ? getComputedStats(currentEnemy.stats) : null;
   const enemyAttackSpeed = enemyComputed?.attackSpeed ?? 1;
 
-  // [신규] 박스 애니메이션 상태 관리 ('idle' | 'attack' | 'hit')
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
 
-  // [신규] 데미지 텍스트 팝업을 위한 배열 (type 속성으로 세분화: 피격 데미지 'taken' 추가)
-  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' }[]>([]);
-  // [신규] 피격 데미지 계산을 위한 이전 체력 기억
+  // [수정됨] 팝업 타입에 MISS 분기 2종('miss-enemy', 'miss-player') 추가
+  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player' }[]>([]);
   const [prevPlayerHealth, setPrevPlayerHealth] = useState(player.currentHealth);
 
   useEffect(() => {
@@ -62,15 +62,9 @@ const AnimatedBattleScreen: React.FC = () => {
     let enemyAttackTimer: number;
 
     if (gameStatus === 'BATTLE' && currentEnemyId) {
-      // [수정됨] attackSpeed가 gameStore에서 2.0으로 고정되었으므로, 이제 정확히 500ms(0.5초)마다 공격을 주고받습니다!
       playerAttackTimer = window.setInterval(() => {
-        // 1. 공격 애니메이션 트리거 (돌진)
         setPlayerAnim('attack');
-
-        // 2. 적 피격 애니메이션 트리거 (떨림)
         setTimeout(() => setEnemyAnim('hit'), 100);
-
-        // 3. 상태 복귀
         setTimeout(() => setPlayerAnim('idle'), 250);
         setTimeout(() => setEnemyAnim('idle'), 400);
 
@@ -80,7 +74,6 @@ const AnimatedBattleScreen: React.FC = () => {
       enemyAttackTimer = window.setInterval(() => {
         setEnemyAnim('attack');
         setTimeout(() => setPlayerAnim('hit'), 100);
-
         setTimeout(() => setEnemyAnim('idle'), 250);
         setTimeout(() => setPlayerAnim('idle'), 400);
 
@@ -94,35 +87,32 @@ const AnimatedBattleScreen: React.FC = () => {
     };
   }, [gameStatus, currentEnemyId, computed.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer]);
 
-  // [신규] 플레이어가 적을 때렸을 때 데미지 텍스트 띄우기
+  // 플레이어가 적을 때렸을 때 데미지 텍스트
   useEffect(() => {
     if (lastDamageDealt && (lastDamageDealt.normal > 0 || lastDamageDealt.core > 0)) {
       const newPopup = {
         id: Date.now(),
         val: lastDamageDealt.normal + lastDamageDealt.core,
-        type: (lastDamageDealt.core > 0 ? 'core' : 'normal') as 'normal' | 'core' | 'reflect' | 'taken'
+        type: (lastDamageDealt.core > 0 ? 'core' : 'normal') as 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player'
       };
 
-      // [수정됨] setTimeout을 이용해 비동기로 처리하여 ESLint 연속 렌더링 경고 해결
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
 
-      // 1초 뒤에 텍스트 삭제
       setTimeout(() => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1000);
     }
   }, [lastDamageDealt]);
 
-  // [신규] 물 코어 반사 데미지가 발생했을 때 파란색 텍스트 띄우기
+  // 물 코어 반사 데미지
   useEffect(() => {
     if (lastReflectedDamage && lastReflectedDamage > 0) {
       const newPopup = {
-        id: Date.now() + 1, // ID 충돌 방지
+        id: Date.now() + 1,
         val: lastReflectedDamage,
         type: 'reflect' as const
       };
 
-      // [수정됨] setTimeout을 이용해 비동기로 처리하여 ESLint 연속 렌더링 경고 해결
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
 
       setTimeout(() => {
@@ -131,12 +121,38 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [lastReflectedDamage]);
 
-  // [신규] 적이 나에게 입힌 피격 데미지 감지 및 팝업 띄우기
+  // [신규] 적이 내 공격을 회피했을 때 팝업
+  useEffect(() => {
+    if (lastEnemyEvadedTime && lastEnemyEvadedTime > 0) {
+      const newPopup = {
+        id: Date.now() + Math.random(),
+        val: 0,
+        type: 'miss-enemy' as const
+      };
+      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
+      setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1000);
+    }
+  }, [lastEnemyEvadedTime]);
+
+  // [신규] 내가 적의 공격을 회피했을 때 팝업
+  useEffect(() => {
+    if (lastPlayerEvadedTime && lastPlayerEvadedTime > 0) {
+      const newPopup = {
+        id: Date.now() + Math.random(),
+        val: 0,
+        type: 'miss-player' as const
+      };
+      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
+      setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1000);
+    }
+  }, [lastPlayerEvadedTime]);
+
+  // 적이 나에게 입힌 피격 데미지
   useEffect(() => {
     if (gameStatus === 'BATTLE' && player.currentHealth < prevPlayerHealth) {
       const damageTaken = prevPlayerHealth - player.currentHealth;
       const newPopup = {
-        id: Date.now() + Math.random(), // 동시 다발적 팝업 ID 충돌 방지
+        id: Date.now() + Math.random(),
         val: Math.floor(damageTaken),
         type: 'taken' as const
       };
@@ -164,7 +180,6 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [gameStatus, retryCurrentFloor]);
 
-  // [신규] Framer Motion 애니메이션 시퀀스 (Variants 타입 명시)
   const playerVariants: Variants = {
     idle: { y: [0, -8, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut" } },
     attack: { x: [0, 60, 0], scaleX: [1, 1.3, 1], scaleY: [1, 0.8, 1], transition: { duration: 0.25, times: [0, 0.4, 1] } },
@@ -287,7 +302,7 @@ const AnimatedBattleScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* 캐릭터 박스 렌더링 (motion.div 적용) */}
+          {/* 캐릭터 박스 렌더링 */}
           <div className="flex justify-center items-end gap-16 pb-12 z-10 mt-auto relative">
 
             {/* 플레이어 박스 */}
@@ -301,20 +316,23 @@ const AnimatedBattleScreen: React.FC = () => {
                 ME
               </motion.div>
 
-              {/* 플레이어 피격 데미지 팝업 (내 박스 위에서 붉게 떠오름) */}
+              {/* 플레이어 피격 데미지 & MISS 팝업 */}
               <AnimatePresence>
-                {damagePopups.filter(p => p.type === 'taken').map((popup) => (
-                    <motion.div
-                        key={popup.id}
-                        initial={{ opacity: 0, y: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, y: -60, scale: 1.3 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.6, ease: "easeOut" }}
-                        className="absolute left-1/2 -translate-x-1/2 -top-4 font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-50 text-red-500 text-lg"
-                    >
-                      -{popup.val}
-                    </motion.div>
-                ))}
+                {damagePopups.filter(p => p.type === 'taken' || p.type === 'miss-player').map((popup) => {
+                  const isMiss = popup.type === 'miss-player';
+                  return (
+                      <motion.div
+                          key={popup.id}
+                          initial={{ opacity: 0, y: 0, scale: 0.5 }}
+                          animate={{ opacity: 1, y: -60, scale: 1.3 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-50 ${isMiss ? 'text-neutral-400 text-lg italic' : 'text-red-500 text-lg'}`}
+                      >
+                        {isMiss ? 'MISS' : `-${popup.val}`}
+                      </motion.div>
+                  )
+                })}
               </AnimatePresence>
             </div>
 
@@ -333,11 +351,12 @@ const AnimatedBattleScreen: React.FC = () => {
                   <div className="w-[80px] h-[80px] flex items-center justify-center text-neutral-500 italic">...</div>
               )}
 
-              {/* 적에게 들어간 데미지 텍스트 팝업 (적 박스 위에서 떠오름) */}
+              {/* 적에게 들어간 데미지 & MISS 텍스트 팝업 */}
               <AnimatePresence>
-                {damagePopups.filter(p => p.type !== 'taken').map((popup) => {
+                {damagePopups.filter(p => p.type !== 'taken' && p.type !== 'miss-player').map((popup) => {
                   let colorClass = 'text-white text-base';
                   let scaleVal = 1.2;
+                  let text = `-${popup.val}`;
 
                   if (popup.type === 'core') {
                     colorClass = 'text-orange-500 text-xl';
@@ -345,6 +364,10 @@ const AnimatedBattleScreen: React.FC = () => {
                   } else if (popup.type === 'reflect') {
                     colorClass = 'text-blue-400 text-lg';
                     scaleVal = 1.3;
+                  } else if (popup.type === 'miss-enemy') {
+                    colorClass = 'text-neutral-400 text-lg italic';
+                    scaleVal = 1.3;
+                    text = 'MISS';
                   }
 
                   return (
@@ -356,7 +379,7 @@ const AnimatedBattleScreen: React.FC = () => {
                           transition={{ duration: 0.6, ease: "easeOut" }}
                           className={`absolute left-1/2 -translate-x-1/2 -top-4 font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-50 ${colorClass}`}
                       >
-                        -{popup.val}
+                        {text}
                       </motion.div>
                   );
                 })}

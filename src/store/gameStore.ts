@@ -5,7 +5,6 @@ import type { GameState, Player, Stats, Core } from '../types/game';
 import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage';
 import { SKILL_TREE_DATA } from '../constants/skills';
 
-// [피버 모드 설정] 5초 단위 가속 배율
 const BATTLE_SPEED_CONFIG = [
   { threshold: 0, multiplier: 1 },
   { threshold: 5000, multiplier: 5 },
@@ -138,7 +137,7 @@ const initialPlayer: Player = {
   gold: 0
 };
 
-const getInitialStoreState = (): GameState => {
+const getInitialStoreState = (): any => {
   const loadedState = loadStateFromLocalStorage();
 
   if (loadedState) {
@@ -146,7 +145,9 @@ const getInitialStoreState = (): GameState => {
       ...loadedState,
       reincarnationPoints: loadedState.reincarnationPoints || 0,
       unlockedSkills: loadedState.unlockedSkills || ['core_origin'],
-      maxStage: loadedState.maxStage || loadedState.stage || 1
+      maxStage: loadedState.maxStage || loadedState.stage || 1,
+      lastEnemyEvadedTime: 0, // [신규] 상태 초기화 방어
+      lastPlayerEvadedTime: 0 // [신규] 상태 초기화 방어
     };
   }
 
@@ -164,11 +165,13 @@ const getInitialStoreState = (): GameState => {
     battleStartTime: 0,
     reincarnationPoints: 0,
     unlockedSkills: ['core_origin'],
-    maxStage: 1
+    maxStage: 1,
+    lastEnemyEvadedTime: 0,
+    lastPlayerEvadedTime: 0
   };
 };
 
-export const useGameStore = create<GameState & GameActions>((set, get) => ({
+export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTime?: number, lastPlayerEvadedTime?: number }>((set, get) => ({
   ...getInitialStoreState(),
 
   reincarnate: () => set((state) => {
@@ -195,7 +198,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       equippedCore: null,
       battleStartTime: 0,
       lastDamageDealt: { normal: 0, core: 0 },
-      lastReflectedDamage: 0
+      lastReflectedDamage: 0,
+      lastEnemyEvadedTime: 0,
+      lastPlayerEvadedTime: 0
     };
   }),
 
@@ -364,7 +369,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         windHitCount: currentWindHits,
         hasWindEvasion: nextWindEvasion,
         elecHitCount: currentElecHits,
-        isEnemyStunned: nextEnemyStunned
+        isEnemyStunned: nextEnemyStunned,
+        // [신규] 적이 회피했다면 회피 시간을 갱신하여 UI 트리거
+        lastEnemyEvadedTime: isEvaded ? Date.now() : state.lastEnemyEvadedTime
       };
     }
 
@@ -375,7 +382,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       windHitCount: currentWindHits,
       hasWindEvasion: nextWindEvasion,
       elecHitCount: currentElecHits,
-      isEnemyStunned: nextEnemyStunned
+      isEnemyStunned: nextEnemyStunned,
+      // [신규] 적이 회피했다면 회피 시간을 갱신하여 UI 트리거
+      lastEnemyEvadedTime: isEvaded ? Date.now() : state.lastEnemyEvadedTime
     };
   }),
 
@@ -416,7 +425,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   resetStats: () => set((state) => ({ player: { ...state.player, stats: initialStats, statPoints: (state.player.level - 1) * 3 } })),
 
   attackPlayer: () => set((state) => {
-    // [로직 선공권 핵심] 이미 적 체력이 0 이하라면 적의 반격은 취소됨
     if (state.gameStatus !== 'BATTLE' || !state.currentEnemy || state.currentEnemy.currentHealth <= 0) return state;
     if (state.isEnemyStunned) return state;
 
@@ -433,12 +441,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
 
+    // [수정됨] 잔상(확정 회피) 시에도 UI에 MISS가 뜨도록 반환값 추가
     if (state.equippedCore?.type === 'WIND' && state.hasWindEvasion) {
-      return { hasWindEvasion: false };
+      return { hasWindEvasion: false, lastPlayerEvadedTime: Date.now() };
     }
 
+    // [수정됨] 일반 회피 발생 시 UI에 MISS가 뜨도록 반환값 추가
     if (Math.random() > finalHitChance) {
-      return {};
+      return { lastPlayerEvadedTime: Date.now() };
     }
 
     const damage = Math.max(1, enemyComputed.attack - playerComputed.defense);
