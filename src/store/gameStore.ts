@@ -246,7 +246,7 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
         level: state.stage,
         type: isBoss ? 'BOSS' : 'NORMAL',
         stats: stats,
-        currentHealth: getComputedStats(stats).maxHealth,
+        currentHealth: Math.floor(getComputedStats(stats).maxHealth), // [수정됨] 체력 생성 시 정수화 고정
         goldReward: Math.floor((10 + state.stage) * (isBoss ? 2 : 1)),
         expReward: Math.floor((20 + (state.stage * 2)) * (isBoss ? 2 : 1)),
       },
@@ -289,7 +289,8 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
     let nextEnemyStunned = state.isEnemyStunned || false;
 
     if (!isEvaded) {
-      const baseNormalDamage = Math.max(1, playerComputed.attack - enemyComputed.defense);
+      // [수정됨] 방어력 연산으로 인한 소수점 데미지 발생을 차단하기 위해 Math.floor 적용
+      const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
       normalDamage = baseNormalDamage * hitCount;
 
       if (state.equippedCore) {
@@ -306,12 +307,13 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
           nextShield = Math.min(playerComputed.maxHealth * 20000, nextShield + totalRegen);
         }
         else if (state.equippedCore.type === 'WIND') {
+          coreDamage += Math.floor(playerComputed.attack); // [수정됨] 정수화 강화
           currentWindHits += hitCount;
           const comboThreshold = 15;
           const evasionThreshold = 20;
 
           if (currentWindHits >= comboThreshold) {
-            coreDamage += playerComputed.attack;
+            coreDamage += Math.floor(playerComputed.attack);
             currentWindHits -= comboThreshold;
           }
           if (currentWindHits >= evasionThreshold) {
@@ -333,8 +335,8 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
       }
     }
 
-    const totalDamage = normalDamage + coreDamage;
-    const newEnemyHealth = state.currentEnemy.currentHealth - totalDamage;
+    const totalDamage = Math.floor(normalDamage + coreDamage); // [수정됨] 최종 데미지 합산 정수화 보장
+    const newEnemyHealth = Math.max(0, Math.floor(state.currentEnemy.currentHealth - totalDamage)); // [수정됨] 소수점 체력 완전 차단
 
     if (newEnemyHealth <= 0) {
       const { expReward, goldReward } = state.currentEnemy;
@@ -359,7 +361,7 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
           nextLevelExperience: newNextExp,
           statPoints: state.player.statPoints + statPointsGained,
           gold: state.player.gold + goldReward,
-          currentHealth: playerComputed.maxHealth
+          currentHealth: Math.floor(playerComputed.maxHealth) // [수정됨] 리셋 체력 정수 고정
         },
         stage: state.stage + 1,
         maxStage: Math.max(state.maxStage || 1, state.stage + 1),
@@ -451,7 +453,8 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
       return { lastPlayerEvadedTime: Date.now() };
     }
 
-    const damage = Math.max(1, enemyComputed.attack - playerComputed.defense);
+    // [수정됨] 내 피격 데미지 연산 시 소수점 방지를 위해 Math.floor 적용
+    const damage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
     let remainingShield = state.playerShield || 0;
     let actualHealthDamage = 0;
 
@@ -462,7 +465,8 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
       remainingShield = 0;
     }
 
-    const nextHealth = Math.max(0, state.player.currentHealth - actualHealthDamage);
+    // [수정됨] 플레이어 체력 변동 시 소수점 강제 제거
+    const nextHealth = Math.max(0, Math.floor(state.player.currentHealth - actualHealthDamage));
     let enemyNextHealth = state.currentEnemy.currentHealth;
     let actualReflectedDmg = 0;
 
@@ -471,7 +475,7 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
       actualReflectedDmg = Math.floor(damage * (stats.reflectRatio || 0));
 
       if (actualReflectedDmg > 0) {
-        enemyNextHealth = Math.max(0, enemyNextHealth - actualReflectedDmg);
+        enemyNextHealth = Math.max(0, Math.floor(enemyNextHealth - actualReflectedDmg)); // [수정됨] 반사 체력 소수점 제거
       }
     }
 
@@ -530,7 +534,7 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
   retryCurrentFloor: () => set((state) => {
     const computed = getComputedStats(state.player.stats, state.unlockedSkills);
     return {
-      player: { ...state.player, currentHealth: computed.maxHealth },
+      player: { ...state.player, currentHealth: Math.floor(computed.maxHealth) }, // [수정됨] 정수형 복구 고정
       currentEnemy: null,
       stage: Math.max(1, Math.floor((state.stage - 1) / 5) * 5 + 1),
       gameStatus: 'IDLE'
