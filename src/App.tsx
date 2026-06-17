@@ -195,7 +195,7 @@ function App() {
         )}
 
         {/* Version Display */}
-        <div className="absolute bottom-2 right-2 text-xs text-neutral-500">
+        <div className="fixed top-2 right-2 text-xs text-neutral-500 z-50 pointer-events-none">
           v{APP_VERSION}
         </div>
 
