@@ -1,6 +1,6 @@
 // src/components/AnimatedBattleScreen.tsx
 
-import React, { useEffect, useState, useRef } from 'react'; // [수정됨] useRef 추가
+import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore, getComputedStats } from '../store/gameStore';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 
@@ -34,8 +34,8 @@ const AnimatedBattleScreen: React.FC = () => {
     gameStatus,
     lastDamageDealt,
     lastReflectedDamage,
-    lastEnemyEvadedTime, // [신규] 적이 내 공격을 회피한 시점
-    lastPlayerEvadedTime, // [신규] 내가 적 공격을 회피한 시점
+    lastEnemyEvadedTime,
+    lastPlayerEvadedTime,
     spawnEnemy,
     attackEnemy,
     attackPlayer,
@@ -51,14 +51,11 @@ const AnimatedBattleScreen: React.FC = () => {
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
 
-  // [수정됨] 팝업 시스템 고도화: 현재 어떤 코어 종류로 데미지가 들어갔는지 식별하기 위해 coreType 필드 추가
   const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player', coreType?: string }[]>([]);
-  const prevPlayerHealth = useRef(player.currentHealth); // [수정됨] 연속 렌더링 방지를 위해 useRef 사용
+  const prevPlayerHealth = useRef(player.currentHealth);
 
-  // 상세 스탯 열고 닫기 토글 상태 추가
   const [showStats, setShowStats] = useState<boolean>(false);
 
-  // 한 방 컷 등으로 전투가 즉시 종료될 때 박스가 늘어난 채 멈추는 현상 방지 안전장치
   useEffect(() => {
     if (gameStatus !== 'BATTLE') {
       setPlayerAnim('idle');
@@ -98,10 +95,10 @@ const AnimatedBattleScreen: React.FC = () => {
     };
   }, [gameStatus, currentEnemyId, computed.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer]);
 
-// 플레이어가 적을 때렸을 때 데미지 텍스트
+  // 플레이어가 적을 때렸을 때 데미지 텍스트
   useEffect(() => {
     if (lastDamageDealt && (lastDamageDealt.normal > 0 || lastDamageDealt.core > 0)) {
-      // 1. 일반 데미지 팝업 (즉시 표시)
+      // 1. 일반 데미지 팝업 (즉시 표시, 0ms)
       if (lastDamageDealt.normal > 0) {
         const normalPopup = {
           id: Date.now(),
@@ -114,17 +111,15 @@ const AnimatedBattleScreen: React.FC = () => {
         }, 1000);
       }
 
-      // 2. 코어 데미지 팝업 (일반 데미지에 뒤따라서 표시되도록 약간의 지연 시간 적용)
+      // 2. 코어 데미지 팝업 (일반 데미지보다 150ms 지연)
       if (lastDamageDealt.core > 0) {
         const corePopup = {
-          id: Date.now() + 1, // 일반 데미지 팝업과 ID 충돌 방지
+          id: Date.now() + 1,
           val: lastDamageDealt.core,
           type: 'core' as const,
-          coreType: equippedCore?.type // [신규] 팝업 생성 당시 장착 중인 코어 타입을 기록
+          coreType: equippedCore?.type
         };
-        // 일반 데미지보다 150ms 늦게 띄워서 연타로 들어가는 느낌 연출
         setTimeout(() => setDamagePopups(prev => [...prev, corePopup]), 150);
-        // 지연된 시간만큼 팝업 유지/삭제 시간도 연장
         setTimeout(() => {
           setDamagePopups(prev => prev.filter(p => p.id !== corePopup.id));
         }, 1150);
@@ -141,11 +136,12 @@ const AnimatedBattleScreen: React.FC = () => {
         type: 'reflect' as const
       };
 
-      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
+      // [수정됨] 일반(0ms), 코어(150ms)와 겹치지 않도록 반사 데미지는 300ms 지연
+      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 300);
 
       setTimeout(() => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
-      }, 1000);
+      }, 1300);
     }
   }, [lastReflectedDamage]);
 
@@ -170,12 +166,13 @@ const AnimatedBattleScreen: React.FC = () => {
         val: 0,
         type: 'miss-player' as const
       };
-      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
-      setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1000);
+      // [수정됨] 피격 데미지 타이밍과 맞추기 위해 150ms 지연
+      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 150);
+      setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1150);
     }
   }, [lastPlayerEvadedTime]);
 
-// 적이 나에게 입힌 피격 데미지
+  // 적이 나에게 입힌 피격 데미지
   useEffect(() => {
     if (gameStatus === 'BATTLE' && player.currentHealth < prevPlayerHealth.current) {
       const damageTaken = prevPlayerHealth.current - player.currentHealth;
@@ -185,11 +182,12 @@ const AnimatedBattleScreen: React.FC = () => {
         type: 'taken' as const
       };
 
-      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
+      // [수정됨] 내 공격(0ms)과 적의 공격이 동시에 발생했을 때 시각적으로 엇박자를 주어 구분되도록 150ms 지연
+      setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 150);
 
       setTimeout(() => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
-      }, 1000);
+      }, 1150);
     }
     prevPlayerHealth.current = player.currentHealth;
   }, [player.currentHealth, gameStatus]);
@@ -208,7 +206,6 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [gameStatus, retryCurrentFloor]);
 
-  // 크기, 회전 변형 모두 제거하고 x축 이동(돌진)만 하도록 변경하여 정사각형 무조건 유지
   const playerVariants: Variants = {
     idle: { y: [0, -8, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut" } },
     attack: { x: [0, 65, 0], transition: { duration: 0.22, times: [0, 0.4, 1] } },
@@ -221,7 +218,6 @@ const AnimatedBattleScreen: React.FC = () => {
     hit: { x: [10, -10, 10, -5, 0], filter: ["brightness(1)", "brightness(2) drop-shadow(0 0 10px white)", "brightness(1)"], transition: { duration: 0.3 } }
   };
 
-  // 1:1 비교를 위해 순회할 스탯 매핑 배열 (아이콘 제거 및 힘/민/체 포함 총 9종)
   const statComparisonList = [
     { label: '힘 (STR)', pValue: player.stats.str, eValue: currentEnemy?.stats.str },
     { label: '민첩 (DEX)', pValue: player.stats.dex, eValue: currentEnemy?.stats.dex },
@@ -331,8 +327,8 @@ const AnimatedBattleScreen: React.FC = () => {
                   return (
                       <motion.div
                           key={popup.id}
-                          initial={{ opacity: 0, y: 0, scale: 0.5 }}
-                          animate={{ opacity: 1, y: -60, scale: 1.3 }}
+                          initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
+                          animate={{ opacity: 1, y: -60, scale: 1.3, x: 0 }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.6, ease: "easeOut" }}
                           className={`absolute left-1/2 -translate-x-1/2 -top-4 font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-50 ${isMiss ? 'text-neutral-400 text-lg italic' : 'text-red-500 text-lg'}`}
@@ -359,28 +355,36 @@ const AnimatedBattleScreen: React.FC = () => {
                   <div className="w-[80px] h-[80px] flex items-center justify-center text-neutral-500 italic">...</div>
               )}
 
-              {/* [수정됨] 적에게 들어간 데미지 & MISS 텍스트 팝업 (코어 타입별 색상 커스텀 연출 적용) */}
+              {/* 적에게 들어간 데미지 & MISS 텍스트 팝업 (코어 타입별 색상 커스텀 및 X/Y 분산 적용) */}
               <AnimatePresence>
                 {damagePopups.filter(p => p.type !== 'taken' && p.type !== 'miss-player').map((popup) => {
                   let colorClass = 'text-white text-base';
                   let scaleVal = 1.2;
                   let text = `-${popup.val}`;
+                  
+                  // [신규] 데미지 겹침 방지용 X/Y 오프셋 설정
+                  let xOffset = 0;   
+                  let yOffset = -60; 
 
                   if (popup.type === 'core') {
                     scaleVal = 1.5;
-                    // 장착했던 코어의 고유 속성 타입에 따른 전용 시그니처 색상 매핑
+                    xOffset = 20;  // 코어 데미지는 살짝 우측 상단으로 피해서 팝업
+                    yOffset = -75;
+                    
                     if (popup.coreType === 'FIRE') {
-                      colorClass = 'text-red-500 text-xl font-extrabold'; // 불: 파괴적인 레드
+                      colorClass = 'text-red-500 text-xl font-extrabold';
                     } else if (popup.coreType === 'WIND') {
-                      colorClass = 'text-green-400 text-xl font-extrabold'; // 바람: 콤보 연타 그린
+                      colorClass = 'text-green-400 text-xl font-extrabold';
                     } else if (popup.coreType === 'ELECTRIC') {
-                      colorClass = 'text-yellow-400 text-xl font-extrabold'; // 번개: 전격 기절 옐로우
+                      colorClass = 'text-yellow-400 text-xl font-extrabold';
                     } else {
-                      colorClass = 'text-orange-500 text-xl'; // 기본 예외처리
+                      colorClass = 'text-orange-500 text-xl';
                     }
                   } else if (popup.type === 'reflect') {
-                    colorClass = 'text-blue-400 text-lg font-bold'; // 물 코어 데미지 반사: 시원한 블루
+                    colorClass = 'text-blue-400 text-lg font-bold';
                     scaleVal = 1.3;
+                    xOffset = -20; // 반사 데미지는 살짝 좌측 하단으로 피해서 팝업
+                    yOffset = -50;
                   } else if (popup.type === 'miss-enemy') {
                     colorClass = 'text-neutral-400 text-lg italic';
                     scaleVal = 1.3;
@@ -390,8 +394,9 @@ const AnimatedBattleScreen: React.FC = () => {
                   return (
                       <motion.div
                           key={popup.id}
-                          initial={{ opacity: 0, y: 0, scale: 0.5 }}
-                          animate={{ opacity: 1, y: -60, scale: scaleVal }}
+                          // xOffset과 yOffset을 animate에 적용하여 겹침을 완벽 방지
+                          initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
+                          animate={{ opacity: 1, y: yOffset, scale: scaleVal, x: xOffset }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.6, ease: "easeOut" }}
                           className={`absolute left-1/2 -translate-x-1/2 -top-4 font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-50 ${colorClass}`}
@@ -415,7 +420,6 @@ const AnimatedBattleScreen: React.FC = () => {
         {/* 하단: 컴팩트 일체형 상세 스탯 창 */}
         <div className="flex flex-col bg-neutral-950 rounded-xl border border-neutral-800 overflow-hidden">
 
-          {/* 토글 트리거 버튼 */}
           <button
               type="button"
               onClick={() => setShowStats(!showStats)}
@@ -424,7 +428,6 @@ const AnimatedBattleScreen: React.FC = () => {
             {showStats ? '상세 스탯 접기 ▲' : '상세 스탯 보기 ▼'}
           </button>
 
-          {/* 스탯 패널 본문 (단일 영역 내 3열 초압축 배치) */}
           <AnimatePresence>
             {showStats && (
                 <motion.div
@@ -440,13 +443,8 @@ const AnimatedBattleScreen: React.FC = () => {
                             key={idx}
                             className="flex justify-between items-center py-0.5 border-b border-neutral-900/40"
                         >
-                          {/* 내 스탯 (그린) */}
                           <span className="font-bold text-green-400 w-14 text-left">{item.pValue}</span>
-
-                          {/* 스탯 명칭 (순수 텍스트) */}
                           <span className="text-neutral-500 font-sans text-center flex-1 text-[10px] tracking-tight">{item.label}</span>
-
-                          {/* 적 스탯 (레드) */}
                           <span className="font-bold text-red-400 w-14 text-right">{item.eValue ?? '-'}</span>
                         </div>
                     ))}
