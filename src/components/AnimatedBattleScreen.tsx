@@ -199,9 +199,11 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [gameStatus, spawnEnemy]);
 
+  // [수정됨] 패배 연출 시간 및 자동 스탯 보기 개선
   useEffect(() => {
     if (gameStatus === 'DEFEAT') {
-      const timer = setTimeout(() => retryCurrentFloor(), 1500);
+      setShowStats(true); // [신규] 패배 시 적과 나의 스탯을 비교할 수 있도록 상세 스탯 창을 자동으로 엽니다.
+      const timer = setTimeout(() => retryCurrentFloor(), 4000); // [수정됨] 대기 시간을 1.5초 -> 4초로 변경하여 충분한 여유를 제공합니다.
       return () => clearTimeout(timer);
     }
   }, [gameStatus, retryCurrentFloor]);
@@ -409,10 +411,14 @@ const AnimatedBattleScreen: React.FC = () => {
             </div>
           </div>
 
+          {/* [수정됨] 패배 오버레이 시인성 개선 */}
           {gameStatus === 'DEFEAT' && (
-              <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50">
-                <h2 className="text-4xl font-bold text-red-500 mb-4 animate-bounce">GAME OVER</h2>
-                <p className="text-neutral-300 text-sm">잠시 후 이전 층으로 돌아갑니다...</p>
+              <div className="absolute inset-0 bg-red-900/20 border-4 border-red-600/70 flex flex-col items-center justify-center z-50 pointer-events-none">
+                <div className="bg-neutral-900/90 px-8 py-5 rounded-2xl border border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.3)] flex flex-col items-center pointer-events-auto">
+                  <h2 className="text-4xl font-black text-red-500 mb-2 animate-bounce">DEFEAT</h2>
+                  <p className="text-neutral-100 text-sm font-bold mb-1">전투에서 패배했습니다!</p>
+                  <p className="text-neutral-400 text-xs">잠시 후 이전 층으로 돌아갑니다...</p>
+                </div>
               </div>
           )}
         </div>

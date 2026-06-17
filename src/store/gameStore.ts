@@ -483,7 +483,7 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
       return {
         player: { ...state.player, currentHealth: 0 },
         playerShield: 0,
-        currentEnemy: null,
+        // currentEnemy: null, // [수정됨] 패배 시 유저가 적의 정보를 확인할 수 있도록 데이터를 지우지 않고 유지합니다.
         gameStatus: 'DEFEAT',
         lastReflectedDamage: actualReflectedDmg
       };
