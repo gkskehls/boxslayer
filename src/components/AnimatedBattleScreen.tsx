@@ -27,14 +27,17 @@ const getDynamicStyle = (stats: { str: number; dex: number; con: number }, compa
 
 // [신규 추가] HP/EXP 수치를 고전 게임 감성의 █ ░ 도트 블록문자로 변환하는 함수
 // [수정됨] █와 ░의 폰트 자체 높이 차이 버그를 깨부수기 위해, 동일한 █ 문자를 쓰고 안 차있는 곳은 text-neutral-700(어두운 회색)으로 디밍 처리
+// [수정됨] 배경 패널이 stone 테마로 일체화됨에 따라, 빈 칸의 도트 색상을 text-stone-300으로 매핑하여 블록의 경계선이 픽셀 단위로 선명하게 보이도록 개편
+// [수정됨] 모바일 가로폭 폭주 방지 및 도트 간격 벌림 필터 도입
 const renderRetroGauge = (current: number, max: number, totalBlocks: number, activeClass: string) => {
   const ratio = Math.max(0, Math.min(1, current / max));
   const filledCount = Math.round(ratio * totalBlocks);
   
   return (
-    <span className="inline-flex leading-none select-none">
+    /* flex gap-[2px]를 주어 문자가 서로 달라붙지 않고 정밀한 픽셀 격자 칸으로 떨어지도록 수정 */
+    <span className="inline-flex items-center gap-[2px] leading-none select-none">
       {Array.from({ length: totalBlocks }).map((_, i) => (
-        <span key={i} className={i < filledCount ? activeClass : 'text-neutral-700'}>
+        <span key={i} className={`${i < filledCount ? activeClass : 'text-stone-300'} text-[11px] leading-none`}>
           █
         </span>
       ))}
@@ -292,40 +295,39 @@ const AnimatedBattleScreen: React.FC = () => {
           }}
         >
 
-        {/* [수정됨] 바 내부의 실선 HP 바 레이아웃을 샘플과 동일한 순수 8비트 문자 블록 그리드로 전면 교체 */}
-        <div className="flex justify-between items-center w-full gap-2 relative z-10 font-mono p-1 border-2 border-neutral-900 bg-neutral-900/40">
-          
-          {/* 플레이어 픽셀 HP 모니터 */}
-          <div className="flex flex-col items-start flex-1 select-none">
-            <div className="text-[10px] font-bold text-neutral-400 flex items-center gap-1">
-              <span>PLAYER</span>
-              {/* [수정됨] playerShield가 undefined일 때를 대비해 Math.floor 내부에 || 0 처리 주입 */}
-              {(playerShield || 0) > 0 && <span className="text-blue-400 text-[9px]">🛡️+{Math.floor(playerShield || 0)}</span>}
-            </div>
-            <div className="text-xs font-black tracking-wider flex items-center">
-              [{renderRetroGauge(player.currentHealth, computed.maxHealth, 8, 'text-green-500')}]
-            </div>
-            <div className="text-[9px] text-neutral-500">
-              {Math.max(0, player.currentHealth)}/{computed.maxHealth.toFixed(0)}
-            </div>
-          </div>
+{/* [수정됨] 모바일 세로모드(Portrait) 폭폭 방지: VS를 지우고 grid-cols-2 분할 스펙 연동으로 탈출 에러 원천 차단 */}
+<div className="grid grid-cols-2 gap-2 w-full relative z-10 font-mono p-2 border-4 border-neutral-900 bg-stone-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)]">
+  
+  {/* 플레이어 픽셀 HP 모니터 (왼쪽 col) */}
+  <div className="flex flex-col items-start select-none w-full min-w-0">
+    <div className="text-[10px] font-black text-neutral-700 flex items-center gap-1 leading-none mb-1 truncate w-full">
+      <span>PLAYER</span>
+      {(playerShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(playerShield || 0)}</span>}
+    </div>
+    {/* 가로폭 사수를 위해 게이지 블록을 모바일 표준 10칸으로 최적화 조율 */}
+    <div className="text-xs font-black flex items-center leading-none text-neutral-400">
+      [{renderRetroGauge(player.currentHealth, computed.maxHealth, 10, 'text-green-600')}]
+    </div>
+    <div className="text-[9px] font-black text-neutral-800 mt-1.5 leading-none font-mono tracking-tighter">
+      {Math.max(0, player.currentHealth)}<span className="text-stone-400 mx-0.5">/</span>{computed.maxHealth.toFixed(0)}
+    </div>
+  </div>
 
-          <div className="text-lg font-black text-yellow-500/20 italic shrink-0 select-none px-1">VS</div>
+  {/* 적 보스 픽셀 HP 모니터 (오른쪽 col) */}
+  <div className="flex flex-col items-end select-none w-full min-w-0">
+    <div className="text-[10px] font-black text-neutral-700 leading-none mb-1 truncate w-full text-right">
+      ENEMY
+    </div>
+    {/* 동일하게 10칸 세팅 및 닫는 괄호 마감 */}
+    <div className="text-xs font-black flex items-center leading-none text-neutral-400">
+      [{renderRetroGauge(currentEnemy?.currentHealth || 0, enemyComputed?.maxHealth || 1, 10, 'text-red-600')}]
+    </div>
+    <div className="text-[9px] font-black text-neutral-800 mt-1.5 leading-none font-mono tracking-tighter text-right">
+      {Math.max(0, currentEnemy?.currentHealth || 0)}<span className="text-stone-400 mx-0.5">/</span>{enemyComputed?.maxHealth.toFixed(0) || 1}
+    </div>
+  </div>
 
-          {/* 적 보스 픽셀 HP 모니터 */}
-          <div className="flex flex-col items-end flex-1 select-none">
-            <div className="text-[10px] font-bold text-neutral-400">
-              ENEMY
-            </div>
-            <div className="text-xs font-black tracking-wider flex items-center">
-              [{renderRetroGauge(currentEnemy?.currentHealth || 0, enemyComputed?.maxHealth || 1, 8, 'text-red-500')}]
-            </div>
-            <div className="text-[9px] text-neutral-500">
-              {Math.max(0, currentEnemy?.currentHealth || 0)}/{enemyComputed?.maxHealth.toFixed(0) || 1}
-            </div>
-          </div>
-
-        </div>
+</div>
 
           {/* 캐릭터 박스 렌더링 */}
           <div className="flex justify-center items-end gap-16 pb-12 z-10 mt-auto relative">
