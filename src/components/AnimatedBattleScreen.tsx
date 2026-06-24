@@ -14,13 +14,14 @@ const getDynamicStyle = (stats: { str: number; dex: number; con: number }, compa
   const b = Math.floor((con / S) * 255);
 
   const ratio = S / compareS;
-  const size = Math.max(40, Math.min(160, 80 * Math.sqrt(ratio)));
+  // [수정됨] 스탯 차이가 심할 때 박스가 너무 작아져 표정이 깨지는 현상을 막기 위해 최소 크기를 40px -> 64px로 상향
+  const size = Math.max(64, Math.min(160, 80 * Math.sqrt(ratio)));
 
   return {
     backgroundColor: `rgb(${r}, ${g}, ${b})`,
     width: `${size}px`,
     height: `${size}px`,
-    borderRadius: '8px',
+    borderRadius: '0px', // [수정됨] 레트로 도트 박스 아이덴티티를 위해 둥근 모서리(8px)를 완전히 각진 픽셀 사각형(0px)으로 전환
   };
 };
 
@@ -208,16 +209,17 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [gameStatus, retryCurrentFloor]);
 
+  // [수정됨] 아케이드 8비트 하드 타격 필터를 위한 Variants 픽셀 폴리싱
   const playerVariants: Variants = {
-    idle: { y: [0, -8, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut" } },
-    attack: { x: [0, 65, 0], transition: { duration: 0.22, times: [0, 0.4, 1] } },
-    hit: { x: [-10, 10, -10, 5, 0], filter: ["brightness(1)", "brightness(2) drop-shadow(0 0 10px red)", "brightness(1)"], transition: { duration: 0.3 } }
+    idle: { y: [0, -6, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut" } },
+    attack: { x: [0, 50, 0], transition: { duration: 0.22, times: [0, 0.4, 1] } },
+    hit: { x: [-12, 12, -8, 6, 0], filter: ["brightness(1)", "brightness(2) contrast(1.5)", "brightness(1)"], transition: { duration: 0.25 } }
   };
 
   const enemyVariants: Variants = {
-    idle: { y: [0, -8, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut", delay: 0.5 } },
-    attack: { x: [0, -65, 0], transition: { duration: 0.22, times: [0, 0.4, 1] } },
-    hit: { x: [10, -10, 10, -5, 0], filter: ["brightness(1)", "brightness(2) drop-shadow(0 0 10px white)", "brightness(1)"], transition: { duration: 0.3 } }
+    idle: { y: [0, -6, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut", delay: 0.5 } },
+    attack: { x: [0, -50, 0], transition: { duration: 0.22, times: [0, 0.4, 1] } },
+    hit: { x: [12, -12, 8, -6, 0], filter: ["brightness(1)", "brightness(2) contrast(1.5)", "brightness(1)"], transition: { duration: 0.25 } }
   };
 
   const statComparisonList = [
@@ -233,19 +235,20 @@ const AnimatedBattleScreen: React.FC = () => {
   ];
 
   return (
-      <div className="max-w-4xl mx-auto p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-6">
+      /* [수정됨] 레드로 아케이드 외곽 틀 스펙 도입: 곡선 제거 및 섀시 그림자 처리 */
+      <div className="max-w-4xl mx-auto p-6 rounded-none border-4 border-neutral-950 bg-neutral-900 w-full flex flex-col gap-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none">
 
         {/* 헤더: 스테이지 및 경험치 바 */}
-        <div className="bg-neutral-800 p-4 rounded-lg border border-neutral-700 flex flex-col gap-2 w-full">
+        <div className="bg-neutral-800 p-4 rounded-none border-4 border-neutral-950 flex flex-col gap-2 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <div className="flex justify-between items-end">
-            <h2 className="text-xl font-bold text-yellow-500 leading-none flex items-center gap-2">
+            <h2 className="text-xl font-bold text-yellow-500 leading-none flex items-center gap-2 font-mono">
               STAGE {stage}
               {(maxStage || 1) > stage && (
                   <span className="text-red-500 text-sm md:text-base">({maxStage})</span>
               )}
             </h2>
             {player.statPoints > 0 && (
-                <span className="bg-green-900/40 text-green-400 px-2 py-0.5 rounded text-[10px] font-bold border border-green-700/50 animate-pulse">
+                <span className="bg-green-950 text-green-400 px-2 py-0.5 rounded-none text-[10px] font-bold border-2 border-green-600 animate-pulse">
                 잔여 스탯: {player.statPoints}
               </span>
             )}
@@ -258,50 +261,56 @@ const AnimatedBattleScreen: React.FC = () => {
             </span>
           </div>
 
-          <div className="w-full bg-neutral-900 h-2.5 rounded-full overflow-hidden border border-neutral-700">
+          <div className="w-full bg-neutral-950 h-3 rounded-none overflow-hidden border-2 border-neutral-700">
             <div
-                className="bg-blue-500 h-full transition-all duration-300"
+                className="bg-blue-500 h-full transition-all duration-300 rounded-none"
                 style={{ width: `${Math.min(100, (player.experience / player.nextLevelExperience) * 100)}%` }}
             />
           </div>
         </div>
 
-        {/* 격투 영역 */}
-        <div className="bg-neutral-800/50 rounded-xl p-6 min-h-[350px] flex flex-col justify-between border border-neutral-700 relative">
+        {/* 격투 영역: [수정됨] 고전 게임 감성 16px 스냅 그리드 바닥 패턴 배경 레이어 주입 */}
+        <div 
+          className="bg-neutral-950 p-6 min-h-[350px] flex flex-col justify-between border-4 border-neutral-950 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.5)]"
+          style={{
+            backgroundImage: 'linear-gradient(to right, #262626 2px, transparent 2px), linear-gradient(to bottom, #262626 2px, transparent 2px)',
+            backgroundSize: '16px 16px',
+          }}
+        >
 
           <div className="flex justify-between items-start w-full gap-4 relative z-10">
             {/* 플레이어 체력바 */}
             <div className="flex-1 flex flex-col">
-              <div className="text-right text-xs mb-1 font-bold">
+              <div className="text-right text-xs mb-1 font-bold font-mono">
                 {(playerShield || 0) > 0 && (
                     <span className="text-blue-400 mr-2">🛡️ {Math.floor(playerShield || 0)}</span>
                 )}
                 <span className="text-green-400">{Math.max(0, player.currentHealth)} / {computed.maxHealth.toFixed(0)}</span>
               </div>
-              <div className="w-full bg-neutral-700 h-3 rounded border border-neutral-600 flex justify-end relative">
+              <div className="w-full bg-neutral-800 h-3 rounded-none border-2 border-neutral-950 flex justify-end relative">
                 <div
-                    className="bg-green-500 h-full transition-all duration-300"
+                    className="bg-green-500 h-full transition-all duration-300 rounded-none"
                     style={{ width: `${(player.currentHealth / computed.maxHealth) * 100}%` }}
                 />
                 {(playerShield || 0) > 0 && (
                     <div
-                        className="absolute right-0 top-0 bg-blue-500/60 h-full transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                        className="absolute right-0 top-0 bg-blue-500 h-full transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)] rounded-none"
                         style={{ width: `${Math.min(100, ((playerShield || 0) / computed.maxHealth) * 100)}%` }}
                     />
                 )}
               </div>
             </div>
 
-            <div className="text-2xl font-black text-yellow-500/50 italic pt-2 shrink-0">VS</div>
+            <div className="text-2xl font-black text-yellow-500/30 italic pt-1 shrink-0 font-mono select-none">VS</div>
 
             {/* 적 체력바 */}
             <div className="flex-1 flex flex-col">
-              <div className="text-left text-xs mb-1 font-bold text-red-400">
+              <div className="text-left text-xs mb-1 font-bold text-red-400 font-mono">
                 {Math.max(0, currentEnemy?.currentHealth || 0)} / {enemyComputed?.maxHealth.toFixed(0) || 1}
               </div>
-              <div className="w-full bg-neutral-700 h-3 rounded border border-neutral-600 flex justify-start relative">
+              <div className="w-full bg-neutral-800 h-3 rounded-none border-2 border-neutral-950 flex justify-start relative">
                 <div
-                    className="bg-red-500 h-full transition-all duration-300"
+                    className="bg-red-500 h-full transition-all duration-300 rounded-none"
                     style={{ width: `${((currentEnemy?.currentHealth || 0) / (enemyComputed?.maxHealth || 1)) * 100}%` }}
                 />
               </div>
@@ -311,15 +320,31 @@ const AnimatedBattleScreen: React.FC = () => {
           {/* 캐릭터 박스 렌더링 */}
           <div className="flex justify-center items-end gap-16 pb-12 z-10 mt-auto relative">
 
-            {/* 플레이어 박스 */}
+            {/* 플레이어 박스 영역 */}
             <div className="relative z-20">
               <motion.div
                   variants={playerVariants}
                   animate={playerAnim}
-                  className="flex items-center justify-center font-bold text-xs border-2 border-white/20 shadow-[0_0_15px_rgba(34,197,94,0.3)] z-20"
+                  className="flex items-center justify-center border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-20 overflow-hidden"
                   style={getDynamicStyle(player.stats, currentEnemy?.stats || player.stats)}
               >
-                ME
+                {/* [신규] 유저 박스 내부 실시간 픽셀 도트 눈/입 표정 스위칭 시스템 배치 */}
+                <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-950 font-mono select-none">
+                  <div className="flex justify-between w-full px-2 mb-1.5">
+                    {playerAnim === 'hit' ? (
+                      <>
+                        <span className="text-xs font-black leading-none">&gt;</span>
+                        <span className="text-xs font-black leading-none">&lt;</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="w-2 h-2 bg-neutral-950 block"></span>
+                        <span className="w-2 h-2 bg-neutral-950 block"></span>
+                      </>
+                    )}
+                  </div>
+                  <div className={`h-1 bg-neutral-950 transition-all duration-100 ${playerAnim === 'attack' ? 'w-4 bg-red-950' : 'w-2.5'}`}></div>
+                </div>
               </motion.div>
 
               {/* 플레이어 피격 데미지 & MISS 팝업 */}
@@ -333,7 +358,7 @@ const AnimatedBattleScreen: React.FC = () => {
                           animate={{ opacity: 1, y: -60, scale: 1.3, x: 0 }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.6, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-50 ${isMiss ? 'text-neutral-400 text-lg italic' : 'text-red-500 text-lg'}`}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-50 ${isMiss ? 'text-neutral-400 text-base italic' : 'text-red-500 text-lg'}`}
                       >
                         {isMiss ? 'MISS' : `-${popup.val}`}
                       </motion.div>
@@ -342,19 +367,35 @@ const AnimatedBattleScreen: React.FC = () => {
               </AnimatePresence>
             </div>
 
-            {/* 적 박스 */}
+            {/* 적 박스 영역 */}
             <div className="relative z-20">
               {currentEnemy ? (
                   <motion.div
                       variants={enemyVariants}
                       animate={enemyAnim}
-                      className="flex items-center justify-center font-bold text-xs border-2 border-white/20 shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                      className="flex items-center justify-center border-4 border-neutral-950 bg-stone-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden"
                       style={getDynamicStyle(currentEnemy.stats, player.stats)}
                   >
-                    BOX
+                    {/* [신규] 돌 질감 보스 전용 투박한 ✖ ✖ 도트 표정 결합 */}
+                    <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-900 font-mono select-none">
+                      <div className="flex justify-between w-full px-2 mb-1 text-xs font-black leading-none">
+                        {enemyAnim === 'hit' ? (
+                          <>
+                            <span className="text-red-900">✖</span>
+                            <span className="text-red-900">✖</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>■</span>
+                            <span>■</span>
+                          </>
+                        )}
+                      </div>
+                      <div className="w-5 h-1 bg-neutral-900 mt-1"></div>
+                    </div>
                   </motion.div>
               ) : (
-                  <div className="w-[80px] h-[80px] flex items-center justify-center text-neutral-500 italic">...</div>
+                  <div className="w-[80px] h-[80px] flex items-center justify-center text-neutral-600 italic font-mono">...</div>
               )}
 
               {/* 적에게 들어간 데미지 & MISS 텍스트 팝업 (코어 타입별 색상 커스텀 및 X/Y 분산 적용) */}
@@ -396,12 +437,11 @@ const AnimatedBattleScreen: React.FC = () => {
                   return (
                       <motion.div
                           key={popup.id}
-                          // xOffset과 yOffset을 animate에 적용하여 겹침을 완벽 방지
                           initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
                           animate={{ opacity: 1, y: yOffset, scale: scaleVal, x: xOffset }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.6, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-50 ${colorClass}`}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-50 ${colorClass}`}
                       >
                         {text}
                       </motion.div>
@@ -411,25 +451,25 @@ const AnimatedBattleScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* [수정됨] 패배 오버레이 시인성 개선 */}
+          {/* [수정됨] 패배 오버레이 시인성 개선: 완벽한 도트풍 스퀘어 모듈 UI로 이식 */}
           {gameStatus === 'DEFEAT' && (
-              <div className="absolute inset-0 bg-red-900/20 border-4 border-red-600/70 flex flex-col items-center justify-center z-50 pointer-events-none">
-                <div className="bg-neutral-900/90 px-8 py-5 rounded-2xl border border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.3)] flex flex-col items-center pointer-events-auto">
-                  <h2 className="text-4xl font-black text-red-500 mb-2 animate-bounce">DEFEAT</h2>
-                  <p className="text-neutral-100 text-sm font-bold mb-1">전투에서 패배했습니다!</p>
-                  <p className="text-neutral-400 text-xs">잠시 후 이전 층으로 돌아갑니다...</p>
+              <div className="absolute inset-0 bg-red-950/40 border-4 border-red-600 flex flex-col items-center justify-center z-50 pointer-events-none">
+                <div className="bg-neutral-950 px-8 py-5 border-4 border-neutral-800 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center pointer-events-auto rounded-none">
+                  <h2 className="text-3xl font-black text-red-500 mb-2 animate-pulse font-mono tracking-widest">GAME OVER</h2>
+                  <p className="text-neutral-100 text-xs font-bold mb-1">전투에서 패배했습니다!</p>
+                  <p className="text-neutral-400 text-[10px] font-mono">잠시 후 이전 층으로 돌아갑니다...</p>
                 </div>
               </div>
           )}
         </div>
 
         {/* 하단: 컴팩트 일체형 상세 스탯 창 */}
-        <div className="flex flex-col bg-neutral-950 rounded-xl border border-neutral-800 overflow-hidden">
+        <div className="flex flex-col bg-neutral-950 rounded-none border-4 border-neutral-950 overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
 
           <button
               type="button"
               onClick={() => setShowStats(!showStats)}
-              className="w-full py-2 bg-neutral-900/60 hover:bg-neutral-900 text-[11px] font-bold text-neutral-400 hover:text-neutral-200 transition-colors duration-150 flex items-center justify-center gap-1 border-b border-neutral-900"
+              className="w-full py-2 bg-neutral-900/90 hover:bg-neutral-800 text-[11px] font-mono font-bold text-neutral-400 hover:text-neutral-200 transition-colors duration-150 flex items-center justify-center gap-1 border-b-2 border-neutral-950 cursor-pointer"
           >
             {showStats ? '상세 스탯 접기 ▲' : '상세 스탯 보기 ▼'}
           </button>
@@ -443,11 +483,11 @@ const AnimatedBattleScreen: React.FC = () => {
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                 >
-                  <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-0.5 text-[11px] font-mono">
+                  <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-0.5 text-[11px] font-mono bg-neutral-900">
                     {statComparisonList.map((item, idx) => (
                         <div
                             key={idx}
-                            className="flex justify-between items-center py-0.5 border-b border-neutral-900/40"
+                            className="flex justify-between items-center py-0.5 border-b border-neutral-950/50"
                         >
                           <span className="font-bold text-green-400 w-14 text-left">{item.pValue}</span>
                           <span className="text-neutral-500 font-sans text-center flex-1 text-[10px] tracking-tight">{item.label}</span>
