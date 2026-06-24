@@ -25,6 +25,23 @@ const getDynamicStyle = (stats: { str: number; dex: number; con: number }, compa
   };
 };
 
+// [신규 추가] HP/EXP 수치를 고전 게임 감성의 █ ░ 도트 블록문자로 변환하는 함수
+// [수정됨] █와 ░의 폰트 자체 높이 차이 버그를 깨부수기 위해, 동일한 █ 문자를 쓰고 안 차있는 곳은 text-neutral-700(어두운 회색)으로 디밍 처리
+const renderRetroGauge = (current: number, max: number, totalBlocks: number, activeClass: string) => {
+  const ratio = Math.max(0, Math.min(1, current / max));
+  const filledCount = Math.round(ratio * totalBlocks);
+  
+  return (
+    <span className="inline-flex leading-none select-none">
+      {Array.from({ length: totalBlocks }).map((_, i) => (
+        <span key={i} className={i < filledCount ? activeClass : 'text-neutral-700'}>
+          █
+        </span>
+      ))}
+    </span>
+  );
+};
+
 const AnimatedBattleScreen: React.FC = () => {
   const {
     player,
@@ -235,11 +252,11 @@ const AnimatedBattleScreen: React.FC = () => {
   ];
 
   return (
-      /* [수정됨] 레드로 아케이드 외곽 틀 스펙 도입: 곡선 제거 및 섀시 그림자 처리 */
-      <div className="max-w-4xl mx-auto p-6 rounded-none border-4 border-neutral-950 bg-neutral-900 w-full flex flex-col gap-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none">
+      /* [수정됨] 크기를 max-w-md(모바일 세로콤팩트)로 줄이고, 색상을 옛날 게임기 플라스틱 질감인 stone-200 테마로 전면 복원 */
+      <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none">
 
         {/* 헤더: 스테이지 및 경험치 바 */}
-        <div className="bg-neutral-800 p-4 rounded-none border-4 border-neutral-950 flex flex-col gap-2 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="bg-stone-100 p-3 rounded-none border-4 border-neutral-900 flex flex-col gap-2 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <div className="flex justify-between items-end">
             <h2 className="text-xl font-bold text-yellow-500 leading-none flex items-center gap-2 font-mono">
               STAGE {stage}
@@ -254,68 +271,61 @@ const AnimatedBattleScreen: React.FC = () => {
             )}
           </div>
 
-          <div className="flex justify-between items-center mt-1">
-            <span className="text-sm font-bold text-white">Lv. {player.level}</span>
-            <span className="text-[10px] text-neutral-400 font-mono">
-              {Math.floor(player.experience)} / {player.nextLevelExperience} EXP
+          {/* [수정됨] 현대적인 슬라이딩 EXP 게이지를 20칸짜리 픽셀 블록 미터기로 전면 개편 */}
+          <div className="flex justify-between items-center mt-1 font-mono text-xs font-bold">
+            <span className="text-white">Lv. {player.level}</span>
+            <span className="text-blue-400 tracking-wider flex items-center gap-0.5">
+              EXP [{renderRetroGauge(player.experience, player.nextLevelExperience, 20, 'text-blue-500')}]
             </span>
-          </div>
-
-          <div className="w-full bg-neutral-950 h-3 rounded-none overflow-hidden border-2 border-neutral-700">
-            <div
-                className="bg-blue-500 h-full transition-all duration-300 rounded-none"
-                style={{ width: `${Math.min(100, (player.experience / player.nextLevelExperience) * 100)}%` }}
-            />
+            <span className="text-[10px] text-neutral-500">
+              {Math.floor(player.experience)}/{player.nextLevelExperience}
+            </span>
           </div>
         </div>
 
-        {/* 격투 영역: [수정됨] 고전 게임 감성 16px 스냅 그리드 바닥 패턴 배경 레이어 주입 */}
+        {/* [수정됨] 샘플 파일과 완벽히 일치하는 따뜻한 stone-100 배경색 및 연한 stone-200 격자 그리드 라인 주입 */}
         <div 
-          className="bg-neutral-950 p-6 min-h-[350px] flex flex-col justify-between border-4 border-neutral-950 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.5)]"
+          className="bg-stone-100 p-6 min-h-[350px] flex flex-col justify-between border-4 border-neutral-900 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)]"
           style={{
-            backgroundImage: 'linear-gradient(to right, #262626 2px, transparent 2px), linear-gradient(to bottom, #262626 2px, transparent 2px)',
+            backgroundImage: 'linear-gradient(to right, #e7e5e4 2px, transparent 2px), linear-gradient(to bottom, #e7e5e4 2px, transparent 2px)',
             backgroundSize: '16px 16px',
           }}
         >
 
-          <div className="flex justify-between items-start w-full gap-4 relative z-10">
-            {/* 플레이어 체력바 */}
-            <div className="flex-1 flex flex-col">
-              <div className="text-right text-xs mb-1 font-bold font-mono">
-                {(playerShield || 0) > 0 && (
-                    <span className="text-blue-400 mr-2">🛡️ {Math.floor(playerShield || 0)}</span>
-                )}
-                <span className="text-green-400">{Math.max(0, player.currentHealth)} / {computed.maxHealth.toFixed(0)}</span>
-              </div>
-              <div className="w-full bg-neutral-800 h-3 rounded-none border-2 border-neutral-950 flex justify-end relative">
-                <div
-                    className="bg-green-500 h-full transition-all duration-300 rounded-none"
-                    style={{ width: `${(player.currentHealth / computed.maxHealth) * 100}%` }}
-                />
-                {(playerShield || 0) > 0 && (
-                    <div
-                        className="absolute right-0 top-0 bg-blue-500 h-full transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)] rounded-none"
-                        style={{ width: `${Math.min(100, ((playerShield || 0) / computed.maxHealth) * 100)}%` }}
-                    />
-                )}
-              </div>
+        {/* [수정됨] 바 내부의 실선 HP 바 레이아웃을 샘플과 동일한 순수 8비트 문자 블록 그리드로 전면 교체 */}
+        <div className="flex justify-between items-center w-full gap-2 relative z-10 font-mono p-1 border-2 border-neutral-900 bg-neutral-900/40">
+          
+          {/* 플레이어 픽셀 HP 모니터 */}
+          <div className="flex flex-col items-start flex-1 select-none">
+            <div className="text-[10px] font-bold text-neutral-400 flex items-center gap-1">
+              <span>PLAYER</span>
+              {/* [수정됨] playerShield가 undefined일 때를 대비해 Math.floor 내부에 || 0 처리 주입 */}
+              {(playerShield || 0) > 0 && <span className="text-blue-400 text-[9px]">🛡️+{Math.floor(playerShield || 0)}</span>}
             </div>
-
-            <div className="text-2xl font-black text-yellow-500/30 italic pt-1 shrink-0 font-mono select-none">VS</div>
-
-            {/* 적 체력바 */}
-            <div className="flex-1 flex flex-col">
-              <div className="text-left text-xs mb-1 font-bold text-red-400 font-mono">
-                {Math.max(0, currentEnemy?.currentHealth || 0)} / {enemyComputed?.maxHealth.toFixed(0) || 1}
-              </div>
-              <div className="w-full bg-neutral-800 h-3 rounded-none border-2 border-neutral-950 flex justify-start relative">
-                <div
-                    className="bg-red-500 h-full transition-all duration-300 rounded-none"
-                    style={{ width: `${((currentEnemy?.currentHealth || 0) / (enemyComputed?.maxHealth || 1)) * 100}%` }}
-                />
-              </div>
+            <div className="text-xs font-black tracking-wider flex items-center">
+              [{renderRetroGauge(player.currentHealth, computed.maxHealth, 8, 'text-green-500')}]
+            </div>
+            <div className="text-[9px] text-neutral-500">
+              {Math.max(0, player.currentHealth)}/{computed.maxHealth.toFixed(0)}
             </div>
           </div>
+
+          <div className="text-lg font-black text-yellow-500/20 italic shrink-0 select-none px-1">VS</div>
+
+          {/* 적 보스 픽셀 HP 모니터 */}
+          <div className="flex flex-col items-end flex-1 select-none">
+            <div className="text-[10px] font-bold text-neutral-400">
+              ENEMY
+            </div>
+            <div className="text-xs font-black tracking-wider flex items-center">
+              [{renderRetroGauge(currentEnemy?.currentHealth || 0, enemyComputed?.maxHealth || 1, 8, 'text-red-500')}]
+            </div>
+            <div className="text-[9px] text-neutral-500">
+              {Math.max(0, currentEnemy?.currentHealth || 0)}/{enemyComputed?.maxHealth.toFixed(0) || 1}
+            </div>
+          </div>
+
+        </div>
 
           {/* 캐릭터 박스 렌더링 */}
           <div className="flex justify-center items-end gap-16 pb-12 z-10 mt-auto relative">
