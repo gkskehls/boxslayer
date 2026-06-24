@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoxSlayer Retro UI Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    .pixel-font { font-family: 'Press Start 2P', monospace; font-size: 10px; }
+    .pixel-grid {
+      background-size: 16px 16px;
+      background-image: linear-gradient(to right, rgba(0, 0, 0, 0.08) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
+    }
+    /* SVG 선을 도트처럼 딱딱 끊어지게 만드는 치트키 */
+    .crisp-line { shape-rendering: crispEdges; }
+  </style>
+</head>
+<body class="bg-zinc-900 flex justify-center items-center min-h-screen p-4 text-black">
+
+  <div class="w-full max-w-md bg-stone-200 border-8 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,0.5)] flex flex-col justify-between overflow-hidden relative" style="aspect-ratio: 9/16;">
+    
+    <div class="p-3 border-b-4 border-black bg-stone-300 pixel-font flex justify-between items-center text-[8px]">
+      <div>LV.45 박스</div>
+      <div class="text-amber-600">💰 12,500G</div>
+      <div class="text-purple-600">✨ 8 PT</div>
+    </div>
+
+    <div id="screen-town" class="flex-1 pixel-grid bg-stone-100 flex flex-col justify-between p-4">
+      <div class="text-center pixel-font text-xs font-bold text-stone-600 mt-2">-[ TOWN HUB ]-</div>
+      
+      <div class="grid grid-cols-2 gap-4 my-auto">
+        <button class="bg-stone-300 border-4 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex flex-col items-center gap-2">
+          <span class="text-xl">⚔️</span>
+          <span class="pixel-font text-[8px]">BATTLE</span>
+        </button>
+        <button class="bg-stone-300 border-4 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex flex-col items-center gap-2">
+          <span class="text-xl">🛒</span>
+          <span class="pixel-font text-[8px]">SHOP</span>
+        </button>
+        <button class="bg-stone-300 border-4 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex flex-col items-center gap-2">
+          <span class="text-xl">🏆</span>
+          <span class="pixel-font text-[8px]">RANK</span>
+        </button>
+        <button class="bg-stone-300 border-4 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex flex-col items-center gap-2">
+          <span class="text-xl">👑</span>
+          <span class="pixel-font text-[8px]">REBIRTH</span>
+        </button>
+      </div>
+
+      <div class="border-4 border-black bg-stone-200 p-3 flex items-center gap-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div class="w-10 h-10 bg-emerald-500 border-2 border-black flex items-center justify-center">
+          <div class="flex justify-between w-6 px-0.5"><div class="w-1 h-1 bg-black"></div><div class="w-1 h-1 bg-black"></div></div>
+        </div>
+        <div class="pixel-font text-[7px] space-y-1">
+          <p class="font-bold text-emerald-700">📌 무리 없는 균형 빌드</p>
+          <p class="text-stone-500">STR:20 DEX:15 CON:10</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-core" class="flex-1 pixel-grid bg-stone-100 flex flex-col justify-between p-4 hidden">
+      <div class="text-center pixel-font text-xs font-bold text-orange-600 mt-2">-[ CORE MATRIX ]-</div>
+      
+      <div class="relative w-48 h-48 border-4 border-dashed border-stone-400 mx-auto my-auto flex items-center justify-center bg-stone-200/50">
+        <div class="w-14 h-14 bg-zinc-800 border-4 border-black text-white flex items-center justify-center pixel-font text-[8px] z-10 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          CORE
+        </div>
+        <div class="absolute top-2 w-10 h-10 bg-red-400 border-2 border-black flex items-center justify-center text-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">🔥</div>
+        <div class="absolute bottom-2 w-10 h-10 bg-blue-400 border-2 border-black flex items-center justify-center text-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">💧</div>
+        <div class="absolute left-2 w-10 h-10 bg-cyan-200 border-2 border-black flex items-center justify-center text-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">⚡</div>
+        <div class="absolute right-2 w-10 h-10 bg-emerald-300 border-2 border-black flex items-center justify-center text-lg shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">🍃</div>
+      </div>
+
+      <div class="border-4 border-black bg-stone-300 p-3 text-center space-y-2">
+        <div class="pixel-font text-[8px] text-red-600 font-bold">🔥 불의 코어 (LV.3) -> (LV.4)</div>
+        <button class="w-full bg-orange-500 text-white border-2 border-black py-2 pixel-font text-[8px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none">
+          UPGRADE [-1,200G]
+        </button>
+      </div>
+    </div>
+
+    <div id="screen-skill" class="flex-1 pixel-grid bg-stone-100 flex flex-col justify-between p-4 hidden relative">
+      <div class="text-center pixel-font text-xs font-bold text-purple-600 mt-2 z-10">-[ SKILL TREE ]-</div>
+      
+      <div class="absolute inset-0 flex items-center justify-center">
+        <svg class="absolute inset-0 w-full h-full text-black" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 110,180 L 110,290 M 110,290 L 290,290 M 290,290 L 290,180" stroke="black" stroke-width="4" fill="none" class="crisp-line" />
+          <path d="M 200,290 L 200,390" stroke="black" stroke-width="4" stroke-dasharray="4 4" fill="none" class="crisp-line" />
+        </svg>
+
+        <button class="absolute bg-purple-600 text-white border-4 border-black w-14 h-14 flex flex-col items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" style="top: 260px; left: 170px;">
+          <span class="text-xs">🌀</span>
+          <span class="pixel-font class text-[6px] mt-0.5">START</span>
+        </button>
+
+        <button class="absolute bg-red-500 text-white border-4 border-black w-12 h-12 flex flex-col items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" style="top: 150px; left: 85px;">
+          <span class="pixel-font text-[7px]">STR</span>
+          <span class="pixel-font text-[6px] text-red-200">+5</span>
+        </button>
+
+        <button class="absolute bg-stone-400 text-stone-600 border-4 border-stone-500 w-12 h-12 flex flex-col items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)]" style="top: 150px; left: 265px;">
+          <span class="pixel-font text-[7px]">DEX</span>
+          <span class="pixel-font text-[6px] text-stone-500">+3</span>
+        </button>
+      </div>
+
+      <div class="mt-auto border-4 border-black bg-stone-300 p-2 text-center text-[7px] pixel-font z-10 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        💡 노드를 연결하려면 포인트를 터치하세요.
+      </div>
+    </div>
+
+
+    <div class="border-t-4 border-black bg-stone-300 grid grid-cols-3 p-1 text-center pixel-font text-[8px] font-bold gap-1">
+      <button id="nav-town" onclick="changeScreen('town')" class="bg-stone-100 border-2 border-black py-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-amber-200">
+        TOWN
+      </button>
+      <button id="nav-core" onclick="changeScreen('core')" class="bg-stone-100 border-2 border-black py-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+        CORE
+      </button>
+      <button id="nav-skill" onclick="changeScreen('skill')" class="bg-stone-100 border-2 border-black py-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+        SKILL
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    function changeScreen(screenId) {
+      // 모든 화면 숨기기
+      document.getElementById('screen-town').classList.add('hidden');
+      document.getElementById('screen-core').classList.add('hidden');
+      document.getElementById('screen-skill').classList.add('hidden');
+      
+      // 모든 내비게이션 버튼 색상 초기화
+      document.getElementById('nav-town').classList.remove('bg-amber-200');
+      document.getElementById('nav-core').classList.remove('bg-amber-200');
+      document.getElementById('nav-skill').classList.remove('bg-amber-200');
+
+      // 선택된 화면 켜고 버튼 하이라이트
+      document.getElementById('screen-' + screenId).classList.remove('hidden');
+      document.getElementById('nav-' + screenId).classList.add('bg-amber-200');
+    }
+  </script>
+</body>
+</html>

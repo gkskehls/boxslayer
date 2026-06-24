@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>박스슬레이어 - 1단계 전투 연출 프로토타입</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 고전 아케이드 감성의 Juice 효과 애니메이션 키프레임 */
+        @keyframes hit-shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+        @keyframes inverse-flash {
+            0%, 100% { filter: invert(0); }
+            50% { filter: invert(1); }
+        }
+        @keyframes damage-float {
+            0% { transform: translateY(0) scale(0.8); opacity: 0; }
+            15% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+            80% { transform: translateY(-40px) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(0.8); opacity: 0; }
+        }
+
+        .animate-shake { animation: hit-shake 0.15s ease-in-out; }
+        .animate-flash { animation: inverse-flash 0.12s ease-in-out; }
+        .animate-damage { animation: damage-float 0.6s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards; }
+    </style>
+</head>
+<body class="bg-stone-900 flex items-center justify-center min-h-screen p-4">
+
+    <div id="battle-card" class="w-full max-w-md bg-stone-200 border-4 border-stone-900 p-4 font-mono select-none shadow-[8px_8px_0px_0px_rgba(0,0,0,0.5)]">
+        
+        <div class="border-4 border-stone-900 bg-stone-100 p-2 mb-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            <div class="flex justify-between items-center text-xs font-bold text-stone-900 mb-1">
+                <span>PLAYER (VIBRANT RGB)</span>
+                <span class="text-red-600">HP █ █ █ █ █ █ ░ ░</span>
+            </div>
+            <div class="flex justify-between items-center text-xs font-bold text-stone-900">
+                <span>ENEMY (STONE BOSS)</span>
+                <span class="text-stone-600">HP █ █ █ █ ░ ░ ░ ░</span>
+            </div>
+        </div>
+
+        <div id="battle-stage" 
+            class="relative h-64 border-4 border-stone-900 bg-stone-100 flex items-center justify-around overflow-hidden"
+            style="background-image: linear-gradient(to right, #e7e5e4 2px, transparent 2px), linear-gradient(to bottom, #e7e5e4 2px, transparent 2px); background-size: 16px 16px;">
+            
+            <div id="player-box" class="w-16 h-16 border-4 border-stone-900 flex flex-col items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-colors duration-200" style="background-color: rgb(130, 70, 100);">
+                <div class="flex justify-between w-8 px-1">
+                    <span class="w-2 h-2 bg-black block"></span>
+                    <span class="w-2 h-2 bg-black block"></span>
+                </div>
+                <div class="w-5 h-1 bg-black mt-2"></div>
+            </div>
+
+            <div id="enemy-box" class="w-20 h-20 bg-stone-400 border-4 border-stone-900 flex flex-col items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <div class="flex justify-between w-10 px-1 text-stone-900 font-black text-sm leading-none">
+                    <span>✖</span>
+                    <span>✖</span>
+                </div>
+                <div class="w-6 h-2 bg-stone-900 mt-2"></div>
+            </div>
+        </div>
+
+        <div class="mt-3 text-[11px] text-stone-600 font-bold flex justify-between px-1">
+            <span>STR(R): <span id="stat-str" class="text-red-600">130</span></span>
+            <span>DEX(G): <span class="text-green-600">70</span></span>
+            <span>CON(B): <span class="text-blue-600">100</span></span>
+        </div>
+
+        <div class="mt-2 grid grid-cols-2 gap-2">
+            <button onclick="handleAttack('normal')" class="border-4 border-stone-900 bg-stone-100 hover:bg-stone-300 font-bold py-2 text-xs active:translate-y-1 active:shadow-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] cursor-pointer">
+                일반 공격 (HIT)
+            </button>
+            <button onclick="handleAttack('critical')" class="border-4 border-stone-900 bg-red-400 hover:bg-red-500 text-stone-900 font-bold py-2 text-xs active:translate-y-1 active:shadow-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] cursor-pointer">
+                크리티컬 (FLASH)
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 초기 시뮬레이션용 스탯 분배 상태
+        let stats = { str: 130, dex: 70, con: 100 };
+
+        // 우리 게임 고유의 RGB 외형 매핑 연산 수식
+        function updatePlayerColor() {
+            const total = stats.str + stats.dex + stats.con;
+            const r = Math.floor((stats.str / total) * 255);
+            const g = Math.floor((stats.dex / total) * 255);
+            const b = Math.floor((stats.con / total) * 255);
+            
+            // 플레이어 실시간 색상 적용 및 텍스트 갱신
+            document.getElementById('player-box').style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+            document.getElementById('stat-str').innerText = stats.str;
+        }
+
+        // 타격감 액션 엔진
+        function handleAttack(type) {
+            const isCrit = type === 'critical';
+            const card = document.getElementById('battle-card');
+            const enemy = document.getElementById('enemy-box');
+            const stage = document.getElementById('battle-stage');
+
+            // 1. 크리티컬 발동 시 전체 화면 색상 반전 (인버스 플래시)
+            if (isCrit) {
+                card.classList.remove('animate-flash');
+                void card.offsetWidth; // 트리거 브라우저 리플로우 (애니메이션 강제 초기화 초기 구동용)
+                card.classList.add('animate-flash');
+            }
+
+            // 2. 피격 시 적 박스 타다닥 흔들림 (히트 셰이크)
+            enemy.classList.remove('animate-shake');
+            void enemy.offsetWidth;
+            enemy.classList.add('animate-shake');
+
+            // 3. 데미지가 겹치지 않도록 12px 그리드 스냅 단위 무작위 분산 연산
+            const snapX = (Math.floor(Math.random() * 5) - 2) * 12; 
+            const damageText = isCrit 
+                ? `${Math.floor(Math.random() * 100) + 220}! CRIT` 
+                : `${Math.floor(Math.random() * 40) + 60}`;
+
+            // 동적 픽셀 데미지 플로팅 엘리먼트 생성
+            const dmgEl = document.createElement('div');
+            dmgEl.innerText = damageText;
+            dmgEl.style.left = `calc(70% + ${snapX}px)`;
+            dmgEl.className = `absolute top-1/3 font-black text-xl p-1 animate-damage ${
+                isCrit ? 'text-red-600 scale-125 drop-shadow-[2px_2px_0px_rgba(255,255,255,1)]' : 'text-stone-900 drop-shadow-[1px_1px_0px_rgba(255,255,255,1)]'
+            }`;
+
+            stage.appendChild(dmgEl);
+
+            // 연출 완료 후 가비지 컬렉터 역할 (요소 삭제)
+            setTimeout(() => {
+                dmgEl.remove();
+            }, 600);
+
+            // 공격할 때마다 미세하게 힘(STR) 수치가 실시간으로 증가해 박스가 점점 더 붉게 물드는 연출용 스탯 증폭
+            stats.str += isCrit ? 4 : 1;
+            updatePlayerColor();
+        }
+    </script>
+</body>
+</html>
