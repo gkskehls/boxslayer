@@ -261,10 +261,6 @@ function App() {
             <Shop /> 
         )}
 
-        {screen === 'SHOP_SCREEN' && (
-            <Shop /> 
-        )}
-
         {screen === 'SKILL_TREE_SCREEN' && (
             <SkillTreeScreen />
         )}

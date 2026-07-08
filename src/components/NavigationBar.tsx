@@ -6,59 +6,41 @@ interface NavigationBarProps {
 }
 
 const NavigationBar: React.FC<NavigationBarProps> = ({ onNavigate, currentScreen }) => {
-  // 1안(고유 색상)과 2안(네온 글로우)의 장점을 합친 하이브리드 테마
-  // 비활성(inactive): 아주 옅은 테두리와 어두운 색상 텍스트로 은은하게 구분
-  // 활성(active): 네온사인처럼 밝게 빛나는 글로우 효과 적용
+  // [수정됨] 샘플 UI 스펙에 맞춰 고전 게임기 제어 패드 스타일 데이터 명세 구축
+  // 아이콘/이모지를 배제하고 영문 대문자 기반 무드의 깔끔한 타이포 레이아웃을 지향합니다.
   const navItems = [
-    {
-      screen: 'TOWN_SCREEN', label: '마을',
-      activeClass: 'border-neutral-300 text-neutral-100 shadow-[0_0_12px_rgba(212,212,216,0.5)] bg-neutral-800',
-      inactiveClass: 'border-neutral-800/50 text-neutral-500 hover:border-neutral-600 hover:text-neutral-400 bg-neutral-900'
-    },
-    {
-      screen: 'BATTLE_SCREEN', label: '구 전투',
-      activeClass: 'border-red-500 text-red-400 shadow-[0_0_12px_rgba(239,68,68,0.5)] bg-neutral-800',
-      inactiveClass: 'border-red-900/40 text-red-700 hover:border-red-800 hover:text-red-500 bg-neutral-900'
-    },
-    {
-      screen: 'ANIMATED_BATTLE_SCREEN', label: '신 전투',
-      activeClass: 'border-purple-500 text-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.5)] bg-neutral-800',
-      inactiveClass: 'border-purple-900/40 text-purple-700 hover:border-purple-800 hover:text-purple-500 bg-neutral-900'
-    },
-    {
-      screen: 'STATS_SCREEN', label: '스탯',
-      activeClass: 'border-green-500 text-green-400 shadow-[0_0_12px_rgba(34,197,94,0.5)] bg-neutral-800',
-      inactiveClass: 'border-green-900/40 text-green-700 hover:border-green-800 hover:text-green-500 bg-neutral-900'
-    },
-    {
-      screen: 'CORE_SCREEN', label: '코어',
-      activeClass: 'border-blue-500 text-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.5)] bg-neutral-800',
-      inactiveClass: 'border-blue-900/40 text-blue-700 hover:border-blue-800 hover:text-blue-500 bg-neutral-900'
-    },
-    {
-      screen: 'SHOP_SCREEN', label: '상점',
-      activeClass: 'border-yellow-400 text-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.5)] bg-neutral-800',
-      inactiveClass: 'border-yellow-900/40 text-yellow-700 hover:border-yellow-800 hover:text-yellow-500 bg-neutral-900'
-    },
-    {
-      screen: 'SKILL_TREE_SCREEN', label: '스킬',
-      activeClass: 'border-indigo-400 text-indigo-300 shadow-[0_0_12px_rgba(129,140,248,0.5)] bg-neutral-800',
-      inactiveClass: 'border-indigo-900/40 text-indigo-700 hover:border-indigo-800 hover:text-indigo-500 bg-neutral-900'
-    },
+    { screen: 'TOWN_SCREEN', label: '마을' },
+    { screen: 'BATTLE_SCREEN', label: '구 전투' },
+    { screen: 'ANIMATED_BATTLE_SCREEN', label: '신 전투' },
+    { screen: 'STATS_SCREEN', label: '스탯' },
+    { screen: 'CORE_SCREEN', label: '코어' },
+    { screen: 'SHOP_SCREEN', label: '상점' },
+    { screen: 'SKILL_TREE_SCREEN', label: '스킬' },
   ] as const;
 
   return (
-      <div className="fixed bottom-0 left-0 right-0 bg-neutral-950 border-t border-neutral-800 flex justify-evenly p-2 z-50 gap-2 overflow-x-auto shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
+      /* [RENEWAL] 레트로 휴대형 하드웨어 일체형 내비게이션 바 프레임
+        - 고전 오락기 본체 색조(bg-stone-300) 매핑 및 굵은 직각 라인(border-t-4 border-black) 주입.
+        - max-w-md mx-auto 처리로 전체 본체 프레임 규격과 일직선으로 딱 떨어지게 마감합니다.
+      */
+      <div className="fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto bg-stone-300 border-t-4 border-black flex justify-between p-2 z-50 gap-1 overflow-x-auto select-none shadow-[inset_0_2px_0px_rgba(255,255,255,0.4)]">
         {navItems.map((item) => {
           const isActive = currentScreen === item.screen;
           return (
               <button
                   key={item.screen}
                   onClick={() => onNavigate(item.screen)}
-                  className={`flex flex-col items-center justify-center text-xs py-2 px-1 rounded-sm font-bold transition-all whitespace-nowrap flex-1 min-w-[45px] border
-                ${isActive ? item.activeClass : item.inactiveClass}`}
+                  /* [피드백 액션] 아날로그 기계식 버튼 기믹 구현
+                    - 비활성: bg-stone-100에 2px 블랙 보더와 단단한 우하단 8비트 블랙 드롭 섀도우 장착.
+                    - 활성: bg-amber-200(샘플 하이라이트색)으로 반전되며 버튼이 눌린 것처럼 shadow 차단 및 1px 우하단 이동(translate).
+                  */
+                  className={`flex flex-col items-center justify-center py-2 px-0.5 rounded-none border-2 border-black font-black font-mono transition-all whitespace-nowrap flex-1 min-w-[50px] cursor-pointer text-[10px] tracking-tighter select-none
+                    ${isActive 
+                      ? 'bg-amber-200 text-black translate-x-[1px] translate-y-[1px] shadow-none' 
+                      : 'bg-stone-100 text-stone-700 hover:text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none'
+                    }`}
               >
-                <span>{item.label}</span>
+                <span className="block font-black uppercase">{item.label}</span>
               </button>
           )
         })}
