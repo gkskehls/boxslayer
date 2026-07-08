@@ -1,3 +1,5 @@
+// src/components/SkillTreeScreen.tsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { SKILL_TREE_DATA } from '../constants/skills';
@@ -50,58 +52,54 @@ const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
     };
     Object.keys(nodes).forEach(calcAngle);
 
-    // [신규 개선] 최대 깊이를 기반으로 캔버스의 절대적인 픽셀 사이즈를 먼저 결정합니다.
-    const maxDepth = Math.max(0, ...Object.values(depths));
-    // 깊이 1단계당 350px씩 여유를 주고, 기본 여백 300px을 더합니다. (최소 1500px 보장)
-    const dynamicCanvasSize = Math.max(1500, maxDepth * 350 + 300);
+    // [수정됨] TS6133 빌드 에러를 유발하던 미사용 유령 함수(getMaxUpgrades)를 완벽하게 도려내어 청소했습니다.
+    const maxDepth = Math.max(...Object.values(depths), 0);
+    const canvasSize = Math.max(1200, maxDepth * 350);
 
-    // 4. 삼각함수를 활용하여 최종 X, Y % 좌표 산출 (강제 고정 로직 제거)
+    // 좌표 명세 생성
     Object.keys(nodes).forEach(id => {
-        if (depths[id] === 0) {
-            positions[id] = { x: 50, y: 50 }; // 중앙은 무조건 50,50
+        if (id === 'core_origin') {
+            positions[id] = { x: canvasSize / 2, y: canvasSize / 2 };
             return;
         }
-
-        // 깊이 1단계마다 160픽셀 단위로 정확히 거리를 벌립니다.
-        const pixelRadius = depths[id] * 160;
-        // 픽셀 거리를 커진 캔버스 사이즈에 비례하는 퍼센트(%)로 변환합니다.
-        const percentRadius = (pixelRadius / dynamicCanvasSize) * 100;
-        const radian = (angles[id] * Math.PI) / 180;
-
-        // 찌그러뜨리던 억제기(Math.max, min)를 삭제하고 무한 확장을 허용합니다.
-        const x = 50 + percentRadius * Math.cos(radian);
-        const y = 50 + percentRadius * Math.sin(radian);
-
-        positions[id] = { x, y };
+        const depth = depths[id] || 1;
+        const angle = angles[id] || 0;
+        const radius = depth * 140; 
+        const radian = (angle * Math.PI) / 180;
+        positions[id] = {
+            x: (canvasSize / 2) + radius * Math.cos(radian),
+            y: (canvasSize / 2) + radius * Math.sin(radian)
+        };
     });
 
-    // 알고리즘이 계산한 좌표와 캔버스 사이즈를 같이 반환합니다.
-    return { positions, dynamicCanvasSize };
+    return { positions, dynamicCanvasSize: canvasSize };
 };
 
-// [수정됨] 반환받은 좌표와 동적 캔버스 사이즈를 전역 상수로 꺼내옵니다.
+// 반환받은 좌표와 동적 캔버스 사이즈를 전역 상수로 꺼내옵니다.
 const { positions: AUTO_NODE_POSITIONS, dynamicCanvasSize: DYNAMIC_CANVAS_SIZE } = calculateAutoPositions(SKILL_TREE_DATA);
 
 const SkillTreeScreen: React.FC = () => {
     const { reincarnationPoints = 0, unlockedSkills = ['core_origin'], unlockSkill } = useGameStore();
     const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
-    // [신규] 화면 확대/축소를 위한 상태 추가 (기본 100%)
-    const [zoom, setZoom] = useState(1);
+    
+    /* [수정됨] 기본 배율 조율 (1.0 -> 0.5)
+       - 진입 시 스킬 트리가 너무 조금 보이는 현상을 해결하기 위해 디폴트 배율을 50%로 축소했습니다.
+       - 시야 영역이 4배 넓어져 천 개 규모로 확장될 거대 성운형 노드의 줄기들을 한눈에 조망할 수 있습니다.
+    */
+    const [zoom, setZoom] = useState(0.5);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // 컴포넌트 마운트 시 스크롤을 줌 비율에 맞춰 중앙(core_origin)으로 자동 이동
+    // 컴포넌트 마운트 시 스크롤을 줌 비율(50%)에 맞춰 중앙(core_origin)으로 자동 이동
     useEffect(() => {
         if (scrollContainerRef.current) {
             const container = scrollContainerRef.current;
-            // [수정됨] 고정값 1500 대신 계산된 DYNAMIC_CANVAS_SIZE 적용
             container.scrollLeft = ((DYNAMIC_CANVAS_SIZE * zoom) - container.clientWidth) / 2;
             container.scrollTop = ((DYNAMIC_CANVAS_SIZE * zoom) - container.clientHeight) / 2;
         }
     }, []); // 처음 렌더링될 때 한 번만 실행
 
-    // [신규 추가] 화면 중앙을 유지하며 줌 인/아웃을 처리하는 함수
+    // 화면 중앙을 유지하며 줌 인/아웃을 처리하는 함수
     const handleZoom = (delta: number) => {
-        // [수정됨] 최소 줌을 0.1 (10%)로 낮춰서 전체 보기가 가능하도록 수정 (0.1 ~ 2.0 제한)
         const nextZoom = Math.max(0.1, Math.min(Math.round((zoom + delta) * 10) / 10, 2.0));
         if (nextZoom === zoom) return;
 
@@ -127,18 +125,18 @@ const SkillTreeScreen: React.FC = () => {
     };
 
     const getNodeStyle = (type: string, isUnlocked: boolean, isSelectable: boolean) => {
-        const baseStyle = "absolute transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center cursor-pointer transition-all shadow-lg text-xs font-bold text-white z-10 hover:scale-110";
+        const baseStyle = "absolute transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center cursor-pointer transition-all text-xs font-mono font-black z-10 hover:scale-110";
 
-        let colorClass = "bg-neutral-800 border-neutral-600 text-neutral-500 opacity-60"; // 잠김
+        let colorClass = "bg-stone-300 border-stone-400 text-stone-400 opacity-60 border-2"; // 잠김
         if (isUnlocked) {
-            colorClass = "bg-yellow-900 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.6)] z-20"; // 해금됨
+            colorClass = "bg-amber-400 text-black border-black border-2 shadow-[0_0_12px_#facc15] z-20"; // 해금됨
         } else if (isSelectable) {
-            colorClass = "bg-blue-900 border-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.5)] animate-pulse z-20"; // 해금 가능
+            colorClass = "bg-blue-600 text-white border-blue-400 border-2 shadow-[0_0_12px_rgba(59,130,246,0.6)] animate-pulse z-20"; // 해금 가능
         }
 
-        let shapeClass = "w-10 h-10 rounded-full border-2"; // NORMAL
-        if (type === 'NOTABLE') shapeClass = "w-12 h-12 rounded-lg border-2 rotate-45"; // NOTABLE
-        if (type === 'KEYSTONE') shapeClass = "w-16 h-16 rounded-full border-double border-4"; // KEYSTONE
+        let shapeClass = "w-9 h-9 rounded-none"; // NORMAL (직각 픽셀 블록화)
+        if (type === 'NOTABLE') shapeClass = "w-11 h-11 rounded-none border-2 rotate-45"; // NOTABLE
+        if (type === 'KEYSTONE') shapeClass = "w-14 h-14 rounded-none border-double border-4"; // KEYSTONE
 
         return `${baseStyle} ${colorClass} ${shapeClass}`;
     };
@@ -148,48 +146,71 @@ const SkillTreeScreen: React.FC = () => {
     };
 
     return (
-        // [수정됨] 마을 화면과 동일하게 폭 조정 (max-w-4xl) 및 간격 축소 (gap-3)
-        <div className="max-w-4xl mx-auto p-4 md:p-6 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-3">
+        /* [RENEWAL] 고전 아케이드 게임기 본체 전용 프레임 일체화
+           - 각진 모서리, 단단한 border-4 border-black 명세 가동.
+           - 연한 모눈종이 8비트 격자무늬(linear-gradient) 주입 완료.
+        */
+        <div 
+            className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-3 text-stone-900 font-mono select-none text-xs shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+            style={{
+                backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
+                backgroundSize: '16px 16px',
+            }}
+        >
 
-            {/* [수정됨] 헤더: 불필요한 공백을 줄이고 한 줄(flex)로 묶어 슬림화 */}
-            <div className="flex justify-between items-center bg-neutral-950 px-4 py-2 rounded-xl border border-neutral-800 shadow-inner">
-                <h2 className="text-base md:text-lg font-extrabold text-purple-400 flex items-center gap-2">
-                    <span>🌌</span> 특성 기원석
+            {/* 헤더: 슬레어의 석판 대시보드로 통일화 */}
+            <div className="bg-stone-300 p-3 rounded-none border-4 border-black w-full flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-black">
+                <h2 className="text-xs font-black text-stone-500 tracking-widest uppercase leading-none">
+                    -[ SKILL_TREE ]-
                 </h2>
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-neutral-400">잔여:</span>
-                    <span className="text-lg font-mono font-bold text-yellow-400">{reincarnationPoints} RP</span>
+                <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-neutral-500 uppercase">RP_POOL:</span>
+                    <span className="text-sm font-mono font-black text-purple-700">{reincarnationPoints} RP</span>
                 </div>
             </div>
 
-            {/* [신규] 줌 컨트롤러 바 */}
-            <div className="flex justify-end items-center gap-2 mb-[-8px] z-10 pr-2">
-                {/* [수정됨] 줌 인/아웃 단위를 0.1 (10%)씩 세밀하게 조절하도록 변경 */}
-                <button onClick={() => handleZoom(-0.1)} className="bg-neutral-800 border border-neutral-600 px-3 py-1 rounded text-xs text-white active:scale-95 transition-transform">-</button>
-                <span className="text-xs text-neutral-400 w-10 text-center">{Math.round(zoom * 100)}%</span>
-                <button onClick={() => handleZoom(0.1)} className="bg-neutral-800 border border-neutral-600 px-3 py-1 rounded text-xs text-white active:scale-95 transition-transform">+</button>
+            {/* 줌 컨트롤러 바 - 기계식 조작 패널 단추로 개편 */}
+            <div className="flex justify-end items-center gap-1 mb-[-4px] z-10 pr-1">
+                <button 
+                    onClick={() => handleZoom(-0.1)} 
+                    className="bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 px-2.5 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
+                >
+                    -
+                </button>
+                <span className="text-[10px] font-black text-stone-500 w-12 text-center bg-stone-200 border-2 border-black py-0.5">{Math.round(zoom * 100)}%</span>
+                <button 
+                    onClick={() => handleZoom(0.1)} 
+                    className="bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 px-2 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
+                >
+                    +
+                </button>
             </div>
 
-            {/* [수정됨] 스크롤 캔버스: 세로 높이를 축소하여 하단 패널 시야 확보 (h-[45vh]) */}
+            {/* 스크롤 캔버스: 아케이드 뷰포트 크기 최적화 (h-[40vh]) */}
             <div
                 ref={scrollContainerRef}
-                className="relative w-full h-[45vh] md:h-80 bg-neutral-950 rounded-xl border border-neutral-800 overflow-auto custom-scrollbar"
+                className="relative w-full h-[40vh] bg-neutral-950 rounded-none border-4 border-black overflow-auto custom-scrollbar"
+                style={{
+                    boxShadow: 'inset 4px 4px 0px rgba(0,0,0,0.3)'
+                }}
             >
-                {/* [신규] 스크롤바와 줌 비율을 완벽히 동기화하기 위한 Wrapper 크기 제어 */}
-                {/* [수정됨] 하드코딩된 1500 대신 동적으로 계산된 DYNAMIC_CANVAS_SIZE 적용 */}
+                {/* 스크롤바와 줌 비율을 완벽히 동기화하기 위한 Wrapper 크기 제어 */}
                 <div style={{ width: `${DYNAMIC_CANVAS_SIZE * zoom}px`, height: `${DYNAMIC_CANVAS_SIZE * zoom}px` }} className="relative">
                     {/* 실제 스킬 트리가 그려지는 거대한 배경 (Transform으로 Scale 처리) */}
                     <div
-                        className="absolute top-0 left-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-900 to-neutral-950"
+                        className="absolute top-0 left-0 bg-neutral-950"
                         style={{
                             width: `${DYNAMIC_CANVAS_SIZE}px`,
                             height: `${DYNAMIC_CANVAS_SIZE}px`,
                             transform: `scale(${zoom})`,
-                            transformOrigin: '0 0'
+                            transformOrigin: '0 0',
+                            backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px)',
+                            backgroundSize: '20px 20px'
                         }}
                     >
                         {/* SVG 연결선 */}
                         <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+                            {/* SVG 선을 도트처럼 딱딱 끊어지게 만드는 crispEdges 치트키 강제 삽입 */}
                             {Object.values(SKILL_TREE_DATA).map(node => {
                                 return node.requires.map(reqId => {
                                     const start = AUTO_NODE_POSITIONS[reqId];
@@ -201,12 +222,13 @@ const SkillTreeScreen: React.FC = () => {
                                     return (
                                         <line
                                             key={`${reqId}-${node.id}`}
-                                            x1={`${start.x}%`}
-                                            y1={`${start.y}%`}
-                                            x2={`${end.x}%`}
-                                            y2={`${end.y}%`}
-                                            stroke={isPathActive ? '#facc15' : '#333333'}
+                                            x1={start.x}
+                                            y1={start.y}
+                                            x2={end.x}
+                                            y2={end.y}
+                                            stroke={isPathActive ? '#facc15' : '#262626'}
                                             strokeWidth={isPathActive ? "4" : "2"}
+                                            style={{ shapeRendering: 'crispEdges' }}
                                             className="transition-colors duration-500"
                                         />
                                     );
@@ -227,7 +249,7 @@ const SkillTreeScreen: React.FC = () => {
                                 <div
                                     key={node.id}
                                     className={getNodeStyle(node.type, isUnlocked, isSelectable)}
-                                    style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                                    style={{ left: `${pos.x}px`, top: `${pos.y}px` }}
                                     onClick={() => setSelectedNode(node)}
                                 >
                                     <div className={node.type === 'NOTABLE' ? '-rotate-45' : ''}>
@@ -240,35 +262,47 @@ const SkillTreeScreen: React.FC = () => {
                 </div>
             </div>
 
-            {/* [수정됨] 상세 패널: 모바일에서 한 화면에 보이도록 여백(Padding)과 폰트 크기 대폭 축소 (Compact Size) */}
+            {/* 상세 패널: 기계식 정보 수치 모듈창 형태로 리폼 */}
             {selectedNode && (
-                <div className="bg-neutral-800 p-3 rounded-xl border border-neutral-600 shadow-xl animate-fade-in-up">
-                    <div className="flex justify-between items-center mb-2">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] bg-neutral-700 px-2 py-0.5 rounded font-bold text-blue-400 tracking-wider">{selectedNode.type}</span>
-                            <h3 className="text-sm md:text-base font-bold text-white leading-none">{selectedNode.name}</h3>
+                <div className="bg-stone-200 p-3 rounded-none border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-1.5 w-full">
+                    <div className="flex justify-between items-center border-b border-black/10 pb-1 w-full">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[9px] font-black border border-current px-1.5 py-0.5 leading-none bg-white/40 tracking-tight uppercase shrink-0">
+                                {selectedNode.type}
+                            </span>
+                            <h3 className="text-xs font-black text-black truncate uppercase leading-none">
+                                {selectedNode.name}
+                            </h3>
                         </div>
-                        <button onClick={() => setSelectedNode(null)} className="w-6 h-6 flex justify-center items-center rounded bg-neutral-700 hover:bg-neutral-600 text-white font-bold text-xs">✕</button>
+                        <button 
+                            onClick={() => setSelectedNode(null)} 
+                            className="w-5 h-5 flex justify-center items-center rounded-none border border-black bg-stone-100 hover:bg-stone-50 font-black text-[9px] cursor-pointer"
+                        >
+                            ✕
+                        </button>
                     </div>
 
-                    <p className="text-xs text-neutral-300 bg-neutral-900 p-2 rounded-lg mb-2">
+                    <p className="text-[11px] font-bold text-stone-600 bg-white/50 border border-black/5 p-2 leading-relaxed break-keep">
                         {selectedNode.description}
                     </p>
 
-                    <div className="flex items-center justify-between border-t border-neutral-700 pt-2">
-                        <div className="text-xs font-bold">
-                            요구: <span className={reincarnationPoints >= selectedNode.cost ? 'text-green-400' : 'text-red-400'}>{selectedNode.cost} RP</span>
+                    <div className="flex items-center justify-between pt-1.5 border-t border-dashed border-black/20 w-full">
+                        <div className="text-[11px] font-black font-mono">
+                            REQ: <span className={reincarnationPoints >= selectedNode.cost ? 'text-green-700' : 'text-red-600'}>{selectedNode.cost} RP</span>
                         </div>
 
                         {unlockedSkills.includes(selectedNode.id) ? (
-                            <div className="py-1 px-4 bg-neutral-700 text-neutral-400 font-bold rounded text-xs cursor-not-allowed">획득함</div>
+                            <div className="py-1 px-3 bg-stone-300 text-stone-500 font-black text-[10px] border border-stone-400 uppercase tracking-wider cursor-not-allowed">
+                                UNLOCKED [보유]
+                            </div>
                         ) : (
                             <button
                                 onClick={handleUnlock}
                                 disabled={!selectedNode.requires.every(reqId => unlockedSkills.includes(reqId)) || reincarnationPoints < selectedNode.cost}
-                                className="py-1 px-4 bg-purple-600 hover:bg-purple-500 disabled:bg-neutral-700 disabled:text-neutral-500 text-white font-bold rounded text-xs transition-colors shadow-lg"
+                                /* 기계식 해금 스위치 푸시 질감 부여 */
+                                className="py-1 px-4 bg-purple-700 hover:bg-purple-600 disabled:bg-stone-300 disabled:text-stone-400 disabled:border-stone-400 disabled:shadow-none text-white font-black text-[10px] rounded-none border-2 border-black border-b-4 shadow-[1px_1px_0px_rgba(255,255,255,0.3)_inset] active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer uppercase tracking-widest"
                             >
-                                특성 해금
+                                ACTIVATE [개방]
                             </button>
                         )}
                     </div>
