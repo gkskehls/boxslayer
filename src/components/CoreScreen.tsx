@@ -4,13 +4,16 @@ import React, { useState } from 'react';
 import { useGameStore, getCoreStats } from '../store/gameStore';
 import type { Core } from '../types/game';
 
+/* [RENEWAL] 레트로 아케이드 섀시에 맞춘 속성별 고유 픽셀 보더 & 틴트 컬러 맵
+   - 현대식 어두운 반투명 색상을 배제하고, 클래식 도트 게임 특유의 직관적이고 산뜻한 하드 틴트로 전환합니다.
+*/
 const getCoreTypeColor = (type: string) => {
   switch (type) {
-    case 'FIRE': return 'border-red-500 bg-red-900/30 text-red-200';
-    case 'WATER': return 'border-blue-500 bg-blue-900/30 text-blue-200';
-    case 'WIND': return 'border-green-500 bg-green-900/30 text-green-200';
-    case 'ELECTRIC': return 'border-yellow-500 bg-yellow-900/30 text-yellow-200';
-    default: return 'border-neutral-600 bg-neutral-700/50 text-neutral-300';
+    case 'FIRE': return 'border-red-600 bg-red-50 text-red-700';
+    case 'WATER': return 'border-blue-600 bg-blue-50 text-blue-700';
+    case 'WIND': return 'border-green-600 bg-green-50 text-green-700';
+    case 'ELECTRIC': return 'border-yellow-500 bg-yellow-50 text-yellow-800';
+    default: return 'border-stone-500 bg-stone-200 text-stone-700';
   }
 };
 
@@ -49,91 +52,112 @@ const CoreScreen: React.FC = () => {
 
   // [수정됨] 불필요한 스크롤을 막기 위해 전체적인 여백(p, gap, mb)을 촘촘하게 축소했습니다.
   return (
-      <div className="max-w-md mx-auto p-2 rounded-xl border border-neutral-700 bg-neutral-900 w-full flex flex-col gap-2 shadow-xl text-xs">
-        <h2 className="text-lg font-extrabold text-yellow-400 text-center">코어 관리</h2>
-        <div className="text-center text-yellow-300 font-bold -mt-1">보유 골드: {player.gold.toLocaleString()} G</div>
+      /* [RENEWAL] 게임기 본체 전용 프레임 일체화 마감
+         - 각진 모서리, 단단한 border-4 border-black, 모눈종이 격자무늬 라인이 내장된 모니터 공간입니다.
+      */
+      <div 
+          className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-3 text-stone-900 font-mono select-none text-xs shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+          style={{
+              backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
+              backgroundSize: '16px 16px',
+          }}
+      >
+        <div className="w-full text-center border-b-4 border-black pb-2">
+            <h2 className="text-sm font-black text-stone-500 tracking-widest uppercase leading-none">-[ CORE_MATRIX ]-</h2>
+            <div className="text-amber-700 font-black text-xs mt-1.5 font-mono">보유 골드: {player.gold.toLocaleString()} G</div>
+        </div>
 
-        {/* 장착 슬롯 영역 */}
-        <div className="bg-neutral-800 p-2 rounded-lg border border-neutral-700 flex items-center gap-2">
-          <h3 className="font-bold text-blue-400 text-[11px] whitespace-nowrap">장착 중</h3>
-          <div className={`flex-1 p-2 rounded border h-12 flex items-center justify-center cursor-pointer ${equippedCore ? getCoreTypeColor(equippedCore.type) : 'border-neutral-600 bg-neutral-700/50'}`}
-               onClick={() => { if (equippedCore) { setSelectedCore(equippedCore); setIsEquippedSelected(true); } }}>
+        {/* 장착 슬롯 영역 (하드웨어 소켓 무드로 리폼) */}
+        <div className="bg-stone-200 p-2.5 rounded-none border-4 border-black flex items-center gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <h3 className="font-black text-stone-600 text-[11px] whitespace-nowrap uppercase tracking-tighter">SLOT_ON</h3>
+          <div 
+              className={`flex-1 p-2 rounded-none border-2 border-black h-12 flex items-center justify-center cursor-pointer transition-all
+                ${equippedCore 
+                  ? `${getCoreTypeColor(equippedCore.type)} shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:brightness-105` 
+                  : 'border-dashed border-stone-400 bg-stone-300/40 text-stone-400 font-bold'
+                }`}
+               onClick={() => { if (equippedCore) { setSelectedCore(equippedCore); setIsEquippedSelected(true); } }}
+          >
             {equippedCore ? (
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-sm truncate">{equippedCore.name}</span>
-                  <span className="font-bold text-[12px] opacity-80">Lv.{equippedCore.level}</span>
+                <div className="flex items-center gap-2 font-mono">
+                  <span className="font-black text-xs truncate uppercase tracking-tight">{equippedCore.name}</span>
+                  <span className="font-black text-xs border border-current px-1 py-0.5 leading-none bg-white/40">LV.{equippedCore.level}</span>
                 </div>
-            ) : <span className="text-[10px] text-neutral-500">코어를 선택하여 장착하세요</span>}
+            ) : <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">EMPTY SOCKET</span>}
           </div>
         </div>
 
-        {/* 인벤토리 영역 */}
-        <div className="bg-neutral-800 p-2 rounded-lg border border-neutral-700">
-          <div className="flex justify-between items-center mb-1">
-            <h3 className="font-bold text-yellow-400 text-[11px]">보유 코어 (환생 시 획득)</h3>
+        {/* 인벤토리 영역 (칩셋 보드 스타일 마감) */}
+        <div className="bg-stone-200 p-2.5 rounded-none border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-black text-stone-600 text-[11px] uppercase tracking-wider">INVENTORY (REBIRTH REWARD)</h3>
           </div>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-3 gap-2">
             {playerCores.map((core, i) => {
               const isDisabled = equippedCore !== null;
               return (
                   <div key={`${core.id}-${i}`}
-                       className={`p-1.5 rounded border flex flex-col items-center justify-center transition-all 
-                        ${isDisabled ? 'border-neutral-700 bg-neutral-800 opacity-40 cursor-not-allowed grayscale' : `cursor-pointer ${getCoreTypeColor(core.type)}`}`}
+                       className={`p-2 rounded-none border-2 border-black flex flex-col items-center justify-center transition-all select-none
+                        ${isDisabled 
+                          ? 'border-stone-300 bg-stone-300/60 text-stone-400 opacity-40 cursor-not-allowed line-through font-bold' 
+                          : `cursor-pointer ${getCoreTypeColor(core.type)} shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`
+                        }`}
                        onClick={() => {
                          if (!isDisabled) {
                            setSelectedCore(core);
                            setIsEquippedSelected(false);
                          }
-                       }}>
-                    <span className="font-bold text-[9px] mb-0.5 truncate max-w-full">{core.name}</span>
-                    <span className="font-bold text-[12px]">Lv.{core.level}</span>
+                       }}
+                  >
+                    <span className="font-black text-[9px] mb-1 truncate max-w-full uppercase tracking-tight">{core.name}</span>
+                    <span className="font-black text-xs border border-current px-1 py-0.5 bg-white/40 leading-none">LV.{core.level}</span>
                   </div>
               );
             })}
           </div>
         </div>
 
-        {/* 선택된 코어 상세 및 액션 영역 */}
+        {/* 선택된 코어 상세 및 액션 영역 (중앙 모니터 내부 창 팝업 기믹 연출) */}
         {displayCore && (
-            <div className={`p-3 rounded-lg border ${getCoreTypeColor(displayCore.type)}`}>
-              <div className="flex justify-between items-end mb-1">
-                <div className="text-base font-extrabold">{displayCore.name}</div>
-                <div className="text-xs font-bold">현재 레벨: {displayCore.level}</div>
+            <div className={`p-3 rounded-none border-4 border-black flex flex-col gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${getCoreTypeColor(displayCore.type)}`}>
+              <div className="flex justify-between items-end border-b border-black/10 pb-1.5 w-full">
+                <div className="text-sm font-black uppercase tracking-wider">{displayCore.name}</div>
+                <div className="text-[10px] font-black border border-current px-1 bg-white/30">LEVEL: {displayCore.level}</div>
               </div>
-              <p className="mb-2 p-2 bg-black/20 rounded text-[12px] leading-relaxed">
+              <p className="p-2 bg-white/50 border border-black/10 text-[11px] font-bold leading-normal break-keep">
                 {getCoreStats(displayCore.type, displayCore.level).desc}
               </p>
 
               {/* 장착 전 (인벤토리 선택 상태) */}
               {!isEquippedSelected && !equippedCore && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 w-full mt-1">
                     <button onClick={handleEquip}
-                            className="flex-1 py-2 rounded font-bold text-sm bg-blue-600 hover:bg-blue-500 text-white shadow-md">
-                      이 코어로 결정 및 장착
+                            className="flex-1 py-2 rounded-none font-black text-xs bg-blue-600 hover:bg-blue-500 text-white border-2 border-black border-b-4 shadow-[1px_1px_0px_rgba(255,255,255,0.3)_inset] active:border-b-2 active:translate-y-[2px] cursor-pointer tracking-wider uppercase">
+                      EQUIP CORE [장착]
                     </button>
                   </div>
               )}
 
               {/* 장착 후 (장착 코어 선택 상태) - 강화 버튼 노출 */}
               {isEquippedSelected && (
-                  <div className="space-y-1.5">
-                    <div className="text-[9px] text-neutral-300 text-center tracking-tighter">
-                      비용: +1 ({getBatchCost(1)}G) | +10 ({getBatchCost(10)}G) | +100 ({getBatchCost(100)}G)
+                  <div className="space-y-2 mt-1">
+                    <div className="text-[9px] font-black text-stone-500 text-center tracking-tight font-mono border-b border-black/10 pb-1">
+                      UPGRADE COST: +1 ({getBatchCost(1)}G) | +10 ({getBatchCost(10)}G) | +100 ({getBatchCost(100)}G)
                     </div>
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1 w-full">
                       {[1, 10, 100].map(amt => (
                           <button key={amt} onClick={() => upgradeCore(amt)}
-                                  className="flex-1 py-2 bg-yellow-700 hover:bg-yellow-600 rounded font-bold text-sm shadow-md">
+                                  className="flex-1 py-2 bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 font-black text-xs active:border-b-2 active:translate-y-[2px] cursor-pointer shadow-[1px_1px_0px_rgba(255,255,255,0.6)_inset]">
                             +{amt}
                           </button>
                       ))}
-                      {/* [신규] MAX 강화 버튼 */}
+                      {/* [신규] MAX 강화 버튼 (강렬한 하드웨어 비상 제어 스위치 기믹 연출) */}
                       <button onClick={() => {
                         const max = getMaxUpgrades();
                         if (max > 0) upgradeCore(max);
                         else upgradeCore(1); // 0일 경우 1을 넘겨서 '골드 부족' 알림 유도
                       }}
-                              className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded font-black text-sm shadow-md border border-red-400/50">
+                              className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white border-2 border-black border-b-4 font-black text-xs active:border-b-2 active:translate-y-[2px] cursor-pointer shadow-[1px_1px_0px_rgba(255,255,255,0.3)_inset]">
                         MAX
                       </button>
                     </div>
