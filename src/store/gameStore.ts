@@ -117,7 +117,7 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], ac
 
   let attack = 20 + (finalStats.str * 2);
   let defense = 5 + (finalStats.con * 0.2);
-  let maxHealth = 100 + (finalStats.con * 2);
+  let maxHealth = 100 + (finalStats.con * 5);
 
   const now = Date.now();
   if (activeBuffs['buff_berserk'] && activeBuffs['buff_berserk'] > now) {
@@ -282,7 +282,7 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
         stats: stats,
         currentHealth: Math.floor(getComputedStats(stats).maxHealth),
         goldReward: Math.floor((10 + nextStage) * (isBoss ? 2 : 1) * goldMult), // 여기서 미리 2배 곱하기
-        expReward: Math.floor((20 + (nextStage * 20)) * (isBoss ? 2 : 1) * expMult), // 여기서 미리 2배 곱하기
+        expReward: Math.floor((20 + (nextStage * 5)) * (isBoss ? 2 : 1) * expMult), // 획득경험치. 여기서 미리 2배 곱하기
       },
       gameStatus: 'BATTLE',
       battleStartTime: Date.now(),
