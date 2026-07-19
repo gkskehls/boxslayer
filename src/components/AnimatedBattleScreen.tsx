@@ -224,7 +224,7 @@ const AnimatedBattleScreen: React.FC = () => {
   useEffect(() => {
     if (gameStatus === 'DEFEAT') {
 //      setShowStats(true); // [신규] 패배 시 적과 나의 스탯을 비교할 수 있도록 상세 스탯 창을 자동으로 엽니다.
-      const timer = setTimeout(() => retryCurrentFloor(), 8000); // [수정됨] 대기 시간을 1.5초 -> 8초로 변경하여 충분한 여유를 제공합니다.
+      const timer = setTimeout(() => retryCurrentFloor(), 3000); // [수정됨] 대기 시간을 1.5초 -> 3초로 변경하여 충분한 여유를 제공합니다.
       return () => clearTimeout(timer);
     }
   }, [gameStatus, retryCurrentFloor]);
@@ -276,7 +276,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
           {/* [수정됨] 현대적인 슬라이딩 EXP 게이지를 20칸짜리 픽셀 블록 미터기로 전면 개편 */}
           <div className="flex justify-between items-center mt-1 font-mono text-xs font-bold">
-            <span className="text-white">Lv. {player.level}</span>
+            <span className="text-neutral-900">Lv. {player.level}</span>
             <span className="text-blue-400 tracking-wider flex items-center gap-0.5">
               EXP [{renderRetroGauge(player.experience, player.nextLevelExperience, 20, 'text-blue-500')}]
             </span>
