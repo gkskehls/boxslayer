@@ -139,13 +139,13 @@ const AnimatedBattleScreen: React.FC = () => {
       let logColorClass = '';
 
       if (lastDamageDealt.normal > 0 && lastDamageDealt.core > 0) {
-        logMessage = `플레이어가 적에게 ${lastDamageDealt.normal} 데미지와 ${lastDamageDealt.core} ${equippedCore?.type || '코어'} 데미지를 입혔습니다.`;
+        logMessage = `플레이어: ${lastDamageDealt.normal} + ${lastDamageDealt.core} ${equippedCore?.type || '코어'} 데미지`;
         logColorClass = 'text-cyan-400'; // 복합 데미지는 코어 데미지 색상으로
       } else if (lastDamageDealt.normal > 0) {
-        logMessage = `플레이어가 적에게 ${lastDamageDealt.normal} 데미지를 입혔습니다.`;
+        logMessage = `플레이어: ${lastDamageDealt.normal} 데미지`;
         logColorClass = 'text-blue-500'; // 플레이어 일반 공격은 파란색
       } else if (lastDamageDealt.core > 0) {
-        logMessage = `플레이어가 적에게 ${lastDamageDealt.core} ${equippedCore?.type || '코어'} 데미지를 입혔습니다.`;
+        logMessage = `플레이어: ${lastDamageDealt.core} ${equippedCore?.type || '코어'} 데미지`;
         logColorClass = 'text-cyan-400'; // 플레이어 코어 공격은 청록색
       }
 
@@ -199,7 +199,7 @@ const AnimatedBattleScreen: React.FC = () => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1300);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `플레이어가 적에게 ${lastReflectedDamage} 반사 데미지를 입혔습니다.`, colorClass: 'text-cyan-400' }, ...prev.slice(0, 3)]);
+      setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `플레이어: ${lastReflectedDamage} 반사 데미지`, colorClass: 'text-cyan-400' }, ...prev.slice(0, 3)]);
     }
   }, [lastReflectedDamage]);
 
@@ -251,7 +251,7 @@ const AnimatedBattleScreen: React.FC = () => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1150);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `적이 플레이어에게 ${Math.floor(damageTaken)} 데미지를 입혔습니다.`, colorClass: 'text-red-500' }, ...prev.slice(0, 3)]);
+      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `적: ${Math.floor(damageTaken)} 데미지`, colorClass: 'text-red-500' }, ...prev.slice(0, 3)]);
     }
     prevPlayerHealth.current = player.currentHealth;
   }, [player.currentHealth, gameStatus]);
@@ -553,9 +553,9 @@ const AnimatedBattleScreen: React.FC = () => {
                     className="overflow-hidden"
                 >
                   <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-0.5 text-[11px] font-mono bg-neutral-900">
-                    {statComparisonList.map((item, idx) => (
+                    {statComparisonList.map((item) => (
                         <div
-                            key={idx}
+                            key={item.label}
                             className="flex justify-between items-center py-0.5 border-b border-neutral-950/50"
                         >
                           <span className="font-bold text-green-400 w-14 text-left">{item.pValue}</span>
