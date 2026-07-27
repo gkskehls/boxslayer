@@ -120,7 +120,7 @@ const AnimatedBattleScreen: React.FC = () => {
         setEnemyAnim('attack');
         setTimeout(() => setPlayerAnim('hit'), 100);
         setTimeout(() => setEnemyAnim('idle'), 250);
-        setTimeout(() => setPlayerAnim('idle'), 400);
+        setTimeout(() => setEnemyAnim('idle'), 400);
 
         attackPlayer();
       }, 1000 / enemyAttackSpeed);
@@ -331,7 +331,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
         {/* [수정됨] 샘플 파일과 완벽히 일치하는 따뜻한 stone-100 배경색 및 연한 stone-200 격자 그리드 라인 주입 */}
         <div 
-          className="bg-stone-100 px-6 pt-2 pb-2 min-h-[350px] flex flex-col border-4 border-neutral-900 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)]"
+          className="bg-stone-100 px-6 pt-2 pb-0 flex flex-col border-4 border-neutral-900 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)]" // min-h-[350px] 제거, pb-0으로 변경
           style={{
             backgroundImage: 'linear-gradient(to right, #e7e5e4 2px, transparent 2px), linear-gradient(to bottom, #e7e5e4 2px, transparent 2px)',
             backgroundSize: '16px 16px',
