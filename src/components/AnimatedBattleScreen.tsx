@@ -132,9 +132,28 @@ const AnimatedBattleScreen: React.FC = () => {
     };
   }, [gameStatus, currentEnemyId, computed.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer]);
 
-  // 플레이어가 적을 때렸을 때 데미지 텍스트
+  // 플레이어가 적을 때렸을 때 데미지 텍스트 및 로그
   useEffect(() => {
     if (lastDamageDealt && (lastDamageDealt.normal > 0 || lastDamageDealt.core > 0)) {
+      let logMessage = '';
+      let logColorClass = '';
+
+      if (lastDamageDealt.normal > 0 && lastDamageDealt.core > 0) {
+        logMessage = `Player dealt ${lastDamageDealt.normal} damage and ${lastDamageDealt.core} ${equippedCore?.type || 'Core'} damage to enemy.`;
+        logColorClass = 'text-orange-400'; // 복합 데미지는 코어 데미지 색상으로
+      } else if (lastDamageDealt.normal > 0) {
+        logMessage = `Player dealt ${lastDamageDealt.normal} damage to enemy.`;
+        logColorClass = 'text-green-400';
+      } else if (lastDamageDealt.core > 0) {
+        logMessage = `Player dealt ${lastDamageDealt.core} ${equippedCore?.type || 'Core'} damage to enemy.`;
+        logColorClass = 'text-orange-400';
+      }
+
+      if (logMessage) {
+        setDamageLog(prev => [{ id: Date.now(), timestamp: Date.now(), message: logMessage, colorClass: logColorClass }, ...prev.slice(0, 3)]);
+      }
+
+      // 팝업 로직 (기존 유지)
       // 1. 일반 데미지 팝업 (즉시 표시, 0ms)
       if (lastDamageDealt.normal > 0) {
         const normalPopup = {
@@ -146,8 +165,6 @@ const AnimatedBattleScreen: React.FC = () => {
         setTimeout(() => {
           setDamagePopups(prev => prev.filter(p => p.id !== normalPopup.id));
         }, 1000);
-        // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-        setDamageLog(prev => [{ id: Date.now(), timestamp: Date.now(), message: `Player dealt ${lastDamageDealt.normal} damage.`, colorClass: 'text-green-400' }, ...prev.slice(0, 3)]);
       }
 
       // 2. 코어 데미지 팝업 (일반 데미지보다 150ms 지연)
@@ -162,8 +179,6 @@ const AnimatedBattleScreen: React.FC = () => {
         setTimeout(() => {
           setDamagePopups(prev => prev.filter(p => p.id !== corePopup.id));
         }, 1150);
-        // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-        setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `Player dealt ${lastDamageDealt.core} ${equippedCore?.type || 'Core'} damage.`, colorClass: 'text-orange-400' }, ...prev.slice(0, 3)]);
       }
     }
   }, [lastDamageDealt, equippedCore]);
@@ -184,7 +199,7 @@ const AnimatedBattleScreen: React.FC = () => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1300);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `Reflected ${lastReflectedDamage} damage to enemy.`, colorClass: 'text-blue-400' }, ...prev.slice(0, 3)]);
+      setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `Player reflected ${lastReflectedDamage} damage to enemy.`, colorClass: 'text-blue-400' }, ...prev.slice(0, 3)]);
     }
   }, [lastReflectedDamage]);
 
@@ -199,7 +214,7 @@ const AnimatedBattleScreen: React.FC = () => {
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
       setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1000);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `Enemy evaded attack!`, colorClass: 'text-neutral-400 italic' }, ...prev.slice(0, 3)]);
+      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `Enemy evaded player's attack!`, colorClass: 'text-neutral-400 italic' }, ...prev.slice(0, 3)]);
     }
   }, [lastEnemyEvadedTime]);
 
@@ -215,11 +230,11 @@ const AnimatedBattleScreen: React.FC = () => {
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 150);
       setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1150);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `Player evaded attack!`, colorClass: 'text-neutral-400 italic' }, ...prev.slice(0, 3)]);
+      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `Player evaded enemy's attack!`, colorClass: 'text-neutral-400 italic' }, ...prev.slice(0, 3)]);
     }
   }, [lastPlayerEvadedTime]);
 
-  // 적이 나에게 입힌 피격 데미지
+  // 적이 나에게 입힌 피격 데미지 (플레이어가 받은 데미지)
   useEffect(() => {
     if (gameStatus === 'BATTLE' && player.currentHealth < prevPlayerHealth.current) {
       const damageTaken = prevPlayerHealth.current - player.currentHealth;
@@ -236,7 +251,7 @@ const AnimatedBattleScreen: React.FC = () => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1150);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `Player took ${Math.floor(damageTaken)} damage.`, colorClass: 'text-red-500' }, ...prev.slice(0, 3)]);
+      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `Enemy dealt ${Math.floor(damageTaken)} damage to Player.`, colorClass: 'text-red-500' }, ...prev.slice(0, 3)]);
     }
     prevPlayerHealth.current = player.currentHealth;
   }, [player.currentHealth, gameStatus]);
