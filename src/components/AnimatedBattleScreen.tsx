@@ -140,13 +140,13 @@ const AnimatedBattleScreen: React.FC = () => {
 
       if (lastDamageDealt.normal > 0 && lastDamageDealt.core > 0) {
         logMessage = `플레이어가 적에게 ${lastDamageDealt.normal} 데미지와 ${lastDamageDealt.core} ${equippedCore?.type || '코어'} 데미지를 입혔습니다.`;
-        logColorClass = 'text-orange-400'; // 복합 데미지는 코어 데미지 색상으로
+        logColorClass = 'text-cyan-400'; // 복합 데미지는 코어 데미지 색상으로
       } else if (lastDamageDealt.normal > 0) {
         logMessage = `플레이어가 적에게 ${lastDamageDealt.normal} 데미지를 입혔습니다.`;
-        logColorClass = 'text-green-400';
+        logColorClass = 'text-blue-500'; // 플레이어 일반 공격은 파란색
       } else if (lastDamageDealt.core > 0) {
         logMessage = `플레이어가 적에게 ${lastDamageDealt.core} ${equippedCore?.type || '코어'} 데미지를 입혔습니다.`;
-        logColorClass = 'text-orange-400';
+        logColorClass = 'text-cyan-400'; // 플레이어 코어 공격은 청록색
       }
 
       if (logMessage) {
@@ -199,7 +199,7 @@ const AnimatedBattleScreen: React.FC = () => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1300);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `플레이어가 적에게 ${lastReflectedDamage} 반사 데미지를 입혔습니다.`, colorClass: 'text-blue-400' }, ...prev.slice(0, 3)]);
+      setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `플레이어가 적에게 ${lastReflectedDamage} 반사 데미지를 입혔습니다.`, colorClass: 'text-cyan-400' }, ...prev.slice(0, 3)]);
     }
   }, [lastReflectedDamage]);
 
@@ -214,7 +214,7 @@ const AnimatedBattleScreen: React.FC = () => {
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
       setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1000);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `적이 플레이어의 공격을 회피했습니다!`, colorClass: 'text-neutral-400 italic' }, ...prev.slice(0, 3)]);
+      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `플레이어의 공격을 적이 회피했습니다!`, colorClass: 'text-yellow-400 italic' }, ...prev.slice(0, 3)]);
     }
   }, [lastEnemyEvadedTime]);
 
@@ -230,7 +230,7 @@ const AnimatedBattleScreen: React.FC = () => {
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 150);
       setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1150);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `플레이어가 적의 공격을 회피했습니다!`, colorClass: 'text-neutral-400 italic' }, ...prev.slice(0, 3)]);
+      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `플레이어가 적의 공격을 회피했습니다!`, colorClass: 'text-yellow-400 italic' }, ...prev.slice(0, 3)]);
     }
   }, [lastPlayerEvadedTime]);
 
