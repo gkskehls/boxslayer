@@ -21,8 +21,8 @@ const getDynamicStyle = (stats: { str: number; dex: number; con: number }, isPla
     const averageEnemyS = 100; // 이 값은 게임 디자인에 따라 조정될 수 있습니다.
     const ratio = S / averageEnemyS;
     // [수정됨] 스탯 차이가 심할 때 박스가 너무 작아져 표정이 깨지는 현상을 막기 위해 최소 크기를 64px로 유지
-    // 최대 크기는 160px로 제한
-    size = Math.max(64, Math.min(160, baseSize * Math.sqrt(ratio)));
+    // [수정됨] 적 크기 변화 폭을 줄이기 위해 최대 크기를 96px로 제한 (이전 160px)
+    size = Math.max(64, Math.min(96, baseSize * Math.sqrt(ratio)));
   }
 
   return {
