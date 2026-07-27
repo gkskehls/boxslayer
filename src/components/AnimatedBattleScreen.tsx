@@ -214,7 +214,7 @@ const AnimatedBattleScreen: React.FC = () => {
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
       setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1000);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `MISS!`, colorClass: 'text-neutral-400 italic' }, ...prev.slice(0, 3)]);
+      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `적이 플레이어의 공격을 회피했습니다!`, colorClass: 'text-neutral-400 italic' }, ...prev.slice(0, 3)]);
     }
   }, [lastEnemyEvadedTime]);
 
