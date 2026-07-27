@@ -331,7 +331,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
         {/* [수정됨] 샘플 파일과 완벽히 일치하는 따뜻한 stone-100 배경색 및 연한 stone-200 격자 그리드 라인 주입 */}
         <div 
-          className="bg-stone-100 p-6 min-h-[350px] flex flex-col justify-between border-4 border-neutral-900 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)]"
+          className="bg-stone-100 px-6 pt-2 pb-2 min-h-[350px] flex flex-col border-4 border-neutral-900 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)]"
           style={{
             backgroundImage: 'linear-gradient(to right, #e7e5e4 2px, transparent 2px), linear-gradient(to bottom, #e7e5e4 2px, transparent 2px)',
             backgroundSize: '16px 16px',
@@ -373,7 +373,7 @@ const AnimatedBattleScreen: React.FC = () => {
 </div>
 
           {/* 캐릭터 박스 렌더링 */}
-          <div className="flex justify-center items-end gap-16 pb-12 z-10 mt-auto relative">
+          <div className="flex justify-center items-end gap-16 mt-6 pb-2 z-10 relative">
 
             {/* 플레이어 박스 영역 */}
             <div className="relative z-20">
