@@ -4,18 +4,26 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore, getComputedStats } from '../store/gameStore';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 
-const getDynamicStyle = (stats: { str: number; dex: number; con: number }, compareStats?: { str: number; dex: number; con: number }) => {
+// [수정됨] getDynamicStyle 함수: 플레이어는 고정 크기, 적은 스탯 기반 동적 크기
+const getDynamicStyle = (stats: { str: number; dex: number; con: number }, isPlayer: boolean, baseSize: number = 80) => {
   const { str, dex, con } = stats;
   const S = (str || 0) + (dex || 0) + (con || 0) || 1;
-  const compareS = compareStats ? ((compareStats.str || 0) + (compareStats.dex || 0) + (compareStats.con || 0) || 1) : S;
 
   const r = Math.floor((str / S) * 255);
   const g = Math.floor((dex / S) * 255);
   const b = Math.floor((con / S) * 255);
 
-  const ratio = S / compareS;
-  // [수정됨] 스탯 차이가 심할 때 박스가 너무 작아져 표정이 깨지는 현상을 막기 위해 최소 크기를 40px -> 64px로 상향
-  const size = Math.max(64, Math.min(160, 80 * Math.sqrt(ratio)));
+  let size = baseSize; // 기본 크기는 baseSize로 설정
+
+  if (!isPlayer) {
+    // 적 캐릭터는 스탯에 따라 크기를 동적으로 조절합니다.
+    // 평균적인 적의 스탯 합계를 100으로 가정하고, 그에 대한 비율로 크기를 조절합니다.
+    const averageEnemyS = 100; // 이 값은 게임 디자인에 따라 조정될 수 있습니다.
+    const ratio = S / averageEnemyS;
+    // [수정됨] 스탯 차이가 심할 때 박스가 너무 작아져 표정이 깨지는 현상을 막기 위해 최소 크기를 64px로 유지
+    // 최대 크기는 160px로 제한
+    size = Math.max(64, Math.min(160, baseSize * Math.sqrt(ratio)));
+  }
 
   return {
     backgroundColor: `rgb(${r}, ${g}, ${b})`,
@@ -338,7 +346,8 @@ const AnimatedBattleScreen: React.FC = () => {
                   variants={playerVariants}
                   animate={playerAnim}
                   className="flex items-center justify-center border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-20 overflow-hidden"
-                  style={getDynamicStyle(player.stats, currentEnemy?.stats || player.stats)}
+                  // [수정됨] 플레이어는 고정된 크기를 사용합니다.
+                  style={getDynamicStyle(player.stats, true, 80)} // isPlayer: true, baseSize: 80
               >
                 {/* [신규] 유저 박스 내부 실시간 픽셀 도트 눈/입 표정 스위칭 시스템 배치 */}
                 <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-950 font-mono select-none">
@@ -386,7 +395,8 @@ const AnimatedBattleScreen: React.FC = () => {
                       variants={enemyVariants}
                       animate={enemyAnim}
                       className="flex items-center justify-center border-4 border-neutral-950 bg-stone-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden"
-                      style={getDynamicStyle(currentEnemy.stats, player.stats)}
+                      // [수정됨] 적은 스탯에 따라 동적으로 크기를 조절합니다.
+                      style={getDynamicStyle(currentEnemy.stats, false, 80)} // isPlayer: false, baseSize: 80 (기준 크기)
                   >
                     {/* [신규] 돌 질감 보스 전용 투박한 ✖ ✖ 도트 표정 결합 */}
                     <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-900 font-mono select-none">
