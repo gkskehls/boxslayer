@@ -120,7 +120,7 @@ const AnimatedBattleScreen: React.FC = () => {
         setEnemyAnim('attack');
         setTimeout(() => setPlayerAnim('hit'), 100);
         setTimeout(() => setEnemyAnim('idle'), 250);
-        setTimeout(() => setEnemyAnim('idle'), 400);
+        setTimeout(() => setPlayerAnim('idle'), 400);
 
         attackPlayer();
       }, 1000 / enemyAttackSpeed);
@@ -236,7 +236,8 @@ const AnimatedBattleScreen: React.FC = () => {
 
   // 적이 나에게 입힌 피격 데미지 (플레이어가 받은 데미지)
   useEffect(() => {
-    if (gameStatus === 'BATTLE' && player.currentHealth < prevPlayerHealth.current) {
+    // [수정됨] gameStatus === 'BATTLE' 조건 제거
+    if (player.currentHealth < prevPlayerHealth.current) {
       const damageTaken = prevPlayerHealth.current - player.currentHealth;
       const newPopup = {
         id: Date.now() + Math.random(),
@@ -254,7 +255,7 @@ const AnimatedBattleScreen: React.FC = () => {
       setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `적: ${Math.floor(damageTaken)} 데미지`, colorClass: 'text-red-500' }, ...prev.slice(0, 3)]);
     }
     prevPlayerHealth.current = player.currentHealth;
-  }, [player.currentHealth, gameStatus]);
+  }, [player.currentHealth, gameStatus]); // gameStatus는 여전히 의존성 배열에 유지하여 상태 변화를 감지
 
   useEffect(() => {
     if (gameStatus === 'VICTORY') {
@@ -414,7 +415,7 @@ const AnimatedBattleScreen: React.FC = () => {
                           animate={{ opacity: 1, y: -60, scale: 1.3, x: 0 }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.6, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-50 ${isMiss ? 'text-neutral-400 text-base italic' : 'text-red-500 text-lg'}`}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-51 ${isMiss ? 'text-neutral-400 text-base italic' : 'text-red-500 text-lg'}`}
                       >
                         {isMiss ? 'MISS' : `-${popup.val}`}
                       </motion.div>
