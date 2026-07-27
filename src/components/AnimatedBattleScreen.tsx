@@ -53,6 +53,13 @@ const renderRetroGauge = (current: number, max: number, totalBlocks: number, act
   );
 };
 
+interface LogEntry {
+  id: number;
+  timestamp: number;
+  message: string;
+  colorClass: string;
+}
+
 const AnimatedBattleScreen: React.FC = () => {
   const {
     player,
@@ -84,6 +91,7 @@ const AnimatedBattleScreen: React.FC = () => {
   const prevPlayerHealth = useRef(player.currentHealth);
 
   const [showStats, setShowStats] = useState<boolean>(false);
+  const [damageLog, setDamageLog] = useState<LogEntry[]>([]); // [신규] 데미지 로그 상태
 
   useEffect(() => {
     if (gameStatus !== 'BATTLE') {
@@ -138,6 +146,8 @@ const AnimatedBattleScreen: React.FC = () => {
         setTimeout(() => {
           setDamagePopups(prev => prev.filter(p => p.id !== normalPopup.id));
         }, 1000);
+        // [신규] 데미지 로그 추가
+        setDamageLog(prev => [{ id: Date.now(), timestamp: Date.now(), message: `Player dealt ${lastDamageDealt.normal} damage.`, colorClass: 'text-green-400' }, ...prev.slice(0, 9)]);
       }
 
       // 2. 코어 데미지 팝업 (일반 데미지보다 150ms 지연)
@@ -152,6 +162,8 @@ const AnimatedBattleScreen: React.FC = () => {
         setTimeout(() => {
           setDamagePopups(prev => prev.filter(p => p.id !== corePopup.id));
         }, 1150);
+        // [신규] 데미지 로그 추가
+        setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `Player dealt ${lastDamageDealt.core} ${equippedCore?.type || 'Core'} damage.`, colorClass: 'text-orange-400' }, ...prev.slice(0, 9)]);
       }
     }
   }, [lastDamageDealt, equippedCore]);
@@ -171,6 +183,8 @@ const AnimatedBattleScreen: React.FC = () => {
       setTimeout(() => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1300);
+      // [신규] 데미지 로그 추가
+      setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `Reflected ${lastReflectedDamage} damage to enemy.`, colorClass: 'text-blue-400' }, ...prev.slice(0, 9)]);
     }
   }, [lastReflectedDamage]);
 
@@ -184,6 +198,8 @@ const AnimatedBattleScreen: React.FC = () => {
       };
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
       setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1000);
+      // [신규] 데미지 로그 추가
+      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `Enemy evaded attack!`, colorClass: 'text-neutral-400 italic' }, ...prev.slice(0, 9)]);
     }
   }, [lastEnemyEvadedTime]);
 
@@ -198,6 +214,8 @@ const AnimatedBattleScreen: React.FC = () => {
       // [수정됨] 피격 데미지 타이밍과 맞추기 위해 150ms 지연
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 150);
       setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1150);
+      // [신규] 데미지 로그 추가
+      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `Player evaded attack!`, colorClass: 'text-neutral-400 italic' }, ...prev.slice(0, 9)]);
     }
   }, [lastPlayerEvadedTime]);
 
@@ -217,6 +235,8 @@ const AnimatedBattleScreen: React.FC = () => {
       setTimeout(() => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1150);
+      // [신규] 데미지 로그 추가
+      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `Player took ${Math.floor(damageTaken)} damage.`, colorClass: 'text-red-500' }, ...prev.slice(0, 9)]);
     }
     prevPlayerHealth.current = player.currentHealth;
   }, [player.currentHealth, gameStatus]);
@@ -473,9 +493,9 @@ const AnimatedBattleScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* [수정됨] 패배 오버레이 시인성 개선: 완벽한 도트풍 스퀘어 모듈 UI로 이식 */}
+          {/* [수정됨] 패배 오버레이 시인성 개선: 완벽한 도트풍 스퀘어 모듈 UI로 이식 및 투명도 조절 */}
           {gameStatus === 'DEFEAT' && (
-              <div className="absolute inset-0 bg-red-950/40 border-4 border-red-600 flex flex-col items-center justify-center z-50 pointer-events-none">
+              <div className="absolute inset-0 bg-red-950/20 border-4 border-red-600 flex flex-col items-center justify-center z-50 pointer-events-none">
                 <div className="bg-neutral-950 px-8 py-5 border-4 border-neutral-800 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center pointer-events-auto rounded-none">
                   <h2 className="text-3xl font-black text-red-500 mb-2 animate-pulse font-mono tracking-widest">GAME OVER</h2>
                   <p className="text-neutral-100 text-xs font-bold mb-1">전투에서 패배했습니다!</p>
@@ -483,6 +503,18 @@ const AnimatedBattleScreen: React.FC = () => {
                 </div>
               </div>
           )}
+        </div>
+
+        {/* [신규] 데미지 로그 창 */}
+        <div className="bg-neutral-950 p-2 rounded-none border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <h3 className="text-neutral-400 text-[10px] font-mono font-bold mb-1">BATTLE LOG</h3>
+          <div className="max-h-24 overflow-y-auto text-[10px] font-mono text-neutral-200">
+            {damageLog.map((entry) => (
+              <div key={entry.id} className={`${entry.colorClass} leading-tight`}>
+                {entry.message}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* 하단: 컴팩트 일체형 상세 스탯 창 */}
