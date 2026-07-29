@@ -322,7 +322,7 @@ const AnimatedBattleScreen: React.FC = () => {
           <div className="flex justify-between items-center mt-1 font-mono text-xs font-bold">
             <span className="text-neutral-900">Lv. {player.level}</span>
             <span className="text-blue-400 tracking-wider flex items-center gap-0.5">
-              EXP [{renderRetroGauge(player.experience, player.nextLevelExperience, 20, 'text-blue-500')}]
+              EXP [{renderRetroGauge(player.experience, player.nextLevelExperience, 10, 'text-blue-500')}] {/* 20 -> 10으로 변경 */}
             </span>
             <span className="text-[10px] text-neutral-500">
               {Math.floor(player.experience)}/{player.nextLevelExperience}
