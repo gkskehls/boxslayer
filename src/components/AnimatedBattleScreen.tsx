@@ -337,6 +337,8 @@ const AnimatedBattleScreen: React.FC = () => {
     { label: '회피', pValue: computed.evasion.toFixed(0), eValue: enemyComputed?.evasion.toFixed(0) },
   ];
 
+  const remainingTime = 30 - battleTime;
+
   return (
       /* [수정됨] 크기를 max-w-md(모바일 세로콤팩트)로 줄이고, 색상을 옛날 게임기 플라스틱 질감인 stone-200 테마로 전면 복원 */
       <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none">
@@ -377,6 +379,13 @@ const AnimatedBattleScreen: React.FC = () => {
             backgroundSize: '16px 16px',
           }}
         >
+
+          {/* [신규] 전투 시간 카운트다운 */}
+          {gameStatus === 'BATTLE' && (
+            <div className={`absolute top-2 left-1/2 -translate-x-1/2 font-mono text-2xl font-black z-20 transition-colors duration-300 ${remainingTime <= 10 ? 'text-red-500 animate-pulse' : 'text-stone-400'}`}>
+              {remainingTime}
+            </div>
+          )}
 
 {/* [수정됨] 모바일 세로모드(Portrait) 폭폭 방지: VS를 지우고 grid-cols-2 분할 스펙 연동으로 탈출 에러 원천 차단 */}
 <div className="grid grid-cols-2 gap-2 w-full relative z-10 font-mono p-2 border-4 border-neutral-900 bg-stone-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)]">
