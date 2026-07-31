@@ -344,7 +344,7 @@ const AnimatedBattleScreen: React.FC = () => {
       <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none">
 
         {/* 헤더: 스테이지 및 경험치 바 */}
-        <div className="bg-stone-100 p-3 rounded-none border-4 border-neutral-900 flex flex-col gap-2 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="bg-stone-100 p-2 rounded-none border-4 border-neutral-900 flex flex-col gap-1 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <div className="flex justify-between items-end">
             <h2 className="text-xl font-bold text-yellow-500 leading-none flex items-center gap-2 font-mono">
               STAGE {stage}
@@ -360,7 +360,7 @@ const AnimatedBattleScreen: React.FC = () => {
           </div>
 
           {/* [수정됨] 현대적인 슬라이딩 EXP 게이지를 20칸짜리 픽셀 블록 미터기로 전면 개편 */}
-          <div className="flex justify-between items-center mt-1 font-mono text-xs font-bold">
+          <div className="flex justify-between items-center font-mono text-xs font-bold">
             <span className="text-neutral-900">Lv. {player.level}</span>
             <span className="text-blue-400 tracking-wider flex items-center gap-0.5">
               EXP [{renderRetroGauge(player.experience, player.nextLevelExperience, 10, 'text-blue-500')}] {/* 20 -> 10으로 변경 */}
