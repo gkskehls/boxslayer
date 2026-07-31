@@ -35,8 +35,8 @@ function App() {
 
   // Simple Auto-Battle Loop
   useEffect(() => {
-    // [수정됨] 신규 애니메이션 화면에서도 전투 루프가 돌아가도록 조건 추가
-    if (screen !== 'BATTLE_SCREEN' && screen !== 'ANIMATED_BATTLE_SCREEN') return;
+    // [수정됨] AnimatedBattleScreen은 자체 루프를 가지므로, 이 루프는 구버전 BattleScreen에서만 작동하도록 수정
+    if (screen !== 'BATTLE_SCREEN') return;
 
     if (gameStatus === 'IDLE') {
       spawnEnemy();
@@ -72,8 +72,8 @@ function App() {
 
   // Handle Victory - Spawn next enemy after a short delay
   useEffect(() => {
-    // [수정됨] 신규 애니메이션 화면에서도 전투 루프가 돌아가도록 조건 추가
-    if (screen !== 'BATTLE_SCREEN' && screen !== 'ANIMATED_BATTLE_SCREEN') return;
+    // [수정됨] AnimatedBattleScreen은 자체 루프를 가지므로, 이 루프는 구버전 BattleScreen에서만 작동하도록 수정
+    if (screen !== 'BATTLE_SCREEN') return;
 
     if (gameStatus === 'VICTORY') {
       const timer = setTimeout(() => {
