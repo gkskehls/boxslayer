@@ -28,7 +28,7 @@ const StatsScreen: React.FC = () => {
            - 오락기 프레임 통일을 위한 각진 바디, 선명한 border-4 border-black, 거대한 하드 블랙 그림자 주입.
         */
         <div 
-            className="max-w-md mx-auto bg-stone-100 p-4 rounded-none border-4 border-black w-full flex flex-col gap-4 text-stone-900 font-mono select-none"
+            className="max-w-md mx-auto bg-stone-100 p-4 rounded-none border-4 border-black w-full flex flex-col gap-4 text-stone-900 font-mono select-none flex-grow"
             style={{
                 backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
                 backgroundSize: '16px 16px',

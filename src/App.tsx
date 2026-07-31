@@ -103,7 +103,7 @@ function App() {
   const showNavigationBar = screen !== 'TITLE_SCREEN' && screen !== 'LOGIN_CHOICE_SCREEN';
 
   return (
-      <div className="min-h-screen bg-neutral-900 text-white p-4 font-mono flex flex-col items-center justify-center pb-20 select-none"> {/* pb-20 for nav bar */}
+      <div className="min-h-screen bg-neutral-900 text-white p-4 font-mono flex flex-col items-center w-full pb-20 select-none"> {/* justify-center 제거, w-full 추가 */}
         
         {/* ================= TITLE SCREEN (전투 화면 스펙 100% 동기화) ================= */}
         {screen === 'TITLE_SCREEN' && (
@@ -215,8 +215,7 @@ function App() {
         )}
 
         {screen === 'TOWN_SCREEN' && (
-            <>
-              {/* [수정됨] 더 이상 쓰지 않는 onNavigate 속성을 제거했습니다. */}
+            <div className="flex-grow w-full max-w-md">
               <TownScreen />
               {/* Offline Rewards Modal - Only render in TOWN_SCREEN */}
               {offlineRewards && (offlineRewards.gold > 0 || offlineRewards.exp > 0) && (
@@ -238,31 +237,31 @@ function App() {
                     </div>
                   </div>
               )}
-            </>
+            </div>
         )}
 
         {screen === 'BATTLE_SCREEN' && (
-            <BattleScreen />
+            <div className="flex-grow w-full max-w-md"><BattleScreen /></div>
         )}
 
         {screen === 'ANIMATED_BATTLE_SCREEN' && (
-            <AnimatedBattleScreen />
+            <div className="flex-grow w-full max-w-md"><AnimatedBattleScreen /></div>
         )}
 
         {screen === 'STATS_SCREEN' && (
-            <StatsScreen />
+            <div className="flex-grow w-full max-w-md"><StatsScreen /></div>
         )}
 
         {screen === 'CORE_SCREEN' && (
-            <CoreScreen />
+            <div className="flex-grow w-full max-w-md"><CoreScreen /></div>
         )}
 
         {screen === 'SHOP_SCREEN' && (
-            <Shop /> 
+            <div className="flex-grow w-full max-w-md"><Shop /></div>
         )}
 
         {screen === 'SKILL_TREE_SCREEN' && (
-            <SkillTreeScreen />
+            <div className="flex-grow w-full max-w-md"><SkillTreeScreen /></div>
         )}
 
         {/* Version Display */}

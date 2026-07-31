@@ -26,7 +26,7 @@ const TownScreen: React.FC = () => {
            - 모바일 세로 해상도 규격 max-w-md와 격자 도트 무늬 배경 가동.
         */
         <div 
-            className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-4 items-center justify-between min-h-[500px] text-stone-900 font-mono select-none"
+            className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-4 items-center justify-between text-stone-900 font-mono select-none flex-grow"
             style={{
                 backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
                 backgroundSize: '16px 16px',

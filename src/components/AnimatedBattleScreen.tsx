@@ -341,7 +341,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
   return (
       /* [수정됨] 크기를 max-w-md(모바일 세로콤팩트)로 줄이고, 색상을 옛날 게임기 플라스틱 질감인 stone-200 테마로 전면 복원 */
-      <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none">
+      <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none flex-grow">
 
         {/* 헤더: 스테이지 및 경험치 바 */}
         <div className="bg-stone-100 p-2 rounded-none border-4 border-neutral-900 flex flex-col gap-1 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -373,7 +373,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
         {/* [수정됨] 샘플 파일과 완벽히 일치하는 따뜻한 stone-100 배경색 및 연한 stone-200 격자 그리드 라인 주입 */}
         <div 
-          className="bg-stone-100 px-6 pt-2 pb-0 flex flex-col border-4 border-neutral-900 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)]" // min-h-[350px] 제거, pb-0으로 변경
+          className="bg-stone-100 px-6 pt-2 pb-0 flex flex-col border-4 border-neutral-900 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)] flex-grow" // min-h-[350px] 제거, pb-0으로 변경
           style={{
             backgroundImage: 'linear-gradient(to right, #e7e5e4 2px, transparent 2px), linear-gradient(to bottom, #e7e5e4 2px, transparent 2px)',
             backgroundSize: '16px 16px',
