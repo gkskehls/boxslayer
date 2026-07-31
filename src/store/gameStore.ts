@@ -305,7 +305,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
 
-    let hitChance = 0.9 + ((playerComputed.accuracy - enemyComputed.evasion) * 0.01);
+    let hitChance = 0.95 + ((playerComputed.accuracy - enemyComputed.evasion) * 0.01);
 
     if (state.equippedCore?.type === 'WIND') {
       const windStats = getCoreStats('WIND', state.equippedCore.level);
@@ -483,7 +483,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
 
-    let hitChance = 0.9 + ((enemyComputed.accuracy - playerComputed.evasion) * 0.01);
+    let hitChance = 0.95 + ((enemyComputed.accuracy - playerComputed.evasion) * 0.01);
 
     hitChance -= playerComputed.modifiers.evasionChanceBonus;
     if (state.equippedCore?.type === 'WIND') {
