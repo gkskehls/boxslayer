@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useGameStore } from './store/gameStore';
 
 // Import new screen components
@@ -18,7 +18,8 @@ type NavigableScreen = Exclude<GameScreen, 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN
 const APP_VERSION = import.meta.env.VITE_APP_VERSION;
 
 function App() {
-  const { gameStatus } = useGameStore();
+  // [수정] 사용하지 않는 gameStatus와 전투 관련 함수들을 제거했습니다.
+  const {} = useGameStore();
 
   const [screen, setScreen] = useState<GameScreen>('TITLE_SCREEN');
   const [offlineRewards, setOfflineRewards] = useState<{ gold: number; exp: number } | null>(null); // 오프라인 보상 상태
