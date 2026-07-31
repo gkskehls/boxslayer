@@ -557,16 +557,14 @@ const AnimatedBattleScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* [수정됨] 패배 오버레이 시인성 개선: 완벽한 도트풍 스퀘어 모듈 UI로 이식 및 투명도 조절 */}
+          {/* [수정됨] 게임 오버 연출: 배경이 비치는 어두운 오버레이와 그림자 텍스트로 변경 */}
           {gameStatus === 'DEFEAT' && (
-              <div className="absolute inset-0 bg-red-950/20 border-4 border-red-600 flex flex-col items-center justify-center z-50 pointer-events-none">
-                <div className="bg-neutral-950/80 px-8 py-5 border-4 border-neutral-800 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center pointer-events-auto rounded-none">
-                  <h2 className="text-3xl font-black text-red-500 mb-2 animate-pulse font-mono tracking-widest">GAME OVER</h2>
-                  <p className="text-neutral-100 text-xs font-bold mb-1">
+              <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-50 pointer-events-none">
+                  <h2 className="text-6xl font-black text-red-500 mb-4 animate-pulse font-mono tracking-widest drop-shadow-[0_4px_2px_rgba(0,0,0,1)]">GAME OVER</h2>
+                  <p className="text-white text-lg font-bold mb-2 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
                     {defeatReason === 'TIMEOUT' ? '시간이 초과되었습니다!' : '전투에서 패배했습니다!'}
                   </p>
-                  <p className="text-neutral-400 text-[10px] font-mono">잠시 후 이전 층으로 돌아갑니다...</p>
-                </div>
+                  <p className="text-neutral-300 text-sm font-mono drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">잠시 후 이전 층으로 돌아갑니다...</p>
               </div>
           )}
         </div>
