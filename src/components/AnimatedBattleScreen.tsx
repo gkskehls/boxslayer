@@ -171,9 +171,12 @@ const AnimatedBattleScreen: React.FC = () => {
 
   // [수정] 모든 전투 이벤트를 한 곳에서 처리하는 통합 useEffect
   useEffect(() => {
-    // 플레이어 공격 데미지
-    if (lastDamageDealt) {
-      const { normal, core, shieldRecovered } = lastDamageDealt;
+    // 플레이어 공격 이벤트 (성공, 회피, 쉴드 회복 모두 한 번에 처리)
+    if (lastDamageDealt || (lastEnemyEvadedTime ?? 0) > 0) {
+      const { normal = 0, core = 0, shieldRecovered = 0 } = lastDamageDealt || {};
+      const isMiss = (lastEnemyEvadedTime ?? 0) > 0;
+
+      // 팝업 생성
       if (normal > 0) {
         const popup = { id: Date.now(), val: normal, type: 'normal' as const };
         setDamagePopups(prev => [...prev, popup]);
@@ -186,38 +189,41 @@ const AnimatedBattleScreen: React.FC = () => {
           setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
         }, 150);
       }
-      if (shieldRecovered && shieldRecovered > 0) {
+      if (shieldRecovered > 0) {
         const popup = { id: Date.now() + 2, val: shieldRecovered, type: 'shield' as const };
         setTimeout(() => {
           setDamagePopups(prev => [...prev, popup]);
           setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
         }, 150);
       }
-      if (normal > 0 || core > 0 || (shieldRecovered && shieldRecovered > 0)) {
-        const damageText = (normal > 0 || core > 0) ? `${normal + (core || 0)} 데미지` : '';
-        const shieldText = (shieldRecovered && shieldRecovered > 0) ? `(쉴드 +${shieldRecovered} 회복)` : '';
+      if (isMiss) {
+        const popup = { id: Date.now() + 3, val: 0, type: 'miss-enemy' as const };
+        setDamagePopups(prev => [...prev, popup]);
+        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
+      }
+
+      // 로그 생성 (한 줄로 통합)
+      if (isMiss) {
+        addLog(
+          <span>
+            <span className="text-blue-500">[S{stage}-{turn}] P: </span>
+            <span className="text-yellow-400 italic">회피</span>
+            {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{shieldRecovered})</span>}
+          </span>
+        );
+      } else if (normal > 0 || core > 0 || shieldRecovered > 0) {
+        const damageParts = [];
+        if (normal > 0) damageParts.push(<span key="n" className="text-blue-400">일반 {normal}</span>);
+        if (core > 0) damageParts.push(<span key="c" className="text-orange-500">코어 {core}</span>);
         
         addLog(
           <span>
-            <span className="text-blue-500">[S{stage}-{turn}] </span>
-            <span className="text-blue-500">플레이어: {damageText}</span>
-            {shieldText && <span className="text-green-500"> {shieldText}</span>}
+            <span className="text-blue-500">[S{stage}-{turn}] P: </span>
+            {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
+            {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{shieldRecovered})</span>}
           </span>
         );
       }
-    }
-    
-    // 플레이어 공격 회피
-    if (lastEnemyEvadedTime && lastEnemyEvadedTime > 0) {
-      const popup = { id: Date.now() + Math.random(), val: 0, type: 'miss-enemy' as const };
-      setDamagePopups(prev => [...prev, popup]);
-      setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
-      addLog(
-        <span>
-          <span className="text-blue-500">[S{stage}-{turn}] </span>
-          <span className="text-yellow-400 italic">플레이어: 공격 실패! (회피)</span>
-        </span>
-      );
     }
 
     // 적 공격 데미지 (반사 포함)
@@ -230,7 +236,7 @@ const AnimatedBattleScreen: React.FC = () => {
       }, 150);
 
       const reflectionText = lastReflectedDamage && lastReflectedDamage > 0 
-        ? <span className="text-cyan-400"> (반사: {lastReflectedDamage})</span>
+        ? <span className="text-cyan-400 ml-1">(반사 {lastReflectedDamage})</span>
         : '';
       
       if (lastReflectedDamage && lastReflectedDamage > 0) {
@@ -243,8 +249,8 @@ const AnimatedBattleScreen: React.FC = () => {
       
       addLog(
         <span>
-          <span className="text-red-500">[S{stage}-{turn}] </span>
-          <span className="text-red-500">적: {damage} 데미지</span>
+          <span className="text-red-500">[S{stage}-{turn}] E: </span>
+          <span className="text-red-500">{damage} 데미지</span>
           {reflectionText}
         </span>
       );
@@ -259,8 +265,8 @@ const AnimatedBattleScreen: React.FC = () => {
       }, 150);
       addLog(
         <span>
-          <span className="text-red-500">[S{stage}-{turn}] </span>
-          <span className="text-yellow-400 italic">적: 공격 실패! (회피)</span>
+          <span className="text-red-500">[S{stage}-{turn}] E: </span>
+          <span className="text-yellow-400 italic">회피</span>
         </span>
       );
     }
