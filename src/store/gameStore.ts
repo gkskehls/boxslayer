@@ -505,11 +505,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
 
     if (state.equippedCore?.type === 'WIND' && state.hasWindEvasion) {
-      return { hasWindEvasion: false, lastPlayerEvadedTime: now, lastDamageTaken: 0 };
+      return { ...state, hasWindEvasion: false, lastPlayerEvadedTime: now, lastDamageTaken: 0 };
     }
 
     if (Math.random() > finalHitChance) {
-      return { lastPlayerEvadedTime: now, lastDamageTaken: 0 };
+      return { ...state, lastPlayerEvadedTime: now, lastDamageTaken: 0 };
     }
 
     const baseDamage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
@@ -542,6 +542,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     if (nextHealth <= 0) {
       return {
+        ...state,
         player: { ...state.player, currentHealth: 0 },
         playerShield: 0,
         gameStatus: 'DEFEAT',
@@ -553,6 +554,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     return {
+      ...state,
       player: { ...state.player, currentHealth: nextHealth },
       playerShield: remainingShield,
       currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
