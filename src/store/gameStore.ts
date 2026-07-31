@@ -341,43 +341,49 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       coreDamage = Math.floor(baseCoreDamage * randomMultiplier * hitCount * (isFireExtreme ? 10 : 1));
     }
 
-    if (!isEvaded) {
-      const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
-      const randomMultiplier = 0.85 + Math.random() * 0.3;
-      normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount);
+    if (isEvaded) {
+      return {
+        ...state,
+        lastDamageDealt: { normal: 0, core: coreDamage },
+        lastEnemyEvadedTime: now,
+      };
+    }
+    
+    const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
+    const randomMultiplier = 0.85 + Math.random() * 0.3;
+    normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount);
 
-      if (state.equippedCore) {
-        const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
-        if (state.equippedCore.type === 'WATER') {
-          const regenAmount = Math.floor(playerComputed.maxHealth * (stats.regenRatio || 0));
-          const totalRegen = regenAmount * hitCount;
-          nextShield = Math.min(playerComputed.maxHealth * 20000, (nextShield || 0) + totalRegen);
-        }
-        else if (state.equippedCore.type === 'WIND') {
+    if (state.equippedCore) {
+      const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
+      if (state.equippedCore.type === 'WATER') {
+        const regenAmount = Math.floor(playerComputed.maxHealth * (stats.regenRatio || 0));
+        const totalRegen = regenAmount * hitCount;
+        nextShield = Math.min(playerComputed.maxHealth * 20000, (nextShield || 0) + totalRegen);
+      }
+      else if (state.equippedCore.type === 'WIND') {
+        coreDamage += Math.floor(playerComputed.attack);
+        currentWindHits += hitCount;
+        const isWindExtreme = state.activeBuffs['buff_core_wind'] && state.activeBuffs['buff_core_wind'] > now;
+        const comboThreshold = isWindExtreme ? 5 : 15;
+        const evasionThreshold = 20;
+
+        if (currentWindHits >= comboThreshold) {
           coreDamage += Math.floor(playerComputed.attack);
-          currentWindHits += hitCount;
-          const isWindExtreme = state.activeBuffs['buff_core_wind'] && state.activeBuffs['buff_core_wind'] > now;
-          const comboThreshold = isWindExtreme ? 5 : 15;
-          const evasionThreshold = 20;
-
-          if (currentWindHits >= comboThreshold) {
-            coreDamage += Math.floor(playerComputed.attack);
-            currentWindHits -= comboThreshold;
-          }
-          if (currentWindHits >= evasionThreshold) {
-            nextWindEvasion = true;
-          }
+          currentWindHits -= comboThreshold;
         }
-        else if (state.equippedCore.type === 'ELECTRIC') {
-          if (nextEnemyStunned) {
-            coreDamage += Math.floor(playerComputed.attack * 0.5);
-            nextEnemyStunned = false;
-          } else {
-            currentElecHits += hitCount;
-            if (currentElecHits >= 10) {
-              nextEnemyStunned = true;
-              currentElecHits = 0;
-            }
+        if (currentWindHits >= evasionThreshold) {
+          nextWindEvasion = true;
+        }
+      }
+      else if (state.equippedCore.type === 'ELECTRIC') {
+        if (nextEnemyStunned) {
+          coreDamage += Math.floor(playerComputed.attack * 0.5);
+          nextEnemyStunned = false;
+        } else {
+          currentElecHits += hitCount;
+          if (currentElecHits >= 10) {
+            nextEnemyStunned = true;
+            currentElecHits = 0;
           }
         }
       }
@@ -422,7 +428,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         hasWindEvasion: nextWindEvasion,
         elecHitCount: currentElecHits,
         isEnemyStunned: nextEnemyStunned,
-        lastEnemyEvadedTime: isEvaded ? now : state.lastEnemyEvadedTime
+        lastEnemyEvadedTime: 0
       };
     }
 
@@ -434,7 +440,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       hasWindEvasion: nextWindEvasion,
       elecHitCount: currentElecHits,
       isEnemyStunned: nextEnemyStunned,
-      lastEnemyEvadedTime: isEvaded ? now : state.lastEnemyEvadedTime
+      lastEnemyEvadedTime: 0
     };
   }),
 
@@ -499,11 +505,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
 
     if (state.equippedCore?.type === 'WIND' && state.hasWindEvasion) {
-      return { hasWindEvasion: false, lastPlayerEvadedTime: now };
+      return { hasWindEvasion: false, lastPlayerEvadedTime: now, lastDamageTaken: 0 };
     }
 
     if (Math.random() > finalHitChance) {
-      return { lastPlayerEvadedTime: now };
+      return { lastPlayerEvadedTime: now, lastDamageTaken: 0 };
     }
 
     const baseDamage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
@@ -541,7 +547,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         gameStatus: 'DEFEAT',
         defeatReason: 'HEALTH',
         lastDamageTaken: damage,
-        lastReflectedDamage: actualReflectedDmg
+        lastReflectedDamage: actualReflectedDmg,
+        lastPlayerEvadedTime: 0
       };
     }
 
@@ -550,7 +557,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       playerShield: remainingShield,
       currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
       lastDamageTaken: damage,
-      lastReflectedDamage: actualReflectedDmg
+      lastReflectedDamage: actualReflectedDmg,
+      lastPlayerEvadedTime: 0
     };
   }),
 
