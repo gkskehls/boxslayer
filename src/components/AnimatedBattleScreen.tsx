@@ -413,12 +413,13 @@ const AnimatedBattleScreen: React.FC = () => {
                   const isShield = popup.type === 'shield';
                   let text = isMiss ? 'MISS' : (isShield ? `+${popup.val}` : `-${popup.val}`);
                   let colorClass = isMiss ? 'text-neutral-400 text-base italic' : (isShield ? 'text-green-500 text-lg' : 'text-red-500 text-lg');
+                  let xOffset = isMiss ? -20 : (isShield ? 20 : 0);
                   
                   return (
                       <motion.div
                           key={popup.id}
                           initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
-                          animate={{ opacity: 1, y: -60, scale: 1.3, x: 0 }}
+                          animate={{ opacity: 1, y: -60, scale: 1.3, x: xOffset }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.6, ease: "easeOut" }}
                           className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-51 ${colorClass}`}
