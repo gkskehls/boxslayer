@@ -1,6 +1,6 @@
 // src/components/AnimatedBattleScreen.tsx
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGameStore, getComputedStats } from '../store/gameStore';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 
