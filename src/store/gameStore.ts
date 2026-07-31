@@ -331,7 +331,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     if (!isEvaded) {
       const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
-      normalDamage = baseNormalDamage * hitCount;
+      const randomMultiplier = 0.85 + Math.random() * 0.3; // 85% ~ 115%
+      normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount);
 
       if (state.equippedCore) {
         const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
@@ -340,7 +341,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           const strBonusDamage = myStr * (stats.fireDamageRatio || 0);
           const baseCoreDamage = (stats.fireDamage || 0) + strBonusDamage;
           const isFireExtreme = state.activeBuffs['buff_core_fire'] && state.activeBuffs['buff_core_fire'] > now;
-          coreDamage = Math.floor(baseCoreDamage * hitCount * (isFireExtreme ? 10 : 1));
+          coreDamage = Math.floor(baseCoreDamage * randomMultiplier * hitCount * (isFireExtreme ? 10 : 1));
         }
         else if (state.equippedCore.type === 'WATER') {
           const regenAmount = Math.floor(playerComputed.maxHealth * (stats.regenRatio || 0));
@@ -501,7 +502,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       return { lastPlayerEvadedTime: now };
     }
 
-    const damage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
+    const baseDamage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
+    const randomMultiplier = 0.85 + Math.random() * 0.3; // 85% ~ 115%
+    const damage = Math.floor(baseDamage * randomMultiplier);
+
     let remainingShield = state.playerShield || 0;
     let actualHealthDamage = 0;
 
