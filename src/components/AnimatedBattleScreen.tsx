@@ -88,7 +88,7 @@ const AnimatedBattleScreen: React.FC = () => {
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   
-  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player', coreType?: string }[]>([]);
+  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player' | 'shield', coreType?: string }[]>([]);
   const [showStats, setShowStats] = useState<boolean>(false);
   const [damageLog, setDamageLog] = useState<LogEntry[]>([]);
   const [battleTime, setBattleTime] = useState(0);
@@ -187,6 +187,13 @@ const AnimatedBattleScreen: React.FC = () => {
           setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
         }, 150);
       }
+      if (shieldRecovered && shieldRecovered > 0) {
+        const popup = { id: Date.now() + 2, val: shieldRecovered, type: 'shield' as const };
+        setTimeout(() => {
+          setDamagePopups(prev => [...prev, popup]);
+          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
+        }, 150);
+      }
       if (normal > 0 || core > 0 || (shieldRecovered && shieldRecovered > 0)) {
         const damageText = (normal > 0 || core > 0) ? `${normal + (core || 0)} 데미지` : '';
         const shieldText = (shieldRecovered && shieldRecovered > 0) ? `(쉴드 +${shieldRecovered} 회복)` : '';
@@ -226,6 +233,14 @@ const AnimatedBattleScreen: React.FC = () => {
       const reflectionText = lastReflectedDamage && lastReflectedDamage > 0 
         ? <span className="text-cyan-400"> (반사: {lastReflectedDamage})</span>
         : '';
+      
+      if (lastReflectedDamage && lastReflectedDamage > 0) {
+        const reflectPopup = { id: Date.now() + 1, val: lastReflectedDamage, type: 'reflect' as const };
+        setTimeout(() => {
+          setDamagePopups(prev => [...prev, reflectPopup]);
+          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== reflectPopup.id)), 1000);
+        }, 300);
+      }
       
       addLog(
         <span>
@@ -394,8 +409,12 @@ const AnimatedBattleScreen: React.FC = () => {
               </motion.div>
 
               <AnimatePresence>
-                {damagePopups.filter(p => p.type === 'taken' || p.type === 'miss-player').map((popup) => {
+                {damagePopups.filter(p => p.type === 'taken' || p.type === 'miss-player' || p.type === 'shield').map((popup) => {
                   const isMiss = popup.type === 'miss-player';
+                  const isShield = popup.type === 'shield';
+                  let text = isMiss ? 'MISS' : (isShield ? `+${popup.val}` : `-${popup.val}`);
+                  let colorClass = isMiss ? 'text-neutral-400 text-base italic' : (isShield ? 'text-green-500 text-lg' : 'text-red-500 text-lg');
+                  
                   return (
                       <motion.div
                           key={popup.id}
@@ -403,9 +422,9 @@ const AnimatedBattleScreen: React.FC = () => {
                           animate={{ opacity: 1, y: -60, scale: 1.3, x: 0 }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.6, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-51 ${isMiss ? 'text-neutral-400 text-base italic' : 'text-red-500 text-lg'}`}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-51 ${colorClass}`}
                       >
-                        {isMiss ? 'MISS' : `-${popup.val}`}
+                        {text}
                       </motion.div>
                   )
                 })}
@@ -442,7 +461,7 @@ const AnimatedBattleScreen: React.FC = () => {
               )}
 
               <AnimatePresence>
-                {damagePopups.filter(p => p.type !== 'taken' && p.type !== 'miss-player').map((popup) => {
+                {damagePopups.filter(p => p.type !== 'taken' && p.type !== 'miss-player' && p.type !== 'shield').map((popup) => {
                   let colorClass = 'text-white text-base';
                   let scaleVal = 1.2;
                   let text = `-${popup.val}`;
