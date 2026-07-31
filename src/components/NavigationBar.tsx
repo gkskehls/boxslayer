@@ -1,8 +1,8 @@
 import React from 'react';
 
 interface NavigationBarProps {
-  onNavigate: (screen: 'TOWN_SCREEN' | 'BATTLE_SCREEN' | 'ANIMATED_BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN') => void;
-  currentScreen: 'TOWN_SCREEN' | 'BATTLE_SCREEN' | 'ANIMATED_BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN';
+  onNavigate: (screen: 'TOWN_SCREEN' | 'ANIMATED_BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN') => void;
+  currentScreen: 'TOWN_SCREEN' | 'ANIMATED_BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN';
 }
 
 const NavigationBar: React.FC<NavigationBarProps> = ({ onNavigate, currentScreen }) => {
@@ -10,8 +10,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ onNavigate, currentScreen
   // 아이콘/이모지를 배제하고 영문 대문자 기반 무드의 깔끔한 타이포 레이아웃을 지향합니다.
   const navItems = [
     { screen: 'TOWN_SCREEN', label: '마을' },
-    { screen: 'BATTLE_SCREEN', label: '구 전투' },
-    { screen: 'ANIMATED_BATTLE_SCREEN', label: '신 전투' },
+    { screen: 'ANIMATED_BATTLE_SCREEN', label: '전투' },
     { screen: 'STATS_SCREEN', label: '스탯' },
     { screen: 'CORE_SCREEN', label: '코어' },
     { screen: 'SHOP_SCREEN', label: '상점' },

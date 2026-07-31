@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useGameStore, getComputedStats } from './store/gameStore';
-// import type { Stats } from './types/game'; // Stats 타입 제거
+import { useGameStore } from './store/gameStore';
 
 // Import new screen components
-import BattleScreen from './components/BattleScreen';
 import StatsScreen from './components/StatsScreen';
 import TownScreen from './components/TownScreen';
 import NavigationBar from './components/NavigationBar'; // NavigationBar 임포트
@@ -12,93 +10,25 @@ import Shop from './components/Shop'; // Shop 컴포넌트 임포트
 import SkillTreeScreen from './components/SkillTreeScreen';
 import AnimatedBattleScreen from './components/AnimatedBattleScreen'; // [신규] 애니메이션 전투 화면 임포트
 
-// 화면 상태를 정의합니다. (ANIMATED_BATTLE_SCREEN 추가)
-type GameScreen = 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN' | 'TOWN_SCREEN' | 'BATTLE_SCREEN' | 'ANIMATED_BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN';
+// 화면 상태를 정의합니다. (BATTLE_SCREEN 제거)
+type GameScreen = 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN' | 'TOWN_SCREEN' | 'ANIMATED_BATTLE_SCREEN' | 'STATS_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN' | 'SKILL_TREE_SCREEN';
 type NavigableScreen = Exclude<GameScreen, 'TITLE_SCREEN' | 'LOGIN_CHOICE_SCREEN'>; // NavigationBar에서 이동 가능한 화면 타입
 
 // package.json의 버전을 가져옵니다.
 const APP_VERSION = import.meta.env.VITE_APP_VERSION;
 
 function App() {
-  const {
-    player,
-    currentEnemy,
-    gameStatus,
-    spawnEnemy,
-    attackEnemy,
-    attackPlayer,
-    // resetGame, // App.tsx에서 직접 사용하지 않으므로 제거
-  } = useGameStore();
+  const { gameStatus } = useGameStore();
 
   const [screen, setScreen] = useState<GameScreen>('TITLE_SCREEN');
   const [offlineRewards, setOfflineRewards] = useState<{ gold: number; exp: number } | null>(null); // 오프라인 보상 상태
 
-  // Simple Auto-Battle Loop
-  useEffect(() => {
-    // [수정됨] AnimatedBattleScreen은 자체 루프를 가지므로, 이 루프는 구버전 BattleScreen에서만 작동하도록 수정
-    if (screen !== 'BATTLE_SCREEN') return;
-
-    if (gameStatus === 'IDLE') {
-      spawnEnemy();
-    }
-
-    // 1. 계산된 값을 useEffect 내부에서 안전하게 생성합니다.
-    const playerComputed = getComputedStats(player.stats);
-    const enemyComputed = currentEnemy ? getComputedStats(currentEnemy.stats) : null;
-
-    let playerAttackTimer: number;
-    let enemyAttackTimer: number;
-
-    // 2. if 조건문 안에서 enemyComputed가 null이 아님을 명시적으로 체크합니다.
-    if (gameStatus === 'BATTLE' && currentEnemy && enemyComputed) {
-      // Player attacks enemy
-      playerAttackTimer = window.setInterval(() => {
-        attackEnemy();
-      }, 1000 / playerComputed.attackSpeed);
-
-      // Enemy attacks player (이제 enemyComputed가 null이 아님이 보장됨)
-      enemyAttackTimer = window.setInterval(() => {
-        attackPlayer();
-      }, 1000 / enemyComputed.attackSpeed);
-    }
-
-    return () => {
-      clearInterval(playerAttackTimer);
-      clearInterval(enemyAttackTimer);
-    };
-
-// 3. 의존성 배열에서 계산값 속성을 빼고, 대상이 되는 원본 객체(player.stats, currentEnemy)를 넣습니다.
-  }, [screen, gameStatus, currentEnemy, player.stats, spawnEnemy, attackEnemy, attackPlayer]);
-
-  // Handle Victory - Spawn next enemy after a short delay
-  useEffect(() => {
-    // [수정됨] AnimatedBattleScreen은 자체 루프를 가지므로, 이 루프는 구버전 BattleScreen에서만 작동하도록 수정
-    if (screen !== 'BATTLE_SCREEN') return;
-
-    if (gameStatus === 'VICTORY') {
-      const timer = setTimeout(() => {
-        spawnEnemy();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [screen, gameStatus, spawnEnemy]);
+  // [삭제] 구버전 전투 루프를 완전히 제거했습니다. 모든 전투 로직은 AnimatedBattleScreen에서 처리됩니다.
 
   // 화면 전환 핸들러
   const handleNavigate = (targetScreen: GameScreen) => {
     setScreen(targetScreen);
-    // 전투 화면에서 다른 화면으로 이동할 때 전투 상태 초기화
-    if (targetScreen !== 'BATTLE_SCREEN' && gameStatus === 'BATTLE') {
-      // Optionally reset current enemy or pause battle
-      // For now, we'll just let the useEffect clean up timers
-    }
   };
-
-  // 게임 오버 시 리셋 버튼 핸들러 (BattleScreen에서 호출)
-  // BattleScreen에서 직접 retryCurrentFloor를 호출하므로 App.tsx에서는 더 이상 필요 없음
-  // const handleDefeat = () => {
-  //   resetGame();
-  //   setScreen('TOWN_SCREEN'); // 게임 리셋 후 마을 화면으로 이동
-  // };
 
   const showNavigationBar = screen !== 'TITLE_SCREEN' && screen !== 'LOGIN_CHOICE_SCREEN';
 
@@ -238,10 +168,6 @@ function App() {
                   </div>
               )}
             </div>
-        )}
-
-        {screen === 'BATTLE_SCREEN' && (
-            <div className="flex-grow w-full max-w-md"><BattleScreen /></div>
         )}
 
         {screen === 'ANIMATED_BATTLE_SCREEN' && (
