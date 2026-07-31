@@ -180,7 +180,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
       if (logMessage) {
         setTimeout(() => {
-          setDamageLog(prev => [{ id: Date.now(), timestamp: Date.now(), message: logMessage, colorClass: logColorClass }, ...prev.slice(0, 3)]);
+          setDamageLog(prev => [{ id: Date.now(), timestamp: Date.now(), message: logMessage, colorClass: logColorClass }, ...prev.slice(0, 49)]);
         }, 0);
       }
 
@@ -229,9 +229,9 @@ const AnimatedBattleScreen: React.FC = () => {
       setTimeout(() => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1300);
-      // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
+      // [수정됨] 데미지 로그 추가 (최신 50개만 유지)
       setTimeout(() => {
-        setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `플레이어: ${lastReflectedDamage} 반사 데미지`, colorClass: 'text-cyan-400' }, ...prev.slice(0, 3)]);
+        setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `플레이어: ${lastReflectedDamage} 반사 데미지`, colorClass: 'text-cyan-400' }, ...prev.slice(0, 49)]);
       }, 0);
     }
   }, [lastReflectedDamage]);
@@ -246,9 +246,9 @@ const AnimatedBattleScreen: React.FC = () => {
       };
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
       setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1000);
-      // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
+      // [수정됨] 데미지 로그 추가 (최신 50개만 유지)
       setTimeout(() => {
-        setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `플레이어의 공격을 적이 회피했습니다!`, colorClass: 'text-yellow-400 italic' }, ...prev.slice(0, 3)]);
+        setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `플레이어의 공격을 적이 회피했습니다!`, colorClass: 'text-yellow-400 italic' }, ...prev.slice(0, 49)]);
       }, 0);
     }
   }, [lastEnemyEvadedTime]);
@@ -264,9 +264,9 @@ const AnimatedBattleScreen: React.FC = () => {
       // [수정됨] 피격 데미지 타이밍과 맞추기 위해 150ms 지연
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 150);
       setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1150);
-      // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
+      // [수정됨] 데미지 로그 추가 (최신 50개만 유지)
       setTimeout(() => {
-        setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `플레이어가 적의 공격을 회피했습니다!`, colorClass: 'text-yellow-400 italic' }, ...prev.slice(0, 3)]);
+        setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `플레이어가 적의 공격을 회피했습니다!`, colorClass: 'text-yellow-400 italic' }, ...prev.slice(0, 49)]);
       }, 0);
     }
   }, [lastPlayerEvadedTime]);
@@ -288,9 +288,9 @@ const AnimatedBattleScreen: React.FC = () => {
       setTimeout(() => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1150);
-      // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
+      // [수정됨] 데미지 로그 추가 (최신 50개만 유지)
       setTimeout(() => {
-        setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `적: ${Math.floor(damageTaken)} 데미지`, colorClass: 'text-red-500' }, ...prev.slice(0, 3)]);
+        setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `적: ${Math.floor(damageTaken)} 데미지`, colorClass: 'text-red-500' }, ...prev.slice(0, 49)]);
       }, 0);
     }
     prevPlayerHealth.current = player.currentHealth;
@@ -569,10 +569,9 @@ const AnimatedBattleScreen: React.FC = () => {
           )}
         </div>
 
-        {/* [수정됨] 데미지 로그 창 (제목 제거, 4줄 높이) */}
+        {/* [수정됨] 데미지 로그 창 (6줄 높이, 스크롤 가능) */}
         <div className="bg-neutral-950 p-2 rounded-none border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          {/* <h3 className="text-neutral-400 text-[10px] font-mono font-bold mb-1">BATTLE LOG</h3> */} {/* 제목 제거 */}
-          <div className="max-h-[68px] overflow-y-hidden text-[10px] font-mono text-neutral-200"> {/* 높이 4줄로 제한 */}
+          <div className="h-24 overflow-y-auto custom-scrollbar text-[10px] font-mono text-neutral-200">
             {damageLog.map((entry) => (
               <div key={entry.id} className={`${entry.colorClass} leading-tight`}>
                 {entry.message}
