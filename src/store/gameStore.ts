@@ -1,7 +1,7 @@
 // src/store/gameStore.ts
 
 import { create } from 'zustand';
-import type { GameState, Player, Stats, Core, ShopItem } from '../types/game';
+import type { GameState, Player, Stats, Core, ShopItem, DefeatReason } from '../types/game';
 import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage';
 import { SKILL_TREE_DATA } from '../constants/skills';
 
@@ -87,7 +87,8 @@ interface GameActions {
   reincarnate: () => void;
   unlockSkill: (skillId: string) => void;
   resetSkills: () => void;
-  buyShopItem: (item: ShopItem) => void; 
+  buyShopItem: (item: ShopItem) => void;
+  setDefeat: (reason: DefeatReason) => void;
 }
 
 const initialStats: Stats = { str: 10, dex: 10, con: 10 };
@@ -192,6 +193,8 @@ const getInitialStoreState = (): GameState => {
 
 export const useGameStore = create<GameState & GameActions>((set, get) => ({
   ...getInitialStoreState(),
+
+  setDefeat: (reason: DefeatReason) => set({ gameStatus: 'DEFEAT', defeatReason: reason }),
 
   reincarnate: () => set((state) => {
     const pointsEarned = calculateReincarnationPoints(
@@ -528,6 +531,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         player: { ...state.player, currentHealth: 0 },
         playerShield: 0,
         gameStatus: 'DEFEAT',
+        defeatReason: 'HEALTH',
         lastReflectedDamage: actualReflectedDmg
       };
     }

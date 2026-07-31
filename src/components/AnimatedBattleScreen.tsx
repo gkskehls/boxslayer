@@ -68,6 +68,7 @@ const AnimatedBattleScreen: React.FC = () => {
     stage,
     maxStage,
     gameStatus,
+    defeatReason,
     lastDamageDealt,
     lastReflectedDamage,
     lastEnemyEvadedTime,
@@ -76,6 +77,7 @@ const AnimatedBattleScreen: React.FC = () => {
     attackEnemy,
     attackPlayer,
     retryCurrentFloor,
+    setDefeat,
     equippedCore,
   } = useGameStore();
 
@@ -102,16 +104,23 @@ const AnimatedBattleScreen: React.FC = () => {
     }
   }, [gameStatus]);
 
-  // 전투 시간 타이머
+  // 전투 시간 타이머 및 시간 초과 패배
   useEffect(() => {
     let timer: number;
     if (gameStatus === 'BATTLE') {
       timer = window.setInterval(() => {
-        setBattleTime(prev => prev + 1);
+        setBattleTime(prev => {
+          const newTime = prev + 1;
+          if (newTime > 30) {
+            setDefeat('TIMEOUT');
+            clearInterval(timer);
+          }
+          return newTime;
+        });
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [gameStatus]);
+  }, [gameStatus, setDefeat]);
 
   useEffect(() => {
     if (gameStatus === 'IDLE') spawnEnemy();
@@ -120,8 +129,12 @@ const AnimatedBattleScreen: React.FC = () => {
     let enemyAttackTimer: number;
 
     if (gameStatus === 'BATTLE' && currentEnemyId) {
-      // 10초마다 10%씩 최대 2배까지 전투 속도 증가
-      const timeMultiplier = Math.min(2, 1 + Math.floor(battleTime / 10) * 0.1);
+      let timeMultiplier = 1;
+      if (battleTime >= 10) {
+        timeMultiplier = 5;
+      } else if (battleTime >= 5) {
+        timeMultiplier = 2;
+      }
 
       playerAttackTimer = window.setInterval(() => {
         setPlayerAnim('attack');
@@ -166,7 +179,9 @@ const AnimatedBattleScreen: React.FC = () => {
       }
 
       if (logMessage) {
-        setDamageLog(prev => [{ id: Date.now(), timestamp: Date.now(), message: logMessage, colorClass: logColorClass }, ...prev.slice(0, 3)]);
+        setTimeout(() => {
+          setDamageLog(prev => [{ id: Date.now(), timestamp: Date.now(), message: logMessage, colorClass: logColorClass }, ...prev.slice(0, 3)]);
+        }, 0);
       }
 
       // 팝업 로직 (기존 유지)
@@ -215,7 +230,9 @@ const AnimatedBattleScreen: React.FC = () => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1300);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `플레이어: ${lastReflectedDamage} 반사 데미지`, colorClass: 'text-cyan-400' }, ...prev.slice(0, 3)]);
+      setTimeout(() => {
+        setDamageLog(prev => [{ id: Date.now() + 1, timestamp: Date.now() + 1, message: `플레이어: ${lastReflectedDamage} 반사 데미지`, colorClass: 'text-cyan-400' }, ...prev.slice(0, 3)]);
+      }, 0);
     }
   }, [lastReflectedDamage]);
 
@@ -230,7 +247,9 @@ const AnimatedBattleScreen: React.FC = () => {
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 0);
       setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1000);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `플레이어의 공격을 적이 회피했습니다!`, colorClass: 'text-yellow-400 italic' }, ...prev.slice(0, 3)]);
+      setTimeout(() => {
+        setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `플레이어의 공격을 적이 회피했습니다!`, colorClass: 'text-yellow-400 italic' }, ...prev.slice(0, 3)]);
+      }, 0);
     }
   }, [lastEnemyEvadedTime]);
 
@@ -246,7 +265,9 @@ const AnimatedBattleScreen: React.FC = () => {
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 150);
       setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id)), 1150);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `플레이어가 적의 공격을 회피했습니다!`, colorClass: 'text-yellow-400 italic' }, ...prev.slice(0, 3)]);
+      setTimeout(() => {
+        setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `플레이어가 적의 공격을 회피했습니다!`, colorClass: 'text-yellow-400 italic' }, ...prev.slice(0, 3)]);
+      }, 0);
     }
   }, [lastPlayerEvadedTime]);
 
@@ -268,7 +289,9 @@ const AnimatedBattleScreen: React.FC = () => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1150);
       // [수정됨] 데미지 로그 추가 (최신 4개만 유지)
-      setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `적: ${Math.floor(damageTaken)} 데미지`, colorClass: 'text-red-500' }, ...prev.slice(0, 3)]);
+      setTimeout(() => {
+        setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `적: ${Math.floor(damageTaken)} 데미지`, colorClass: 'text-red-500' }, ...prev.slice(0, 3)]);
+      }, 0);
     }
     prevPlayerHealth.current = player.currentHealth;
   }, [player.currentHealth, gameStatus]); // gameStatus는 여전히 의존성 배열에 유지하여 상태 변화를 감지
@@ -530,7 +553,9 @@ const AnimatedBattleScreen: React.FC = () => {
               <div className="absolute inset-0 bg-red-950/20 border-4 border-red-600 flex flex-col items-center justify-center z-50 pointer-events-none">
                 <div className="bg-neutral-950/80 px-8 py-5 border-4 border-neutral-800 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col items-center pointer-events-auto rounded-none">
                   <h2 className="text-3xl font-black text-red-500 mb-2 animate-pulse font-mono tracking-widest">GAME OVER</h2>
-                  <p className="text-neutral-100 text-xs font-bold mb-1">전투에서 패배했습니다!</p>
+                  <p className="text-neutral-100 text-xs font-bold mb-1">
+                    {defeatReason === 'TIMEOUT' ? '시간이 초과되었습니다!' : '전투에서 패배했습니다!'}
+                  </p>
                   <p className="text-neutral-400 text-[10px] font-mono">잠시 후 이전 층으로 돌아갑니다...</p>
                 </div>
               </div>

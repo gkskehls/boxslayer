@@ -41,6 +41,8 @@ export interface Core {
   level: number;
 }
 
+export type DefeatReason = 'HEALTH' | 'TIMEOUT';
+
 export interface GameState {
   player: Player;
   currentEnemy: Enemy | null;
@@ -67,6 +69,7 @@ export interface GameState {
   lastEnemyEvadedTime?: number;
   lastPlayerEvadedTime?: number;
   activeBuffs: Record<string, number>; // [신규] 활성화된 상점 버프 (키: buffId, 값: 종료 타임스탬프)
+  defeatReason?: DefeatReason; // [신규] 패배 원인
 }
 
 export type SkillNodeType = 'NORMAL' | 'NOTABLE' | 'KEYSTONE';
