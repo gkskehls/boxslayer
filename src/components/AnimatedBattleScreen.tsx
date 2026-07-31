@@ -70,6 +70,7 @@ const AnimatedBattleScreen: React.FC = () => {
     gameStatus,
     defeatReason,
     lastDamageDealt,
+    lastDamageTaken,
     lastReflectedDamage,
     lastEnemyEvadedTime,
     lastPlayerEvadedTime,
@@ -90,8 +91,7 @@ const AnimatedBattleScreen: React.FC = () => {
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
 
   const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player', coreType?: string }[]>([]);
-  const prevPlayerHealth = useRef(player.currentHealth);
-
+  
   const [showStats, setShowStats] = useState<boolean>(false);
   const [damageLog, setDamageLog] = useState<LogEntry[]>([]); // [신규] 데미지 로그 상태
   const [battleTime, setBattleTime] = useState(0); // 전투 시간 추적
@@ -273,28 +273,23 @@ const AnimatedBattleScreen: React.FC = () => {
 
   // 적이 나에게 입힌 피격 데미지 (플레이어가 받은 데미지)
   useEffect(() => {
-    // [수정됨] gameStatus === 'BATTLE' 조건 제거
-    if (player.currentHealth < prevPlayerHealth.current) {
-      const damageTaken = prevPlayerHealth.current - player.currentHealth;
+    if (lastDamageTaken && lastDamageTaken > 0) {
       const newPopup = {
         id: Date.now() + Math.random(),
-        val: Math.floor(damageTaken),
+        val: Math.floor(lastDamageTaken),
         type: 'taken' as const
       };
 
-      // [수정됨] 내 공격(0ms)과 적의 공격이 동시에 발생했을 때 시각적으로 엇박자를 주어 구분되도록 150ms 지연
       setTimeout(() => setDamagePopups(prev => [...prev, newPopup]), 150);
-
       setTimeout(() => {
         setDamagePopups(prev => prev.filter(p => p.id !== newPopup.id));
       }, 1150);
-      // [수정됨] 데미지 로그 추가 (최신 50개만 유지)
+
       setTimeout(() => {
-        setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `적: ${Math.floor(damageTaken)} 데미지`, colorClass: 'text-red-500' }, ...prev.slice(0, 49)]);
+        setDamageLog(prev => [{ id: Date.now() + Math.random(), timestamp: Date.now() + Math.random(), message: `적: ${Math.floor(lastDamageTaken)} 데미지`, colorClass: 'text-red-500' }, ...prev.slice(0, 49)]);
       }, 0);
     }
-    prevPlayerHealth.current = player.currentHealth;
-  }, [player.currentHealth, gameStatus]); // gameStatus는 여전히 의존성 배열에 유지하여 상태 변화를 감지
+  }, [lastDamageTaken]);
 
   useEffect(() => {
     if (gameStatus === 'VICTORY') {

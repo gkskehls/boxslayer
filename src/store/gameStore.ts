@@ -180,6 +180,7 @@ const getInitialStoreState = (): GameState => {
     equippedCore: null,
     lastOnlineTime: Date.now(),
     lastDamageDealt: { normal: 0, core: 0 },
+    lastDamageTaken: 0,
     lastReflectedDamage: 0,
     battleStartTime: 0,
     reincarnationPoints: 0,
@@ -508,7 +509,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const baseDamage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
     const randomMultiplier = 0.85 + Math.random() * 0.3; // 85% ~ 115%
     const damage = Math.floor(baseDamage * randomMultiplier);
-
+    
     let remainingShield = state.playerShield || 0;
     let actualHealthDamage = 0;
 
@@ -539,6 +540,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         playerShield: 0,
         gameStatus: 'DEFEAT',
         defeatReason: 'HEALTH',
+        lastDamageTaken: damage,
         lastReflectedDamage: actualReflectedDmg
       };
     }
@@ -547,6 +549,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       player: { ...state.player, currentHealth: nextHealth },
       playerShield: remainingShield,
       currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
+      lastDamageTaken: damage,
       lastReflectedDamage: actualReflectedDmg
     };
   }),
