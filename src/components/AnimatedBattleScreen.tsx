@@ -95,12 +95,14 @@ const AnimatedBattleScreen: React.FC = () => {
   const [showStats, setShowStats] = useState<boolean>(false);
   const [damageLog, setDamageLog] = useState<LogEntry[]>([]); // [신규] 데미지 로그 상태
   const [battleTime, setBattleTime] = useState(0); // 전투 시간 추적
+  const [timeMultiplier, setTimeMultiplier] = useState(1); // [신규] 전투 속도 배율 상태
 
   useEffect(() => {
     if (gameStatus !== 'BATTLE') {
       setPlayerAnim('idle');
       setEnemyAnim('idle');
       setBattleTime(0); // 전투 상태가 아니면 시간 초기화
+      setTimeMultiplier(1); // 배율 초기화
     }
   }, [gameStatus]);
 
@@ -122,6 +124,19 @@ const AnimatedBattleScreen: React.FC = () => {
     return () => clearInterval(timer);
   }, [gameStatus, setDefeat]);
 
+  // [수정] 전투 배율을 battleTime이 아닌 별도의 useEffect로 관리
+  useEffect(() => {
+    if (gameStatus !== 'BATTLE') return;
+
+    const timeout1 = setTimeout(() => setTimeMultiplier(2), 5000);
+    const timeout2 = setTimeout(() => setTimeMultiplier(5), 10000);
+
+    return () => {
+      clearTimeout(timeout1);
+      clearTimeout(timeout2);
+    };
+  }, [gameStatus]);
+
   useEffect(() => {
     if (gameStatus === 'IDLE') spawnEnemy();
 
@@ -129,13 +144,6 @@ const AnimatedBattleScreen: React.FC = () => {
     let enemyAttackTimer: number;
 
     if (gameStatus === 'BATTLE' && currentEnemyId) {
-      let timeMultiplier = 1;
-      if (battleTime >= 10) {
-        timeMultiplier = 5;
-      } else if (battleTime >= 5) {
-        timeMultiplier = 2;
-      }
-
       playerAttackTimer = window.setInterval(() => {
         setPlayerAnim('attack');
         setTimeout(() => setEnemyAnim('hit'), 100);
@@ -159,7 +167,7 @@ const AnimatedBattleScreen: React.FC = () => {
       clearInterval(playerAttackTimer);
       clearInterval(enemyAttackTimer);
     };
-  }, [gameStatus, currentEnemyId, computed.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer, battleTime]);
+  }, [gameStatus, currentEnemyId, computed.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer, timeMultiplier]);
 
   // 플레이어가 적을 때렸을 때 데미지 텍스트 및 로그
   useEffect(() => {
