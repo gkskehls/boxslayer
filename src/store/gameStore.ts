@@ -331,32 +331,18 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let currentElecHits = state.elecHitCount || 0;
     let nextEnemyStunned = state.isEnemyStunned || false;
 
-    // 불 코어 데미지는 회피와 무관하게 항상 적용
-    if (state.equippedCore?.type === 'FIRE') {
-      const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
-      const myStr = state.player.stats.str;
-      const strBonusDamage = myStr * (stats.fireDamageRatio || 0);
-      const baseCoreDamage = (stats.fireDamage || 0) + strBonusDamage;
-      const isFireExtreme = state.activeBuffs['buff_core_fire'] && state.activeBuffs['buff_core_fire'] > now;
-      const randomMultiplier = 0.85 + Math.random() * 0.3;
-      coreDamage = Math.floor(baseCoreDamage * randomMultiplier * hitCount * (isFireExtreme ? 10 : 1));
-    }
-
-    if (isEvaded) {
-      return {
-        ...state,
-        lastDamageDealt: { normal: 0, core: coreDamage, shieldRecovered: 0 },
-        lastEnemyEvadedTime: now,
-      };
-    }
-    
-    const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
-    const randomMultiplier = 0.85 + Math.random() * 0.3;
-    normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount);
-
+    // [수정] 모든 코어 효과는 회피와 무관하게 발동
     if (state.equippedCore) {
       const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
-      if (state.equippedCore.type === 'WATER') {
+      if (state.equippedCore.type === 'FIRE') {
+        const myStr = state.player.stats.str;
+        const strBonusDamage = myStr * (stats.fireDamageRatio || 0);
+        const baseCoreDamage = (stats.fireDamage || 0) + strBonusDamage;
+        const isFireExtreme = state.activeBuffs['buff_core_fire'] && state.activeBuffs['buff_core_fire'] > now;
+        const randomMultiplier = 0.85 + Math.random() * 0.3;
+        coreDamage = Math.floor(baseCoreDamage * randomMultiplier * hitCount * (isFireExtreme ? 10 : 1));
+      }
+      else if (state.equippedCore.type === 'WATER') {
         const regenAmount = Math.floor(playerComputed.maxHealth * (stats.regenRatio || 0));
         shieldRecovered = regenAmount * hitCount;
         nextShield = Math.min(playerComputed.maxHealth * 20000, (nextShield || 0) + shieldRecovered);
@@ -389,6 +375,23 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         }
       }
     }
+
+    if (isEvaded) {
+      return {
+        ...state,
+        lastDamageDealt: { normal: 0, core: coreDamage, shieldRecovered },
+        lastEnemyEvadedTime: now,
+        playerShield: nextShield,
+        windHitCount: currentWindHits,
+        hasWindEvasion: nextWindEvasion,
+        elecHitCount: currentElecHits,
+        isEnemyStunned: nextEnemyStunned,
+      };
+    }
+    
+    const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
+    const randomMultiplier = 0.85 + Math.random() * 0.3;
+    normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount);
 
     const totalDamage = Math.floor(normalDamage + coreDamage);
     const newEnemyHealth = Math.max(0, Math.floor(state.currentEnemy.currentHealth - totalDamage));

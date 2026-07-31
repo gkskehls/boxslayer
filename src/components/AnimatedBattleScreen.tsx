@@ -77,7 +77,6 @@ const AnimatedBattleScreen: React.FC = () => {
     attackPlayer,
     retryCurrentFloor,
     setDefeat,
-    equippedCore,
   } = useGameStore();
 
   const computed = getComputedStats(player.stats, useGameStore.getState().unlockedSkills);
@@ -181,7 +180,7 @@ const AnimatedBattleScreen: React.FC = () => {
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
       }
       if (core > 0) {
-        const popup = { id: Date.now() + 1, val: core, type: 'core' as const, coreType: equippedCore?.type };
+        const popup = { id: Date.now() + 1, val: core, type: 'core' as const, coreType: useGameStore.getState().equippedCore?.type };
         setTimeout(() => {
           setDamagePopups(prev => [...prev, popup]);
           setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
