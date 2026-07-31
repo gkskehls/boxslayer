@@ -88,6 +88,7 @@ const AnimatedBattleScreen: React.FC = () => {
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   
+  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player', coreType?: string }[]>([]);
   const [showStats, setShowStats] = useState<boolean>(false);
   const [damageLog, setDamageLog] = useState<LogEntry[]>([]);
   const [battleTime, setBattleTime] = useState(0);
@@ -174,6 +175,18 @@ const AnimatedBattleScreen: React.FC = () => {
     // 플레이어 공격 데미지
     if (lastDamageDealt) {
       const { normal, core } = lastDamageDealt;
+      if (normal > 0) {
+        const popup = { id: Date.now(), val: normal, type: 'normal' as const };
+        setDamagePopups(prev => [...prev, popup]);
+        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
+      }
+      if (core > 0) {
+        const popup = { id: Date.now() + 1, val: core, type: 'core' as const, coreType: equippedCore?.type };
+        setTimeout(() => {
+          setDamagePopups(prev => [...prev, popup]);
+          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
+        }, 150);
+      }
       if (normal > 0 || core > 0) {
         const coreText = core > 0 ? ` + ${core} ${equippedCore?.type || '코어'}` : '';
         addLog(
@@ -187,6 +200,9 @@ const AnimatedBattleScreen: React.FC = () => {
     
     // 플레이어 공격 회피
     if (lastEnemyEvadedTime && lastEnemyEvadedTime > 0) {
+      const popup = { id: Date.now() + Math.random(), val: 0, type: 'miss-enemy' as const };
+      setDamagePopups(prev => [...prev, popup]);
+      setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
       addLog(
         <span>
           <span className="text-neutral-500">[S{stage}-{turn}] </span>
@@ -198,6 +214,12 @@ const AnimatedBattleScreen: React.FC = () => {
     // 적 공격 데미지 (반사 포함)
     if (lastDamageTaken && lastDamageTaken > 0) {
       const damage = Math.floor(lastDamageTaken);
+      const popup = { id: Date.now() + Math.random(), val: damage, type: 'taken' as const };
+      setTimeout(() => {
+        setDamagePopups(prev => [...prev, popup]);
+        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
+      }, 150);
+
       const reflectionText = lastReflectedDamage && lastReflectedDamage > 0 
         ? <span className="text-cyan-400"> (반사: {lastReflectedDamage})</span>
         : '';
@@ -213,6 +235,11 @@ const AnimatedBattleScreen: React.FC = () => {
 
     // 적 공격 회피
     if (lastPlayerEvadedTime && lastPlayerEvadedTime > 0) {
+      const popup = { id: Date.now() + Math.random(), val: 0, type: 'miss-player' as const };
+      setTimeout(() => {
+        setDamagePopups(prev => [...prev, popup]);
+        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
+      }, 150);
       addLog(
         <span>
           <span className="text-neutral-500">[S{stage}-{turn}] </span>
@@ -221,7 +248,7 @@ const AnimatedBattleScreen: React.FC = () => {
       );
     }
 
-  }, [lastDamageDealt, lastDamageTaken, lastReflectedDamage, lastEnemyEvadedTime, lastPlayerEvadedTime, stage, turn, equippedCore]);
+  }, [lastDamageDealt, lastDamageTaken, lastReflectedDamage, lastEnemyEvadedTime, lastPlayerEvadedTime]);
 
 
   useEffect(() => {
@@ -363,6 +390,23 @@ const AnimatedBattleScreen: React.FC = () => {
                 </div>
               </motion.div>
 
+              <AnimatePresence>
+                {damagePopups.filter(p => p.type === 'taken' || p.type === 'miss-player').map((popup) => {
+                  const isMiss = popup.type === 'miss-player';
+                  return (
+                      <motion.div
+                          key={popup.id}
+                          initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
+                          animate={{ opacity: 1, y: -60, scale: 1.3, x: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-51 ${isMiss ? 'text-neutral-400 text-base italic' : 'text-red-500 text-lg'}`}
+                      >
+                        {isMiss ? 'MISS' : `-${popup.val}`}
+                      </motion.div>
+                  )
+                })}
+              </AnimatePresence>
             </div>
 
             <div className="relative z-20">
@@ -394,6 +438,54 @@ const AnimatedBattleScreen: React.FC = () => {
                   <div className="w-[80px] h-[80px] flex items-center justify-center text-neutral-600 italic font-mono">...</div>
               )}
 
+              <AnimatePresence>
+                {damagePopups.filter(p => p.type !== 'taken' && p.type !== 'miss-player').map((popup) => {
+                  let colorClass = 'text-white text-base';
+                  let scaleVal = 1.2;
+                  let text = `-${popup.val}`;
+                  
+                  let xOffset = 0;   
+                  let yOffset = -60; 
+
+                  if (popup.type === 'core') {
+                    scaleVal = 1.5;
+                    xOffset = 20;
+                    yOffset = -75;
+                    
+                    if (popup.coreType === 'FIRE') {
+                      colorClass = 'text-red-500 text-xl font-extrabold';
+                    } else if (popup.coreType === 'WIND') {
+                      colorClass = 'text-green-400 text-xl font-extrabold';
+                    } else if (popup.coreType === 'ELECTRIC') {
+                      colorClass = 'text-yellow-400 text-xl font-extrabold';
+                    } else {
+                      colorClass = 'text-orange-500 text-xl';
+                    }
+                  } else if (popup.type === 'reflect') {
+                    colorClass = 'text-blue-400 text-lg font-bold';
+                    scaleVal = 1.3;
+                    xOffset = -20;
+                    yOffset = -50;
+                  } else if (popup.type === 'miss-enemy') {
+                    colorClass = 'text-neutral-400 text-lg italic';
+                    scaleVal = 1.3;
+                    text = 'MISS';
+                  }
+
+                  return (
+                      <motion.div
+                          key={popup.id}
+                          initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
+                          animate={{ opacity: 1, y: yOffset, scale: scaleVal, x: xOffset }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-50 ${colorClass}`}
+                      >
+                        {text}
+                      </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
           </div>
 
