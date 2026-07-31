@@ -56,6 +56,7 @@ export interface GameState {
   lastDamageDealt: {
     normal: number;
     core: number;
+    shieldRecovered?: number;
   };
   lastDamageTaken?: number; // [신규] 플레이어가 받은 데미지 (보호막 포함)
   battleStartTime: number;

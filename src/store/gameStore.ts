@@ -179,7 +179,7 @@ const getInitialStoreState = (): GameState => {
     playerCores: [],
     equippedCore: null,
     lastOnlineTime: Date.now(),
-    lastDamageDealt: { normal: 0, core: 0 },
+    lastDamageDealt: { normal: 0, core: 0, shieldRecovered: 0 },
     lastDamageTaken: 0,
     lastReflectedDamage: 0,
     battleStartTime: 0,
@@ -219,7 +219,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       ],
       equippedCore: null,
       battleStartTime: 0,
-      lastDamageDealt: { normal: 0, core: 0 },
+      lastDamageDealt: { normal: 0, core: 0, shieldRecovered: 0 },
       lastReflectedDamage: 0,
       lastEnemyEvadedTime: 0,
       lastPlayerEvadedTime: 0,
@@ -324,6 +324,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     let normalDamage = 0;
     let coreDamage = 0;
+    let shieldRecovered = 0;
     let nextShield = state.playerShield || 0;
     let currentWindHits = state.windHitCount || 0;
     let nextWindEvasion = state.hasWindEvasion || false;
@@ -344,7 +345,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (isEvaded) {
       return {
         ...state,
-        lastDamageDealt: { normal: 0, core: coreDamage },
+        lastDamageDealt: { normal: 0, core: coreDamage, shieldRecovered: 0 },
         lastEnemyEvadedTime: now,
       };
     }
@@ -357,8 +358,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
       if (state.equippedCore.type === 'WATER') {
         const regenAmount = Math.floor(playerComputed.maxHealth * (stats.regenRatio || 0));
-        const totalRegen = regenAmount * hitCount;
-        nextShield = Math.min(playerComputed.maxHealth * 20000, (nextShield || 0) + totalRegen);
+        shieldRecovered = regenAmount * hitCount;
+        nextShield = Math.min(playerComputed.maxHealth * 20000, (nextShield || 0) + shieldRecovered);
       }
       else if (state.equippedCore.type === 'WIND') {
         coreDamage += Math.floor(playerComputed.attack);
@@ -422,7 +423,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         stage: state.stage + 1,
         maxStage: Math.max(state.maxStage || 1, state.stage + 1),
         gameStatus: 'VICTORY',
-        lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage) },
+        lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage), shieldRecovered },
         playerShield: nextShield,
         windHitCount: currentWindHits,
         hasWindEvasion: nextWindEvasion,
@@ -434,7 +435,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     return {
       currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
-      lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage) },
+      lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage), shieldRecovered },
       playerShield: nextShield,
       windHitCount: currentWindHits,
       hasWindEvasion: nextWindEvasion,

@@ -174,7 +174,7 @@ const AnimatedBattleScreen: React.FC = () => {
   useEffect(() => {
     // 플레이어 공격 데미지
     if (lastDamageDealt) {
-      const { normal, core } = lastDamageDealt;
+      const { normal, core, shieldRecovered } = lastDamageDealt;
       if (normal > 0) {
         const popup = { id: Date.now(), val: normal, type: 'normal' as const };
         setDamagePopups(prev => [...prev, popup]);
@@ -193,6 +193,14 @@ const AnimatedBattleScreen: React.FC = () => {
           <span>
             <span className="text-neutral-500">[S{stage}-{turn}] </span>
             <span className="text-blue-500">플레이어: {normal}{coreText} 데미지</span>
+          </span>
+        );
+      }
+      if (shieldRecovered && shieldRecovered > 0) {
+        addLog(
+          <span>
+            <span className="text-neutral-500">[S{stage}-{turn}] </span>
+            <span className="text-green-500">플레이어: 쉴드 +{shieldRecovered} 회복</span>
           </span>
         );
       }
