@@ -64,6 +64,8 @@ export interface GameState {
   elecHitCount?: number;    // 번개 코어: 기절용 누적 타격 수
   isEnemyStunned?: boolean;  // 번개 코어: 적의 기절 상태 여부
   lastReflectedDamage?: number; // 물 코어 반사 데미지 표시용
+  lastEnemyEvadedTime?: number;
+  lastPlayerEvadedTime?: number;
   activeBuffs: Record<string, number>; // [신규] 활성화된 상점 버프 (키: buffId, 값: 종료 타임스탬프)
 }
 
@@ -73,6 +75,7 @@ export interface SkillEffects {
   str?: number;
   dex?: number;
   con?: number;
+  statPoints?: number;
   goldMultiplier?: number;
   expMultiplier?: number;
   feverMultiplier?: number;

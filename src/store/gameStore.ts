@@ -86,6 +86,7 @@ interface GameActions {
   canClaimRewards: () => boolean;
   reincarnate: () => void;
   unlockSkill: (skillId: string) => void;
+  resetSkills: () => void;
   buyShopItem: (item: ShopItem) => void; 
 }
 
@@ -153,7 +154,7 @@ const initialPlayer: Player = {
   gold: 0
 };
 
-const getInitialStoreState = (): any => {
+const getInitialStoreState = (): GameState => {
   const loadedState = loadStateFromLocalStorage();
 
   if (loadedState) {
@@ -165,7 +166,7 @@ const getInitialStoreState = (): any => {
       lastEnemyEvadedTime: 0,
       lastPlayerEvadedTime: 0,
       activeBuffs: loadedState.activeBuffs || {}
-    };
+    } as GameState;
   }
 
   return {
@@ -186,10 +187,10 @@ const getInitialStoreState = (): any => {
     lastEnemyEvadedTime: 0,
     lastPlayerEvadedTime: 0,
     activeBuffs: {}
-  };
+  } as GameState;
 };
 
-export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTime?: number, lastPlayerEvadedTime?: number }>((set, get) => ({
+export const useGameStore = create<GameState & GameActions>((set, get) => ({
   ...getInitialStoreState(),
 
   reincarnate: () => set((state) => {
@@ -610,6 +611,28 @@ export const useGameStore = create<GameState & GameActions & { lastEnemyEvadedTi
       reincarnationPoints: state.reincarnationPoints - skill.cost,
       unlockedSkills: [...state.unlockedSkills, skillId]
     };
+  }),
+
+  resetSkills: () => set((state) => {
+    if (window.confirm('정말로 모든 스킬을 초기화하시겠습니까? 사용한 환생 포인트는 모두 돌려받지만, 스탯은 초기화됩니다.')) {
+      const refundedPoints = state.unlockedSkills
+        .filter(id => id !== 'core_origin')
+        .reduce((sum, id) => sum + (SKILL_TREE_DATA[id]?.cost || 0), 0);
+
+      const statPointsFromLevels = (state.player.level - 1) * 3;
+      const tempStatPoints = state.player.tempStatPoints || 0;
+      
+      return {
+        reincarnationPoints: state.reincarnationPoints + refundedPoints,
+        unlockedSkills: ['core_origin'],
+        player: {
+          ...state.player,
+          stats: initialStats,
+          statPoints: statPointsFromLevels + tempStatPoints,
+        }
+      };
+    }
+    return state;
   }),
 
   buyShopItem: (item: ShopItem) => set((state) => {

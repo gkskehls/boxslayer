@@ -79,7 +79,7 @@ const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
 const { positions: AUTO_NODE_POSITIONS, dynamicCanvasSize: DYNAMIC_CANVAS_SIZE } = calculateAutoPositions(SKILL_TREE_DATA);
 
 const SkillTreeScreen: React.FC = () => {
-    const { reincarnationPoints = 0, unlockedSkills = ['core_origin'], unlockSkill } = useGameStore();
+    const { reincarnationPoints = 0, unlockedSkills = ['core_origin'], unlockSkill, resetSkills } = useGameStore();
     const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
     
     /* [수정됨] 기본 배율 조율 (1.0 -> 0.5)
@@ -170,20 +170,28 @@ const SkillTreeScreen: React.FC = () => {
             </div>
 
             {/* 줌 컨트롤러 바 - 기계식 조작 패널 단추로 개편 */}
-            <div className="flex justify-end items-center gap-1 mb-[-4px] z-10 pr-1">
-                <button 
-                    onClick={() => handleZoom(-0.1)} 
-                    className="bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 px-2.5 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
+            <div className="flex justify-between items-center gap-1 mb-[-4px] z-10 pr-1">
+                <button
+                    onClick={resetSkills}
+                    className="bg-red-600 hover:bg-red-500 text-white border-2 border-black border-b-4 px-3 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
                 >
-                    -
+                    스킬 초기화
                 </button>
-                <span className="text-[10px] font-black text-stone-500 w-12 text-center bg-stone-200 border-2 border-black py-0.5">{Math.round(zoom * 100)}%</span>
-                <button 
-                    onClick={() => handleZoom(0.1)} 
-                    className="bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 px-2 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
-                >
-                    +
-                </button>
+                <div className="flex items-center gap-1">
+                    <button 
+                        onClick={() => handleZoom(-0.1)} 
+                        className="bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 px-2.5 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
+                    >
+                        -
+                    </button>
+                    <span className="text-[10px] font-black text-stone-500 w-12 text-center bg-stone-200 border-2 border-black py-0.5">{Math.round(zoom * 100)}%</span>
+                    <button 
+                        onClick={() => handleZoom(0.1)} 
+                        className="bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 px-2 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
+                    >
+                        +
+                    </button>
+                </div>
             </div>
 
             {/* 스크롤 캔버스: 아케이드 뷰포트 크기 최적화 (h-[40vh]) */}
