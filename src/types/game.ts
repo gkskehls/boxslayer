@@ -59,7 +59,11 @@ export interface GameState {
     core: number;
     shieldRecovered?: number;
   };
-  lastDamageTaken?: number; // [신규] 플레이어가 받은 데미지 (보호막 포함)
+  lastDamageTaken: { // [수정] 플레이어가 받은 데미지를 상세히 기록
+    normal: number;
+    core: number;
+  };
+  lastLeechedHealth?: number; // [신규] 적이 흡수한 체력
   battleStartTime: number;
   reincarnationPoints: number;
   unlockedSkills: string[];

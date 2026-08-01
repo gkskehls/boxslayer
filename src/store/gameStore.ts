@@ -169,6 +169,8 @@ const getInitialStoreState = (): GameState => {
       activeBuffs: loadedState.activeBuffs || {},
       isPlayerStunned: false,
       playerStunEndTime: 0,
+      lastDamageTaken: { normal: 0, core: 0 },
+      lastLeechedHealth: 0,
     } as GameState;
   }
 
@@ -182,7 +184,8 @@ const getInitialStoreState = (): GameState => {
     equippedCore: null,
     lastOnlineTime: Date.now(),
     lastDamageDealt: { normal: 0, core: 0, shieldRecovered: 0 },
-    lastDamageTaken: 0,
+    lastDamageTaken: { normal: 0, core: 0 },
+    lastLeechedHealth: 0,
     lastReflectedDamage: 0,
     battleStartTime: 0,
     reincarnationPoints: 0,
@@ -224,6 +227,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       equippedCore: null,
       battleStartTime: 0,
       lastDamageDealt: { normal: 0, core: 0, shieldRecovered: 0 },
+      lastDamageTaken: { normal: 0, core: 0 },
+      lastLeechedHealth: 0,
       lastReflectedDamage: 0,
       lastEnemyEvadedTime: 0,
       lastPlayerEvadedTime: 0,
@@ -322,7 +327,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     const now = Date.now();
     if (state.isPlayerStunned && now < (state.playerStunEndTime || 0)) {
-      return state; // 플레이어 기절 상태면 공격 불가
+      return state;
     }
 
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
@@ -536,26 +541,27 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
 
     if (state.equippedCore?.type === 'WIND' && state.hasWindEvasion) {
-      return { ...state, hasWindEvasion: false, lastPlayerEvadedTime: now, lastDamageTaken: 0 };
+      return { ...state, hasWindEvasion: false, lastPlayerEvadedTime: now, lastDamageTaken: { normal: 0, core: 0 } };
     }
 
     if (Math.random() > finalHitChance) {
-      return { ...state, lastPlayerEvadedTime: now, lastDamageTaken: 0 };
+      return { ...state, lastPlayerEvadedTime: now, lastDamageTaken: { normal: 0, core: 0 } };
     }
 
     const baseDamage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
     const randomMultiplier = 0.85 + Math.random() * 0.3;
-    let damage = Math.floor(baseDamage * randomMultiplier);
+    let normalDamage = Math.floor(baseDamage * randomMultiplier);
+    let coreDamage = 0;
     
     let isPlayerStunned = false;
     let playerStunEndTime = 0;
+    let amountLeeched = 0;
 
     if (enemyCore) {
       const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
       if (enemyCore.type === 'FIRE' && enemyCoreStats.fireDamage) {
         const strBonus = state.currentEnemy.stats.str * (enemyCoreStats.fireDamageRatio || 0);
-        const fireDamage = Math.floor((enemyCoreStats.fireDamage + strBonus) * randomMultiplier);
-        damage += fireDamage;
+        coreDamage = Math.floor((enemyCoreStats.fireDamage + strBonus) * randomMultiplier);
       }
       if (enemyCore.type === 'ELECTRIC' && enemyCoreStats.stunChance) {
         if (Math.random() < enemyCoreStats.stunChance) {
@@ -565,13 +571,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       }
     }
 
+    const totalDamage = normalDamage + coreDamage;
     let remainingShield = state.playerShield || 0;
     let actualHealthDamage = 0;
 
-    if (remainingShield >= damage) {
-      remainingShield -= damage;
+    if (remainingShield >= totalDamage) {
+      remainingShield -= totalDamage;
     } else {
-      actualHealthDamage = damage - remainingShield;
+      actualHealthDamage = totalDamage - remainingShield;
       remainingShield = 0;
     }
 
@@ -582,7 +589,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (state.equippedCore?.type === 'WATER') {
       const stats = getCoreStats('WATER', state.equippedCore.level);
       const isWaterExtreme = state.activeBuffs['buff_core_water'] && state.activeBuffs['buff_core_water'] > now;
-      actualReflectedDmg = Math.floor(damage * (stats.reflectRatio || 0) * (isWaterExtreme ? 5 : 1));
+      actualReflectedDmg = Math.floor(totalDamage * (stats.reflectRatio || 0) * (isWaterExtreme ? 5 : 1));
       if (actualReflectedDmg > 0) {
         enemyNextHealth = Math.max(0, Math.floor(enemyNextHealth - actualReflectedDmg)); 
       }
@@ -590,8 +597,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     if (enemyCore && enemyCore.type === 'WATER') {
       const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
-      const leechRatio = (enemyCoreStats.regenRatio || 0) * 0.5; // 플레이어 회복량의 절반만 흡수
-      const amountLeeched = Math.floor(actualHealthDamage * leechRatio);
+      const leechRatio = (enemyCoreStats.regenRatio || 0) * 0.5;
+      amountLeeched = Math.floor(actualHealthDamage * leechRatio);
       enemyNextHealth = Math.min(enemyComputed.maxHealth, enemyNextHealth + amountLeeched);
     }
 
@@ -602,8 +609,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         playerShield: 0,
         gameStatus: 'DEFEAT',
         defeatReason: 'HEALTH',
-        lastDamageTaken: damage,
+        lastDamageTaken: { normal: normalDamage, core: coreDamage },
         lastReflectedDamage: actualReflectedDmg,
+        lastLeechedHealth: amountLeeched,
         lastPlayerEvadedTime: 0,
         isPlayerStunned: false,
         playerStunEndTime: 0,
@@ -615,8 +623,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       player: { ...state.player, currentHealth: nextHealth },
       playerShield: remainingShield,
       currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
-      lastDamageTaken: damage,
+      lastDamageTaken: { normal: normalDamage, core: coreDamage },
       lastReflectedDamage: actualReflectedDmg,
+      lastLeechedHealth: amountLeeched,
       lastPlayerEvadedTime: 0,
       isPlayerStunned: isPlayerStunned,
       playerStunEndTime: playerStunEndTime,

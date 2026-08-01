@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useGameStore, getComputedStats } from '../store/gameStore';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import type { CoreType } from '../types/game';
 
 // [수정됨] getDynamicStyle 함수: 플레이어는 고정 크기, 적은 스탯 기반 동적 크기
 const getDynamicStyle = (stats: { str: number; dex: number; con: number }, isPlayer: boolean, baseSize: number = 80) => {
@@ -58,6 +59,17 @@ interface LogEntry {
   message: React.ReactNode;
 }
 
+// [신규] 적 코어 타입에 따른 약자와 색상을 반환하는 헬퍼 함수
+const getEnemyCoreDisplay = (type: CoreType) => {
+  switch (type) {
+    case 'FIRE': return { abbr: 'F', color: 'text-red-500' };
+    case 'WATER': return { abbr: 'W', color: 'text-blue-500' };
+    case 'WIND': return { abbr: 'A', color: 'text-green-500' }; // Air
+    case 'ELECTRIC': return { abbr: 'E', color: 'text-yellow-500' };
+    default: return { abbr: '', color: '' };
+  }
+};
+
 const AnimatedBattleScreen: React.FC = () => {
   const {
     player,
@@ -70,8 +82,10 @@ const AnimatedBattleScreen: React.FC = () => {
     lastDamageDealt,
     lastDamageTaken,
     lastReflectedDamage,
+    lastLeechedHealth,
     lastEnemyEvadedTime,
     lastPlayerEvadedTime,
+    isPlayerStunned,
     spawnEnemy,
     attackEnemy,
     attackPlayer,
@@ -84,15 +98,19 @@ const AnimatedBattleScreen: React.FC = () => {
   const enemyComputed = currentEnemy ? getComputedStats(currentEnemy.stats) : null;
   const enemyAttackSpeed = enemyComputed?.attackSpeed ?? 1;
 
-  const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
+  const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit' | 'stunned'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   
-  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'miss-enemy' | 'miss-player' | 'shield', coreType?: string }[]>([]);
+  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'taken-core' | 'miss-enemy' | 'miss-player' | 'shield' | 'leech', coreType?: string }[]>([]);
   const [showStats, setShowStats] = useState<boolean>(false);
   const [damageLog, setDamageLog] = useState<LogEntry[]>([]);
   const [battleTime, setBattleTime] = useState(0);
   const [timeMultiplier, setTimeMultiplier] = useState(1);
   const [turn, setTurn] = useState(1);
+
+  useEffect(() => {
+    setPlayerAnim(isPlayerStunned ? 'stunned' : 'idle');
+  }, [isPlayerStunned]);
 
   useEffect(() => {
     if (gameStatus !== 'BATTLE') {
@@ -169,14 +187,11 @@ const AnimatedBattleScreen: React.FC = () => {
     setDamageLog(prev => [{ id: Date.now() + Math.random(), message }, ...prev.slice(0, 49)]);
   };
 
-  // [수정] 모든 전투 이벤트를 한 곳에서 처리하는 통합 useEffect
   useEffect(() => {
-    // 플레이어 공격 이벤트 (성공, 회피, 쉴드 회복 모두 한 번에 처리)
     if (lastDamageDealt || (lastEnemyEvadedTime ?? 0) > 0) {
       const { normal = 0, core = 0, shieldRecovered = 0 } = lastDamageDealt || {};
       const isMiss = (lastEnemyEvadedTime ?? 0) > 0;
 
-      // 팝업 생성
       if (normal > 0) {
         const popup = { id: Date.now(), val: normal, type: 'normal' as const };
         setDamagePopups(prev => [...prev, popup]);
@@ -202,7 +217,6 @@ const AnimatedBattleScreen: React.FC = () => {
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
       }
 
-      // 로그 생성 (한 줄로 통합)
       if (isMiss) {
         addLog(
           <span>
@@ -226,38 +240,39 @@ const AnimatedBattleScreen: React.FC = () => {
       }
     }
 
-    // 적 공격 데미지 (반사 포함)
-    if (lastDamageTaken && lastDamageTaken > 0) {
-      const damage = Math.floor(lastDamageTaken);
-      const popup = { id: Date.now() + Math.random(), val: damage, type: 'taken' as const };
-      setTimeout(() => {
+    if (lastDamageTaken && (lastDamageTaken.normal > 0 || lastDamageTaken.core > 0)) {
+      const { normal, core } = lastDamageTaken;
+      if (normal > 0) {
+        const popup = { id: Date.now() + Math.random(), val: normal, type: 'taken' as const };
         setDamagePopups(prev => [...prev, popup]);
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
-      }, 150);
-
-      const reflectionText = lastReflectedDamage && lastReflectedDamage > 0 
-        ? <span className="text-cyan-400 ml-1">(반사 {lastReflectedDamage})</span>
-        : '';
-      
-      if (lastReflectedDamage && lastReflectedDamage > 0) {
-        const reflectPopup = { id: Date.now() + 1, val: lastReflectedDamage, type: 'reflect' as const };
-        setTimeout(() => {
-          setDamagePopups(prev => [...prev, reflectPopup]);
-          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== reflectPopup.id)), 1000);
-        }, 300);
       }
-      
+      if (core > 0) {
+        const popup = { id: Date.now() + Math.random(), val: core, type: 'taken-core' as const };
+        setTimeout(() => {
+          setDamagePopups(prev => [...prev, popup]);
+          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
+        }, 150);
+      }
+
+      const damageParts = [];
+      if (normal > 0) damageParts.push(<span key="n" className="text-red-400">일반 {normal}</span>);
+      if (core > 0) damageParts.push(<span key="c" className="text-purple-500">코어 {core}</span>);
+
+      const reflectionText = (lastReflectedDamage ?? 0) > 0 ? <span className="text-cyan-400 ml-1">(반사 {lastReflectedDamage})</span> : '';
+      const leechText = (lastLeechedHealth ?? 0) > 0 ? <span className="text-green-400 ml-1">(흡수 {lastLeechedHealth})</span> : '';
+
       addLog(
         <span>
           <span className="text-red-500">[S{stage}-{turn}] E: </span>
-          <span className="text-red-500">{damage} 데미지</span>
+          {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
           {reflectionText}
+          {leechText}
         </span>
       );
     }
 
-    // 적 공격 회피
-    if (lastPlayerEvadedTime && lastPlayerEvadedTime > 0) {
+    if ((lastPlayerEvadedTime ?? 0) > 0) {
       const popup = { id: Date.now() + Math.random(), val: 0, type: 'miss-player' as const };
       setTimeout(() => {
         setDamagePopups(prev => [...prev, popup]);
@@ -271,7 +286,7 @@ const AnimatedBattleScreen: React.FC = () => {
       );
     }
 
-  }, [lastDamageDealt, lastDamageTaken, lastReflectedDamage, lastEnemyEvadedTime, lastPlayerEvadedTime]);
+  }, [lastDamageDealt, lastDamageTaken, lastReflectedDamage, lastLeechedHealth, lastEnemyEvadedTime, lastPlayerEvadedTime]);
 
 
   useEffect(() => {
@@ -291,7 +306,8 @@ const AnimatedBattleScreen: React.FC = () => {
   const playerVariants: Variants = {
     idle: { y: [0, -6, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut" } },
     attack: { x: [0, 50, 0], transition: { duration: 0.22, times: [0, 0.4, 1] } },
-    hit: { x: [-12, 12, -8, 6, 0], filter: ["brightness(1)", "brightness(2) contrast(1.5)", "brightness(1)"], transition: { duration: 0.25 } }
+    hit: { x: [-12, 12, -8, 6, 0], filter: ["brightness(1)", "brightness(2) contrast(1.5)", "brightness(1)"], transition: { duration: 0.25 } },
+    stunned: { rotate: [0, -2, 2, -2, 2, 0], transition: { duration: 0.5, repeat: Infinity } },
   };
 
   const enemyVariants: Variants = {
@@ -313,6 +329,7 @@ const AnimatedBattleScreen: React.FC = () => {
   ];
 
   const remainingTime = 30 - battleTime;
+  const enemyCoreDisplay = currentEnemy?.core ? getEnemyCoreDisplay(currentEnemy.core.type) : null;
 
   return (
       <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none flex-grow">
@@ -363,6 +380,7 @@ const AnimatedBattleScreen: React.FC = () => {
     <div className="text-[10px] font-black text-neutral-700 flex items-center gap-1 leading-none mb-1 truncate w-full">
       <span>PLAYER</span>
       {(playerShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(playerShield || 0)}</span>}
+      {isPlayerStunned && <span className="text-yellow-500 text-xs font-bold animate-pulse">STUN</span>}
     </div>
     <div className="text-xs font-black flex items-center leading-none text-neutral-400">
       [{renderRetroGauge(player.currentHealth, computed.maxHealth, 10, 'text-green-600')}]
@@ -373,8 +391,11 @@ const AnimatedBattleScreen: React.FC = () => {
   </div>
 
   <div className="flex flex-col items-end select-none w-full min-w-0">
-    <div className="text-[10px] font-black text-neutral-700 leading-none mb-1 truncate w-full text-right">
-      ENEMY
+    <div className="text-[10px] font-black text-neutral-700 leading-none mb-1 truncate w-full text-right flex justify-end items-center gap-1">
+      {enemyCoreDisplay && (
+        <span className={`font-bold ${enemyCoreDisplay.color}`}>[{enemyCoreDisplay.abbr}]</span>
+      )}
+      <span>ENEMY</span>
     </div>
     <div className="text-xs font-black flex items-center leading-none text-neutral-400">
       [{renderRetroGauge(currentEnemy?.currentHealth || 0, enemyComputed?.maxHealth || 1, 10, 'text-red-600')}]
@@ -397,7 +418,7 @@ const AnimatedBattleScreen: React.FC = () => {
               >
                 <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-950 font-mono select-none">
                   <div className="flex justify-between w-full px-2 mb-1.5">
-                    {playerAnim === 'hit' ? (
+                    {playerAnim === 'hit' || playerAnim === 'stunned' ? (
                       <>
                         <span className="text-xs font-black leading-none">&gt;</span>
                         <span className="text-xs font-black leading-none">&lt;</span>
@@ -414,12 +435,13 @@ const AnimatedBattleScreen: React.FC = () => {
               </motion.div>
 
               <AnimatePresence>
-                {damagePopups.filter(p => p.type === 'taken' || p.type === 'miss-player' || p.type === 'shield').map((popup) => {
+                {damagePopups.filter(p => p.type.startsWith('taken') || p.type === 'miss-player' || p.type === 'shield').map((popup) => {
                   const isMiss = popup.type === 'miss-player';
                   const isShield = popup.type === 'shield';
+                  const isCore = popup.type === 'taken-core';
                   let text = isMiss ? 'MISS' : (isShield ? `+${popup.val}` : `-${popup.val}`);
-                  let colorClass = isMiss ? 'text-neutral-400 text-base italic' : (isShield ? 'text-green-500 text-lg' : 'text-red-500 text-lg');
-                  let xOffset = isMiss ? -20 : (isShield ? 20 : 0);
+                  let colorClass = isMiss ? 'text-neutral-400 text-base italic' : (isShield ? 'text-green-500 text-lg' : (isCore ? 'text-purple-500 text-xl' : 'text-red-500 text-lg'));
+                  let xOffset = isMiss ? -20 : (isShield ? 20 : (isCore ? 15 : 0));
                   
                   return (
                       <motion.div
@@ -467,7 +489,7 @@ const AnimatedBattleScreen: React.FC = () => {
               )}
 
               <AnimatePresence>
-                {damagePopups.filter(p => p.type !== 'taken' && p.type !== 'miss-player' && p.type !== 'shield').map((popup) => {
+                {damagePopups.filter(p => !p.type.startsWith('taken') && p.type !== 'miss-player' && p.type !== 'shield').map((popup) => {
                   let colorClass = 'text-white text-base';
                   let scaleVal = 1.2;
                   let text = `-${popup.val}`;
@@ -498,6 +520,12 @@ const AnimatedBattleScreen: React.FC = () => {
                     colorClass = 'text-neutral-400 text-lg italic';
                     scaleVal = 1.3;
                     text = 'MISS';
+                  } else if (popup.type === 'leech') {
+                    colorClass = 'text-green-400 text-lg';
+                    scaleVal = 1.3;
+                    text = `+${popup.val}`;
+                    xOffset = 30;
+                    yOffset = -40;
                   }
 
                   return (
