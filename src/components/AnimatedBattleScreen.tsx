@@ -74,6 +74,7 @@ const AnimatedBattleScreen: React.FC = () => {
   const {
     player,
     playerShield,
+    enemyShield,
     currentEnemy,
     stage,
     maxStage,
@@ -396,6 +397,7 @@ const AnimatedBattleScreen: React.FC = () => {
         <span className={`font-bold ${enemyCoreDisplay.color}`}>[{enemyCoreDisplay.abbr}]</span>
       )}
       <span>ENEMY</span>
+      {(enemyShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(enemyShield || 0)}</span>}
     </div>
     <div className="text-xs font-black flex items-center leading-none text-neutral-400">
       [{renderRetroGauge(currentEnemy?.currentHealth || 0, enemyComputed?.maxHealth || 1, 10, 'text-red-600')}]

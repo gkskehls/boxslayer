@@ -28,7 +28,8 @@ export interface Enemy extends Entity {
   type: EnemyType;
   goldReward: number;
   expReward: number;
-  core?: Core | null; // [신규] 적이 장착한 코어
+  core?: Core | null;
+  shield?: number; // [신규] 적의 보호막
 }
 
 // 1. 코어 타입 정의 (이제 데이터 구조가 단순해집니다)
@@ -59,26 +60,27 @@ export interface GameState {
     core: number;
     shieldRecovered?: number;
   };
-  lastDamageTaken: { // [수정] 플레이어가 받은 데미지를 상세히 기록
+  lastDamageTaken: {
     normal: number;
     core: number;
   };
-  lastLeechedHealth?: number; // [신규] 적이 흡수한 체력
+  lastLeechedHealth?: number;
   battleStartTime: number;
   reincarnationPoints: number;
   unlockedSkills: string[];
-  playerShield?: number; // 물 코어용 쉴드 상태값
-  windHitCount?: number;  // 바람 코어: 연격 및 회피용 누적 타격 수
-  hasWindEvasion?: boolean; // 바람 코어: 확정 회피 충전 여부
-  elecHitCount?: number;    // 번개 코어: 기절용 누적 타격 수
-  isEnemyStunned?: boolean;  // 번개 코어: 적의 기절 상태 여부
-  lastReflectedDamage?: number; // 물 코어 반사 데미지 표시용
+  playerShield?: number;
+  enemyShield?: number; // [신규] 적의 보호막 상태
+  windHitCount?: number;
+  hasWindEvasion?: boolean;
+  elecHitCount?: number;
+  isEnemyStunned?: boolean;
+  lastReflectedDamage?: number;
   lastEnemyEvadedTime?: number;
   lastPlayerEvadedTime?: number;
-  activeBuffs: Record<string, number>; // [신규] 활성화된 상점 버프 (키: buffId, 값: 종료 타임스탬프)
-  defeatReason?: DefeatReason; // [신규] 패배 원인
-  isPlayerStunned?: boolean; // [신규] 플레이어 기절 상태
-  playerStunEndTime?: number; // [신규] 플레이어 기절 종료 시간
+  activeBuffs: Record<string, number>;
+  defeatReason?: DefeatReason;
+  isPlayerStunned?: boolean;
+  playerStunEndTime?: number;
 }
 
 export type SkillNodeType = 'NORMAL' | 'NOTABLE' | 'KEYSTONE';
@@ -95,9 +97,9 @@ export interface SkillEffects {
   rpBonusMultiplier?: number;
   offlineRewardMultiplier?: number;
   coreBonus?: number;
-  multiHitRequired?: number; // 연격에 필요한 타격 횟수
-  multiHitDamageBonus?: number; // 연격 데미지 추가 증가율 (%)
-  evasionChanceBonus?: number; // 추가 회피 확률 (%)
+  multiHitRequired?: number;
+  multiHitDamageBonus?: number;
+  evasionChanceBonus?: number;
 }
 
 export interface SkillNode {
@@ -110,7 +112,6 @@ export interface SkillNode {
   effects: SkillEffects;
 }
 
-// [신규] 상점 아이템 타입 정의
 export type ShopItemType = 'TEMP_STAT' | 'TIMED_BUFF';
 
 export interface ShopItem {
@@ -123,6 +124,6 @@ export interface ShopItem {
     target: string;
     value: number;
   };
-  duration?: number; // 초 단위 (시간제 버프에만 존재)
-  requiredSkillId?: string | null; // null이면 조건 없음
+  duration?: number;
+  requiredSkillId?: string | null;
 }

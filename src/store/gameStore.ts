@@ -275,16 +275,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       con: Math.max(1, Math.floor(baseStat * conMult))
     };
 
-    let initialShield = 0;
-    if (state.equippedCore?.type === 'WATER') {
-      const waterStats = getCoreStats('WATER', state.equippedCore.level);
-      const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
-      initialShield = Math.floor(playerComputed.maxHealth * (waterStats.initialRatio || 0));
-    }
-
-    const goldMult = (state.activeBuffs['buff_gold_2x'] && state.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0;
-    const expMult = (state.activeBuffs['buff_exp_2x'] && state.activeBuffs['buff_exp_2x'] > now) ? 2.0 : 1.0;
-
     const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
     const coreTypeIndex = (nextStage % 7) % 4;
     const coreType = coreTypes[coreTypeIndex];
@@ -295,6 +285,23 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       type: coreType,
       level: coreLevel,
     };
+
+    let playerInitialShield = 0;
+    if (state.equippedCore?.type === 'WATER') {
+      const waterStats = getCoreStats('WATER', state.equippedCore.level);
+      const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
+      playerInitialShield = Math.floor(playerComputed.maxHealth * (waterStats.initialRatio || 0));
+    }
+
+    let enemyInitialShield = 0;
+    if (enemyCore.type === 'WATER') {
+      const waterStats = getCoreStats('WATER', enemyCore.level);
+      const enemyComputed = getComputedStats(stats);
+      enemyInitialShield = Math.floor(enemyComputed.maxHealth * (waterStats.initialRatio || 0));
+    }
+
+    const goldMult = (state.activeBuffs['buff_gold_2x'] && state.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0;
+    const expMult = (state.activeBuffs['buff_exp_2x'] && state.activeBuffs['buff_exp_2x'] > now) ? 2.0 : 1.0;
 
     return {
       stage: nextStage,
@@ -309,10 +316,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         goldReward: Math.floor((10 + nextStage) * (isBoss ? 2 : 1) * goldMult),
         expReward: Math.floor((20 + (nextStage * 5)) * (isBoss ? 2 : 1) * expMult),
         core: enemyCore,
+        shield: enemyInitialShield,
       },
       gameStatus: 'BATTLE',
       battleStartTime: Date.now(),
-      playerShield: initialShield,
+      playerShield: playerInitialShield,
+      enemyShield: enemyInitialShield,
       windHitCount: 0,
       hasWindEvasion: false,
       elecHitCount: 0,
@@ -352,7 +361,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let normalDamage = 0;
     let coreDamage = 0;
     let shieldRecovered = 0;
-    let nextShield = state.playerShield || 0;
+    let nextPlayerShield = state.playerShield || 0;
     let currentWindHits = state.windHitCount || 0;
     let nextWindEvasion = state.hasWindEvasion || false;
     let currentElecHits = state.elecHitCount || 0;
@@ -371,7 +380,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       else if (state.equippedCore.type === 'WATER') {
         const regenAmount = Math.floor(playerComputed.maxHealth * (stats.regenRatio || 0));
         shieldRecovered = regenAmount * hitCount;
-        nextShield = Math.min(playerComputed.maxHealth * 20000, (nextShield || 0) + shieldRecovered);
+        nextPlayerShield = Math.min(playerComputed.maxHealth * 20000, (nextPlayerShield || 0) + shieldRecovered);
       }
       else if (state.equippedCore.type === 'WIND') {
         coreDamage += Math.floor(playerComputed.attack);
@@ -407,7 +416,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         ...state,
         lastDamageDealt: { normal: 0, core: coreDamage, shieldRecovered },
         lastEnemyEvadedTime: now,
-        playerShield: nextShield,
+        playerShield: nextPlayerShield,
         windHitCount: currentWindHits,
         hasWindEvasion: nextWindEvasion,
         elecHitCount: currentElecHits,
@@ -420,7 +429,18 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount);
 
     const totalDamage = Math.floor(normalDamage + coreDamage);
-    const newEnemyHealth = Math.max(0, Math.floor(state.currentEnemy.currentHealth - totalDamage));
+    
+    let remainingEnemyShield = state.enemyShield || 0;
+    let actualHealthDamage = 0;
+
+    if (remainingEnemyShield >= totalDamage) {
+      remainingEnemyShield -= totalDamage;
+    } else {
+      actualHealthDamage = totalDamage - remainingEnemyShield;
+      remainingEnemyShield = 0;
+    }
+
+    const newEnemyHealth = Math.max(0, Math.floor(state.currentEnemy.currentHealth - actualHealthDamage));
 
     if (newEnemyHealth <= 0) {
       const { expReward, goldReward } = state.currentEnemy;
@@ -453,7 +473,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         maxStage: Math.max(state.maxStage || 1, state.stage + 1),
         gameStatus: 'VICTORY',
         lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage), shieldRecovered },
-        playerShield: nextShield,
+        playerShield: nextPlayerShield,
+        enemyShield: 0,
         windHitCount: currentWindHits,
         hasWindEvasion: nextWindEvasion,
         elecHitCount: currentElecHits,
@@ -465,7 +486,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     return {
       currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
       lastDamageDealt: { normal: Math.floor(normalDamage), core: Math.floor(coreDamage), shieldRecovered },
-      playerShield: nextShield,
+      playerShield: nextPlayerShield,
+      enemyShield: remainingEnemyShield,
       windHitCount: currentWindHits,
       hasWindEvasion: nextWindEvasion,
       elecHitCount: currentElecHits,
@@ -572,14 +594,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     const totalDamage = normalDamage + coreDamage;
-    let remainingShield = state.playerShield || 0;
+    let remainingPlayerShield = state.playerShield || 0;
     let actualHealthDamage = 0;
 
-    if (remainingShield >= totalDamage) {
-      remainingShield -= totalDamage;
+    if (remainingPlayerShield >= totalDamage) {
+      remainingPlayerShield -= totalDamage;
     } else {
-      actualHealthDamage = totalDamage - remainingShield;
-      remainingShield = 0;
+      actualHealthDamage = totalDamage - remainingPlayerShield;
+      remainingPlayerShield = 0;
     }
 
     const nextHealth = Math.max(0, Math.floor(state.player.currentHealth - actualHealthDamage));
@@ -621,7 +643,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     return {
       ...state,
       player: { ...state.player, currentHealth: nextHealth },
-      playerShield: remainingShield,
+      playerShield: remainingPlayerShield,
       currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
       lastDamageTaken: { normal: normalDamage, core: coreDamage },
       lastReflectedDamage: actualReflectedDmg,
