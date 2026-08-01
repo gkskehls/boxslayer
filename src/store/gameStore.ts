@@ -578,6 +578,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let isPlayerStunned = false;
     let playerStunEndTime = 0;
     let amountLeeched = 0;
+    let enemyShieldRecovered = 0;
+    let nextEnemyShield = state.enemyShield || 0;
 
     if (enemyCore) {
       const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
@@ -590,6 +592,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           isPlayerStunned = true;
           playerStunEndTime = now + ((enemyCoreStats.stunDuration || 2) * 1000);
         }
+      }
+      if (enemyCore.type === 'WATER' && enemyCoreStats.regenRatio) {
+        enemyShieldRecovered = Math.floor(enemyComputed.maxHealth * enemyCoreStats.regenRatio);
+        nextEnemyShield += enemyShieldRecovered;
       }
     }
 
@@ -644,6 +650,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       ...state,
       player: { ...state.player, currentHealth: nextHealth },
       playerShield: remainingPlayerShield,
+      enemyShield: nextEnemyShield,
       currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
       lastDamageTaken: { normal: normalDamage, core: coreDamage },
       lastReflectedDamage: actualReflectedDmg,

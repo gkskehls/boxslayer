@@ -102,7 +102,7 @@ const AnimatedBattleScreen: React.FC = () => {
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit' | 'stunned'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   
-  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'taken-core' | 'miss-enemy' | 'miss-player' | 'shield' | 'leech', coreType?: string }[]>([]);
+  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'taken-core' | 'miss-enemy' | 'miss-player' | 'shield' | 'enemy-shield' | 'leech', coreType?: string }[]>([]);
   const [showStats, setShowStats] = useState<boolean>(false);
   const [damageLog, setDamageLog] = useState<LogEntry[]>([]);
   const [battleTime, setBattleTime] = useState(0);
@@ -522,7 +522,7 @@ const AnimatedBattleScreen: React.FC = () => {
                     colorClass = 'text-neutral-400 text-lg italic';
                     scaleVal = 1.3;
                     text = 'MISS';
-                  } else if (popup.type === 'leech') {
+                  } else if (popup.type === 'leech' || popup.type === 'enemy-shield') {
                     colorClass = 'text-green-400 text-lg';
                     scaleVal = 1.3;
                     text = `+${popup.val}`;
