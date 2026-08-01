@@ -1,7 +1,7 @@
 // src/store/gameStore.ts
 
 import { create } from 'zustand';
-import type { GameState, Player, Stats, Core, ShopItem, DefeatReason } from '../types/game';
+import type { GameState, Player, Stats, Core, ShopItem, DefeatReason, CoreType } from '../types/game';
 import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage';
 import { SKILL_TREE_DATA } from '../constants/skills';
 
@@ -166,7 +166,9 @@ const getInitialStoreState = (): GameState => {
       maxStage: loadedState.maxStage || loadedState.stage || 1,
       lastEnemyEvadedTime: 0,
       lastPlayerEvadedTime: 0,
-      activeBuffs: loadedState.activeBuffs || {}
+      activeBuffs: loadedState.activeBuffs || {},
+      isPlayerStunned: false,
+      playerStunEndTime: 0,
     } as GameState;
   }
 
@@ -188,7 +190,9 @@ const getInitialStoreState = (): GameState => {
     maxStage: 1,
     lastEnemyEvadedTime: 0,
     lastPlayerEvadedTime: 0,
-    activeBuffs: {}
+    activeBuffs: {},
+    isPlayerStunned: false,
+    playerStunEndTime: 0,
   } as GameState;
 };
 
@@ -223,7 +227,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       lastReflectedDamage: 0,
       lastEnemyEvadedTime: 0,
       lastPlayerEvadedTime: 0,
-      activeBuffs: {}
+      activeBuffs: {},
+      isPlayerStunned: false,
+      playerStunEndTime: 0,
     };
   }),
 
@@ -231,7 +237,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const now = Date.now();
     const isBossTrackerActive = state.activeBuffs['buff_boss_tracker'] && state.activeBuffs['buff_boss_tracker'] > now;
     
-    // [수정] 보스 추적기 발동 시 일반 층을 완전히 건너뛰고 다음 5의 배수(보스층)로 강제 워프!
     let nextStage = state.stage;
     if (isBossTrackerActive && nextStage % 5 !== 0) {
       nextStage = nextStage + (5 - (nextStage % 5));
@@ -272,12 +277,22 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       initialShield = Math.floor(playerComputed.maxHealth * (waterStats.initialRatio || 0));
     }
 
-    // [수정] 획득 재화 2배 버프를 스폰될 때 적의 능력치에 아예 박아버려서 UI에도 확실히 표시되게 변경
     const goldMult = (state.activeBuffs['buff_gold_2x'] && state.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0;
     const expMult = (state.activeBuffs['buff_exp_2x'] && state.activeBuffs['buff_exp_2x'] > now) ? 2.0 : 1.0;
 
+    const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
+    const coreTypeIndex = (nextStage % 7) % 4;
+    const coreType = coreTypes[coreTypeIndex];
+    const coreLevel = Math.max(1, Math.floor(nextStage / 10));
+    const enemyCore: Core = {
+      id: `enemy_core_${nextStage}`,
+      name: `${coreType} 코어`,
+      type: coreType,
+      level: coreLevel,
+    };
+
     return {
-      stage: nextStage, // 워프된 스테이지 저장
+      stage: nextStage,
       maxStage: Math.max(state.maxStage || 1, nextStage),
       currentEnemy: {
         id: `enemy-${nextStage}`,
@@ -286,8 +301,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         type: isBoss ? 'BOSS' : 'NORMAL',
         stats: stats,
         currentHealth: Math.floor(getComputedStats(stats).maxHealth),
-        goldReward: Math.floor((10 + nextStage) * (isBoss ? 2 : 1) * goldMult), // 여기서 미리 2배 곱하기
-        expReward: Math.floor((20 + (nextStage * 5)) * (isBoss ? 2 : 1) * expMult), // 획득경험치. 여기서 미리 2배 곱하기
+        goldReward: Math.floor((10 + nextStage) * (isBoss ? 2 : 1) * goldMult),
+        expReward: Math.floor((20 + (nextStage * 5)) * (isBoss ? 2 : 1) * expMult),
+        core: enemyCore,
       },
       gameStatus: 'BATTLE',
       battleStartTime: Date.now(),
@@ -295,7 +311,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       windHitCount: 0,
       hasWindEvasion: false,
       elecHitCount: 0,
-      isEnemyStunned: false
+      isEnemyStunned: false,
+      isPlayerStunned: false,
+      playerStunEndTime: 0,
     };
   }),
 
@@ -303,6 +321,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (state.gameStatus !== 'BATTLE' || !state.currentEnemy) return state;
 
     const now = Date.now();
+    if (state.isPlayerStunned && now < (state.playerStunEndTime || 0)) {
+      return state; // 플레이어 기절 상태면 공격 불가
+    }
+
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
 
@@ -331,7 +353,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let currentElecHits = state.elecHitCount || 0;
     let nextEnemyStunned = state.isEnemyStunned || false;
 
-    // [수정] 모든 코어 효과는 회피와 무관하게 발동
     if (state.equippedCore) {
       const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
       if (state.equippedCore.type === 'FIRE') {
@@ -500,6 +521,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     let hitChance = 0.95 + ((enemyComputed.accuracy - playerComputed.evasion) * 0.01);
 
+    const enemyCore = state.currentEnemy.core;
+    if (enemyCore && enemyCore.type === 'WIND') {
+      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
+      hitChance += (enemyCoreStats.hitEvasionBonus || 0);
+    }
+
     hitChance -= playerComputed.modifiers.evasionChanceBonus;
     if (state.equippedCore?.type === 'WIND') {
       const windStats = getCoreStats('WIND', state.equippedCore.level);
@@ -517,9 +544,27 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     const baseDamage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
-    const randomMultiplier = 0.85 + Math.random() * 0.3; // 85% ~ 115%
-    const damage = Math.floor(baseDamage * randomMultiplier);
+    const randomMultiplier = 0.85 + Math.random() * 0.3;
+    let damage = Math.floor(baseDamage * randomMultiplier);
     
+    let isPlayerStunned = false;
+    let playerStunEndTime = 0;
+
+    if (enemyCore) {
+      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
+      if (enemyCore.type === 'FIRE' && enemyCoreStats.fireDamage) {
+        const strBonus = state.currentEnemy.stats.str * (enemyCoreStats.fireDamageRatio || 0);
+        const fireDamage = Math.floor((enemyCoreStats.fireDamage + strBonus) * randomMultiplier);
+        damage += fireDamage;
+      }
+      if (enemyCore.type === 'ELECTRIC' && enemyCoreStats.stunChance) {
+        if (Math.random() < enemyCoreStats.stunChance) {
+          isPlayerStunned = true;
+          playerStunEndTime = now + ((enemyCoreStats.stunDuration || 2) * 1000);
+        }
+      }
+    }
+
     let remainingShield = state.playerShield || 0;
     let actualHealthDamage = 0;
 
@@ -538,10 +583,16 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const stats = getCoreStats('WATER', state.equippedCore.level);
       const isWaterExtreme = state.activeBuffs['buff_core_water'] && state.activeBuffs['buff_core_water'] > now;
       actualReflectedDmg = Math.floor(damage * (stats.reflectRatio || 0) * (isWaterExtreme ? 5 : 1));
-
       if (actualReflectedDmg > 0) {
         enemyNextHealth = Math.max(0, Math.floor(enemyNextHealth - actualReflectedDmg)); 
       }
+    }
+
+    if (enemyCore && enemyCore.type === 'WATER') {
+      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
+      const leechRatio = (enemyCoreStats.regenRatio || 0) * 0.5; // 플레이어 회복량의 절반만 흡수
+      const amountLeeched = Math.floor(actualHealthDamage * leechRatio);
+      enemyNextHealth = Math.min(enemyComputed.maxHealth, enemyNextHealth + amountLeeched);
     }
 
     if (nextHealth <= 0) {
@@ -553,7 +604,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         defeatReason: 'HEALTH',
         lastDamageTaken: damage,
         lastReflectedDamage: actualReflectedDmg,
-        lastPlayerEvadedTime: 0
+        lastPlayerEvadedTime: 0,
+        isPlayerStunned: false,
+        playerStunEndTime: 0,
       };
     }
 
@@ -564,7 +617,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
       lastDamageTaken: damage,
       lastReflectedDamage: actualReflectedDmg,
-      lastPlayerEvadedTime: 0
+      lastPlayerEvadedTime: 0,
+      isPlayerStunned: isPlayerStunned,
+      playerStunEndTime: playerStunEndTime,
     };
   }),
 
@@ -593,7 +648,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const computed = getComputedStats(s.player.stats, s.unlockedSkills, s.activeBuffs);
     const bonusMultiplier = 1 + computed.modifiers.offlineRewardMultiplier;
 
-    // [수정] 오프라인 보상 정산 시에도 시간제 버프 배율을 곱해줍니다!
     const now = Date.now();
     const goldMult = (s.activeBuffs['buff_gold_2x'] && s.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0;
     const expMult = (s.activeBuffs['buff_exp_2x'] && s.activeBuffs['buff_exp_2x'] > now) ? 2.0 : 1.0;

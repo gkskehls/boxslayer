@@ -28,6 +28,7 @@ export interface Enemy extends Entity {
   type: EnemyType;
   goldReward: number;
   expReward: number;
+  core?: Core | null; // [신규] 적이 장착한 코어
 }
 
 // 1. 코어 타입 정의 (이제 데이터 구조가 단순해집니다)
@@ -72,6 +73,8 @@ export interface GameState {
   lastPlayerEvadedTime?: number;
   activeBuffs: Record<string, number>; // [신규] 활성화된 상점 버프 (키: buffId, 값: 종료 타임스탬프)
   defeatReason?: DefeatReason; // [신규] 패배 원인
+  isPlayerStunned?: boolean; // [신규] 플레이어 기절 상태
+  playerStunEndTime?: number; // [신규] 플레이어 기절 종료 시간
 }
 
 export type SkillNodeType = 'NORMAL' | 'NOTABLE' | 'KEYSTONE';
