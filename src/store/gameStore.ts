@@ -31,37 +31,63 @@ export const calculateReincarnationPoints = (stage: number, level: number, cores
   return Math.max(0, stagePoints + levelPoints + corePoints);
 };
 
-export const getCoreStats = (type: string, level: number): CoreStats => {
+export const getCoreStats = (type: string, level: number, unlockedSkills: string[] = []): CoreStats => {
+  const coreLevel = level > 0 ? level : 1;
+
   switch (type) {
     case 'FIRE': {
-      const baseFire = 10 + (level * 5);
-      const strRatio = 0.2 + (level * 0.02);
-      return {
-        desc: `방어무시 화염 피해 ${baseFire} + (STR의 ${Math.floor(strRatio * 100)}%)`,
-        fireDamage: baseFire,
-        fireDamageRatio: strRatio
-      };
+      let fireDamage = 1 + (coreLevel * 0.5); // 기본 능력: 소량의 고정 화염 피해
+      let fireDamageRatio = 0;
+      let description = `기본: 고정 화염 피해 (+${fireDamage.toFixed(1)})`;
+
+      if (unlockedSkills.includes('fire_notable_1')) {
+        fireDamageRatio = 0.1 + (coreLevel * 0.01); // 1차 해금: STR 계수 적용
+        description += `\n1차: STR 계수 (+${(fireDamageRatio * 100).toFixed(0)}%)`;
+      }
+      if (unlockedSkills.includes('fire_notable_dmg')) {
+        fireDamage *= 2; // 2차 해금: 화염 피해 증폭
+        fireDamageRatio *= 1.5;
+        description += `\n2차: 화염 피해 증폭`;
+      }
+      // 3차, 상점 해금은 전투 로직에서 직접 처리
+      
+      return { desc: description, fireDamage, fireDamageRatio };
     }
     case 'WATER': {
-      const initialRatio = 0.5 + (level * 0.1);
-      const regenRatio = 0.01 + (level * 0.002);
-      const reflectRatio = 0.1 + (level * 0.02);
-      return {
-        desc: `시작 쉴드 ${Math.floor(initialRatio * 100)}% / 타격 회복 ${Math.floor(regenRatio * 100)}% / 데미지 반사 ${Math.floor(reflectRatio * 100)}%`,
-        initialRatio,
-        regenRatio,
-        reflectRatio
-      };
+      let initialRatio = 0.2 + (coreLevel * 0.02); // 기본 능력: 소량의 시작 쉴드
+      let regenRatio = 0;
+      let reflectRatio = 0;
+      let description = `기본: 시작 쉴드 (+${(initialRatio * 100).toFixed(0)}%)`;
+
+      if (unlockedSkills.includes('water_notable_1')) {
+        regenRatio = 0.005 + (coreLevel * 0.001); // 1차 해금: 타격 시 쉴드 회복
+        description += `\n1차: 타격 회복 (+${(regenRatio * 100).toFixed(1)}%)`;
+      }
+      if (unlockedSkills.includes('water_notable_hp')) {
+        initialRatio *= 2; // 2차 해금: 대량의 시작 쉴드
+        description += `\n2차: 시작 쉴드 증폭`;
+      }
+      if (unlockedSkills.includes('water_notable_ref')) {
+        reflectRatio = 0.05 + (coreLevel * 0.01); // 3차 해금: 피해 반사
+        description += `\n3차: 피해 반사 (+${(reflectRatio * 100).toFixed(0)}%)`;
+      }
+      
+      return { desc: description, initialRatio, regenRatio, reflectRatio };
     }
     case 'WIND': {
-      const bonus = 0.05 + (level * 0.01);
-      return {
-        desc: `명중/회피 확률 +${Math.floor(bonus * 100)}%`,
-        hitEvasionBonus: bonus
-      };
+      let hitEvasionBonus = 0.02 + (coreLevel * 0.002); // 기본 능력: 소량의 명중/회피율
+      let description = `기본: 명중/회피 (+${(hitEvasionBonus * 100).toFixed(1)}%)`;
+      // 1차 해금부터는 전투 로직에서 직접 처리
+      
+      return { desc: description, hitEvasionBonus };
     }
-    case 'ELECTRIC':
-      return { desc: `기절 확률 ${Math.floor(10 + level)}% (2초)`, stunChance: 0.1 + (level * 0.01), stunDuration: 2 };
+    case 'ELECTRIC': {
+      let coreDamage = 1 + (coreLevel * 0.2); // 기본 능력: 소량의 추가 번개 피해
+      let description = `기본: 추가 번개 피해 (+${coreDamage.toFixed(1)})`;
+      // 1차 해금부터는 전투 로직에서 직접 처리
+
+      return { desc: description, fireDamage: coreDamage }; // fireDamage 필드를 재활용
+    }
     default:
       return { desc: '효과 없음' };
   }
@@ -171,6 +197,7 @@ const getInitialStoreState = (): GameState => {
       playerStunEndTime: 0,
       lastDamageTaken: { normal: 0, core: 0 },
       lastLeechedHealth: 0,
+      lastEnemyShieldRecovered: 0,
     } as GameState;
   }
 
@@ -186,6 +213,7 @@ const getInitialStoreState = (): GameState => {
     lastDamageDealt: { normal: 0, core: 0, shieldRecovered: 0 },
     lastDamageTaken: { normal: 0, core: 0 },
     lastLeechedHealth: 0,
+    lastEnemyShieldRecovered: 0,
     lastReflectedDamage: 0,
     battleStartTime: 0,
     reincarnationPoints: 0,
@@ -229,6 +257,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       lastDamageDealt: { normal: 0, core: 0, shieldRecovered: 0 },
       lastDamageTaken: { normal: 0, core: 0 },
       lastLeechedHealth: 0,
+      lastEnemyShieldRecovered: 0,
       lastReflectedDamage: 0,
       lastEnemyEvadedTime: 0,
       lastPlayerEvadedTime: 0,
@@ -286,16 +315,16 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       level: coreLevel,
     };
 
+    const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
     let playerInitialShield = 0;
     if (state.equippedCore?.type === 'WATER') {
-      const waterStats = getCoreStats('WATER', state.equippedCore.level);
-      const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
+      const waterStats = getCoreStats('WATER', state.equippedCore.level, state.unlockedSkills);
       playerInitialShield = Math.floor(playerComputed.maxHealth * (waterStats.initialRatio || 0));
     }
 
     let enemyInitialShield = 0;
     if (enemyCore.type === 'WATER') {
-      const waterStats = getCoreStats('WATER', enemyCore.level);
+      const waterStats = getCoreStats('WATER', enemyCore.level, ['water_notable_1', 'water_notable_hp', 'water_notable_ref']); // 적은 모든 스킬 해금 상태로 가정
       const enemyComputed = getComputedStats(stats);
       enemyInitialShield = Math.floor(enemyComputed.maxHealth * (waterStats.initialRatio || 0));
     }
@@ -345,7 +374,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let hitChance = 0.95 + ((playerComputed.accuracy - enemyComputed.evasion) * 0.01);
 
     if (state.equippedCore?.type === 'WIND') {
-      const windStats = getCoreStats('WIND', state.equippedCore.level);
+      const windStats = getCoreStats('WIND', state.equippedCore.level, state.unlockedSkills);
       hitChance += (windStats.hitEvasionBonus || 0);
     }
 
@@ -368,7 +397,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let nextEnemyStunned = state.isEnemyStunned || false;
 
     if (state.equippedCore) {
-      const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level);
+      const stats = getCoreStats(state.equippedCore.type, state.equippedCore.level, state.unlockedSkills);
       if (state.equippedCore.type === 'FIRE') {
         const myStr = state.player.stats.str;
         const strBonusDamage = myStr * (stats.fireDamageRatio || 0);
@@ -550,13 +579,13 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     const enemyCore = state.currentEnemy.core;
     if (enemyCore && enemyCore.type === 'WIND') {
-      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
+      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level, ['wind_notable_1', 'wind_notable_combo', 'wind_notable_eva']);
       hitChance += (enemyCoreStats.hitEvasionBonus || 0);
     }
 
     hitChance -= playerComputed.modifiers.evasionChanceBonus;
     if (state.equippedCore?.type === 'WIND') {
-      const windStats = getCoreStats('WIND', state.equippedCore.level);
+      const windStats = getCoreStats('WIND', state.equippedCore.level, state.unlockedSkills);
       hitChance -= (windStats.hitEvasionBonus || 0);
     }
 
@@ -582,7 +611,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let nextEnemyShield = state.enemyShield || 0;
 
     if (enemyCore) {
-      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
+      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level, ['fire_notable_1', 'fire_notable_dmg', 'fire_notable_pen', 'water_notable_1', 'water_notable_hp', 'water_notable_ref', 'elec_notable_1', 'elec_notable_stun', 'elec_notable_exec']);
       if (enemyCore.type === 'FIRE' && enemyCoreStats.fireDamage) {
         const strBonus = state.currentEnemy.stats.str * (enemyCoreStats.fireDamageRatio || 0);
         coreDamage = Math.floor((enemyCoreStats.fireDamage + strBonus) * randomMultiplier);
@@ -615,7 +644,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let actualReflectedDmg = 0;
 
     if (state.equippedCore?.type === 'WATER') {
-      const stats = getCoreStats('WATER', state.equippedCore.level);
+      const stats = getCoreStats('WATER', state.equippedCore.level, state.unlockedSkills);
       const isWaterExtreme = state.activeBuffs['buff_core_water'] && state.activeBuffs['buff_core_water'] > now;
       actualReflectedDmg = Math.floor(totalDamage * (stats.reflectRatio || 0) * (isWaterExtreme ? 5 : 1));
       if (actualReflectedDmg > 0) {
@@ -624,7 +653,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     if (enemyCore && enemyCore.type === 'WATER') {
-      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
+      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level, ['water_notable_1']);
       const leechRatio = (enemyCoreStats.regenRatio || 0) * 0.5;
       amountLeeched = Math.floor(actualHealthDamage * leechRatio);
       enemyNextHealth = Math.min(enemyComputed.maxHealth, enemyNextHealth + amountLeeched);
@@ -640,6 +669,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         lastDamageTaken: { normal: normalDamage, core: coreDamage },
         lastReflectedDamage: actualReflectedDmg,
         lastLeechedHealth: amountLeeched,
+        lastEnemyShieldRecovered: enemyShieldRecovered,
         lastPlayerEvadedTime: 0,
         isPlayerStunned: false,
         playerStunEndTime: 0,
@@ -655,6 +685,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       lastDamageTaken: { normal: normalDamage, core: coreDamage },
       lastReflectedDamage: actualReflectedDmg,
       lastLeechedHealth: amountLeeched,
+      lastEnemyShieldRecovered: enemyShieldRecovered,
       lastPlayerEvadedTime: 0,
       isPlayerStunned: isPlayerStunned,
       playerStunEndTime: playerStunEndTime,

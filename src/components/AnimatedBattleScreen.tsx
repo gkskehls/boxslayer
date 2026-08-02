@@ -84,6 +84,7 @@ const AnimatedBattleScreen: React.FC = () => {
     lastDamageTaken,
     lastReflectedDamage,
     lastLeechedHealth,
+    lastEnemyShieldRecovered,
     lastEnemyEvadedTime,
     lastPlayerEvadedTime,
     isPlayerStunned,
@@ -262,6 +263,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
       const reflectionText = (lastReflectedDamage ?? 0) > 0 ? <span className="text-cyan-400 ml-1">(반사 {lastReflectedDamage})</span> : '';
       const leechText = (lastLeechedHealth ?? 0) > 0 ? <span className="text-green-400 ml-1">(흡수 {lastLeechedHealth})</span> : '';
+      const enemyShieldText = (lastEnemyShieldRecovered ?? 0) > 0 ? <span className="text-blue-400 ml-1">(적 쉴드 +{lastEnemyShieldRecovered})</span> : '';
 
       addLog(
         <span>
@@ -269,8 +271,17 @@ const AnimatedBattleScreen: React.FC = () => {
           {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
           {reflectionText}
           {leechText}
+          {enemyShieldText}
         </span>
       );
+    }
+
+    if (lastEnemyShieldRecovered && lastEnemyShieldRecovered > 0) {
+      const popup = { id: Date.now() + Math.random(), val: lastEnemyShieldRecovered, type: 'enemy-shield' as const };
+      setTimeout(() => {
+        setDamagePopups(prev => [...prev, popup]);
+        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
+      }, 200);
     }
 
     if ((lastPlayerEvadedTime ?? 0) > 0) {
@@ -287,7 +298,7 @@ const AnimatedBattleScreen: React.FC = () => {
       );
     }
 
-  }, [lastDamageDealt, lastDamageTaken, lastReflectedDamage, lastLeechedHealth, lastEnemyEvadedTime, lastPlayerEvadedTime]);
+  }, [lastDamageDealt, lastDamageTaken, lastReflectedDamage, lastLeechedHealth, lastEnemyShieldRecovered, lastEnemyEvadedTime, lastPlayerEvadedTime]);
 
 
   useEffect(() => {

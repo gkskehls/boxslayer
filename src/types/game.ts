@@ -65,11 +65,12 @@ export interface GameState {
     core: number;
   };
   lastLeechedHealth?: number;
+  lastEnemyShieldRecovered?: number; // [신규] 적이 회복한 쉴드 양
   battleStartTime: number;
   reincarnationPoints: number;
   unlockedSkills: string[];
   playerShield?: number;
-  enemyShield?: number; // [신규] 적의 보호막 상태
+  enemyShield?: number;
   windHitCount?: number;
   hasWindEvasion?: boolean;
   elecHitCount?: number;
