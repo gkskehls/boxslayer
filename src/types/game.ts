@@ -86,6 +86,30 @@ export interface GameState {
 
 export type SkillNodeType = 'NORMAL' | 'NOTABLE' | 'KEYSTONE';
 
+export interface CoreEffect {
+  // FIRE
+  strRatio?: number;
+  baseDamageMultiplier?: number;
+  baseDamageFlat?: number;
+
+  // WATER
+  shieldPerHitRatio?: number;
+  initialShieldMultiplier?: number;
+  reflectRatio?: number;
+
+  // WIND
+  hitEvasionBonus?: number;
+  comboThreshold?: number;
+  comboDamageMultiplier?: number;
+  evasionThreshold?: number;
+
+  // ELECTRIC
+  stunThreshold?: number;
+  stunDuration?: number;
+  stunDamageMultiplier?: number;
+  executeDamageMultiplier?: number;
+}
+
 export interface SkillEffects {
   str?: number;
   dex?: number;
@@ -101,6 +125,7 @@ export interface SkillEffects {
   multiHitRequired?: number;
   multiHitDamageBonus?: number;
   evasionChanceBonus?: number;
+  coreEffects?: Partial<Record<CoreType, CoreEffect>>;
 }
 
 export interface SkillNode {
