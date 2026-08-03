@@ -445,22 +445,45 @@ const AnimatedBattleScreen: React.FC = () => {
                   const isMiss = popup.type === 'miss-player';
                   const isShield = popup.type === 'shield';
                   const isCore = popup.type === 'taken-core';
-                  let text = isMiss ? 'MISS' : (isShield ? `+${popup.val}` : `-${popup.val}`);
-                  let colorClass = isMiss ? 'text-neutral-400 text-base italic' : (isShield ? 'text-green-500 text-lg' : (isCore ? 'text-purple-500 text-xl' : 'text-red-500 text-lg'));
-                  let xOffset = isMiss ? -20 : (isShield ? 20 : (isCore ? 15 : 0));
+
+                  let text = `-${popup.val}`;
+                  let colorClass = 'text-red-500 text-lg';
+                  let xOffset = 0;
+                  let yOffset = -60;
+                  let scaleVal = 1.3;
+
+                  if (isMiss) {
+                    text = 'MISS';
+                    colorClass = 'text-neutral-400 text-base italic';
+                    xOffset = 0;
+                    yOffset = -50;
+                  } else if (isShield) {
+                    text = `+${popup.val}`;
+                    colorClass = 'text-green-500 text-lg';
+                    xOffset = 30;
+                    yOffset = -40;
+                  } else if (isCore) {
+                    colorClass = 'text-purple-500 text-xl';
+                    xOffset = 20;
+                    yOffset = -75;
+                    scaleVal = 1.5;
+                  } else { // 'taken'
+                    xOffset = -20;
+                    yOffset = -50;
+                  }
                   
                   return (
                       <motion.div
                           key={popup.id}
                           initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
-                          animate={{ opacity: 1, y: -60, scale: 1.3, x: xOffset }}
+                          animate={{ opacity: 1, y: yOffset, scale: scaleVal, x: xOffset }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.6, ease: "easeOut" }}
                           className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-51 ${colorClass}`}
                       >
                         {text}
                       </motion.div>
-                  )
+                  );
                 })}
               </AnimatePresence>
             </div>
