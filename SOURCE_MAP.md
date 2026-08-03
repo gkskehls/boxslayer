@@ -8,7 +8,7 @@
 
 ## 2. 화면 컴포넌트 (Components)
 - `App.tsx`: 메인 라우팅 및 레이아웃
-- `components/BattleScreen.tsx`: 전투 시뮬레이션 및 결과 화면
+- `components/AnimatedBattleScreen.tsx`: 전투 시뮬레이션 및 결과 화면
 - `components/StatsScreen.tsx`: 스탯 분배 및 외형 변화 UI
 - `components/CoreScreen.tsx`: 코어 관리 및 강화 UI
 - `components/TownScreen.tsx`: 마을 허브 화면
