@@ -1,6 +1,5 @@
 import type { SkillNode, SkillEffects } from '../types/game';
 
-// 헬퍼 함수의 effects 타입을 SkillEffects로 변경하여 타입 안정성 확보
 const N = (
     id: string,
     name: string,
@@ -14,14 +13,8 @@ const N = (
 });
 
 export const SKILL_TREE_DATA: Record<string, SkillNode> = {
-    // ==========================================
-    // 🌟 [중앙 시작점]
-    // ==========================================
     'core_origin': N('core_origin', '기원의 상자', '모든 힘의 시작점입니다. (체력 +5)', 'KEYSTONE', 0, [], { con: 5 }),
 
-    // ==========================================
-    // ⚙️ [유틸리티/성장] 방치 및 피버 특화 트리
-    // ==========================================
     'util_idle_1':        N('util_idle_1', '휴식의 이해 I', '오프라인 보상 10% 증가', 'NORMAL', 1, ['core_origin'], { offlineRewardMultiplier: 0.1 }),
     'util_idle_2':        N('util_idle_2', '휴식의 이해 II', '오프라인 보상 15% 증가', 'NORMAL', 2, ['util_idle_1'], { offlineRewardMultiplier: 0.15 }),
     'util_idle_3':        N('util_idle_3', '효율적인 수면', '오프라인 보상 20% 증가', 'NORMAL', 3, ['util_idle_2'], { offlineRewardMultiplier: 0.2 }),
@@ -37,9 +30,6 @@ export const SKILL_TREE_DATA: Record<string, SkillNode> = {
     'util_stat_3':        N('util_stat_3', '완벽한 몸', '모든 스탯 +3', 'NORMAL', 3, ['util_stat_2'], { str: 3, dex: 3, con: 3 }),
     'util_core_notable':  N('util_core_notable', '코어 공명 (특화)', '코어 기본 성능 10% 증폭', 'NOTABLE', 10, ['util_stat_3'], { coreBonus: 0.1 }),
 
-    // ==========================================
-    // 🔥 [불 속성] 힘(STR) & 극딜 특화 트리
-    // ==========================================
     'fire_str_1':         N('fire_str_1', '불씨', '힘(STR) +2', 'NORMAL', 1, ['core_origin'], { str: 2 }),
     'fire_str_2':         N('fire_str_2', '장작', '힘(STR) +3', 'NORMAL', 1, ['fire_str_1'], { str: 3 }),
     'fire_str_3':         N('fire_str_3', '타오르는 열기', '힘(STR) +4', 'NORMAL', 2, ['fire_str_2'], { str: 4 }),
@@ -48,18 +38,15 @@ export const SKILL_TREE_DATA: Record<string, SkillNode> = {
     'fire_dmg_1':         N('fire_dmg_1', '화력 증강 I', '힘(STR) +3', 'NORMAL', 2, ['fire_notable_1'], { str: 3 }),
     'fire_dmg_2':         N('fire_dmg_2', '화력 증강 II', '힘(STR) +4', 'NORMAL', 3, ['fire_dmg_1'], { str: 4 }),
     'fire_dmg_3':         N('fire_dmg_3', '대폭발', '힘(STR) +5', 'NORMAL', 4, ['fire_dmg_2'], { str: 5 }),
-    'fire_notable_dmg':   N('fire_notable_dmg', '2차 해금: 피해 증폭', '화염 피해의 기본 피해량과 STR 계수가 증폭됩니다.', 'NOTABLE', 8, ['fire_dmg_3'], { coreEffects: { FIRE: { baseDamageMultiplier: 2, strRatio: 0.05 } } }), // 기존 1.5배를 합연산으로近似
+    'fire_notable_dmg':   N('fire_notable_dmg', '2차 해금: 피해 증폭', '화염 피해의 기본 피해량과 STR 계수가 증폭됩니다.', 'NOTABLE', 8, ['fire_dmg_3'], { coreEffects: { FIRE: { baseDamageMultiplier: 2, strRatio: 0.05 } } }),
 
     'fire_pen_1':         N('fire_pen_1', '열관통 I', '힘(STR) +3', 'NORMAL', 2, ['fire_notable_1'], { str: 3 }),
     'fire_pen_2':         N('fire_pen_2', '열관통 II', '힘(STR) +4', 'NORMAL', 3, ['fire_pen_1'], { str: 4 }),
     'fire_pen_3':         N('fire_pen_3', '용해', '힘(STR) +5', 'NORMAL', 4, ['fire_pen_2'], { str: 5 }),
-    'fire_notable_pen':   N('fire_notable_pen', '3차 해금: 화상', '화염 피해가 적에게 지속 피해를 입히는 화상 효과를 부여합니다.', 'NOTABLE', 8, ['fire_pen_3'], { coreEffects: { FIRE: {  } } }), // 화상 로직은 전투에서 별도 처리 필요
+    'fire_notable_pen':   N('fire_notable_pen', '3차 해금: 화상', '화염 피해가 적에게 지속 피해를 입히는 화상 효과를 부여합니다.', 'NOTABLE', 8, ['fire_pen_3'], { coreEffects: { FIRE: {  } } }),
 
     'fire_keystone_1':    N('fire_keystone_1', '최종 해금: 초신성', '화상 피해가 극대화되고, 화상 상태의 적에게 모든 공격이 치명타로 적용됩니다. (상점 구매 필요)', 'KEYSTONE', 20, ['fire_notable_dmg', 'fire_notable_pen'], {}),
 
-    // ==========================================
-    // 💧 [물 속성] 체력(CON) & 반사/재생 특화 트리
-    // ==========================================
     'water_con_1':        N('water_con_1', '물방울', '체력(CON) +2', 'NORMAL', 1, ['core_origin'], { con: 2 }),
     'water_con_2':        N('water_con_2', '흐르는 강', '체력(CON) +3', 'NORMAL', 1, ['water_con_1'], { con: 3 }),
     'water_con_3':        N('water_con_3', '단단한 얼음', '체력(CON) +4', 'NORMAL', 2, ['water_con_2'], { con: 4 }),
@@ -77,9 +64,6 @@ export const SKILL_TREE_DATA: Record<string, SkillNode> = {
 
     'water_keystone_1':   N('water_keystone_1', '최종 해금: 해일', '쉴드 회복량과 피해 반사 비율이 대폭 증가합니다. (상점 구매 필요)', 'KEYSTONE', 20, ['water_notable_ref', 'water_notable_hp'], {}),
 
-    // ==========================================
-    // 🌪️ [바람 속성] 민첩(DEX) & 연격/회피 특화 트리
-    // ==========================================
     'wind_dex_1':         N('wind_dex_1', '산들바람', '민첩(DEX) +2', 'NORMAL', 1, ['core_origin'], { dex: 2 }),
     'wind_dex_2':         N('wind_dex_2', '가벼운 발걸음', '민첩(DEX) +3', 'NORMAL', 1, ['wind_dex_1'], { dex: 3 }),
     'wind_dex_3':         N('wind_dex_3', '바람의 호흡', '민첩(DEX) +4', 'NORMAL', 2, ['wind_dex_2'], { dex: 4 }),
@@ -97,9 +81,6 @@ export const SKILL_TREE_DATA: Record<string, SkillNode> = {
 
     'wind_keystone_1':    N('wind_keystone_1', '최종 해금: 태풍의 눈', '연격이 발동할 때마다 확정 회피 \'잔상\' 효과가 즉시 충전됩니다. (상점 구매 필요)', 'KEYSTONE', 20, ['wind_notable_combo', 'wind_notable_eva'], {}),
 
-    // ==========================================
-    // ⚡ [번개 속성] 하이브리드 & 기절/처형 특화 트리
-    // ==========================================
     'elec_util_1':        N('elec_util_1', '정전기', '전체 스탯 +1', 'NORMAL', 1, ['core_origin'], { str: 1, dex: 1, con: 1 }),
     'elec_util_2':        N('elec_util_2', '마찰 전기', '전체 스탯 +1', 'NORMAL', 1, ['elec_util_1'], { str: 1, dex: 1, con: 1 }),
     'elec_util_3':        N('elec_util_3', '스파크', '전체 스탯 +2', 'NORMAL', 2, ['elec_util_2'], { str: 2, dex: 2, con: 2 }),

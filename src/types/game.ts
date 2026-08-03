@@ -20,7 +20,7 @@ export interface Player extends Entity {
   experience: number;
   nextLevelExperience: number;
   statPoints: number;
-  tempStatPoints: number; // [신규] 상점에서 구매한 임시 스탯 포인트 (환생 시 초기화)
+  tempStatPoints: number;
   gold: number;
 }
 
@@ -29,13 +29,11 @@ export interface Enemy extends Entity {
   goldReward: number;
   expReward: number;
   core?: Core | null;
-  shield?: number; // [신규] 적의 보호막
+  shield?: number;
 }
 
-// 1. 코어 타입 정의 (이제 데이터 구조가 단순해집니다)
 export type CoreType = 'FIRE' | 'WATER' | 'WIND' | 'ELECTRIC' | 'EARTH';
 
-// 2. Core 인터페이스 단순화: 이제 데이터 저장에는 id, type, level만 사용합니다.
 export interface Core {
   id: string;
   name: string;
@@ -44,6 +42,11 @@ export interface Core {
 }
 
 export type DefeatReason = 'HEALTH' | 'TIMEOUT';
+
+export interface DamageDetails {
+  normal: number;
+  core: number;
+}
 
 export interface GameState {
   player: Player;
@@ -55,58 +58,42 @@ export interface GameState {
   playerCores: Core[];
   equippedCore: Core | null;
   lastOnlineTime: number;
-  lastDamageDealt: {
-    normal: number;
-    core: number;
-    shieldRecovered?: number;
-  };
-  lastDamageTaken: {
-    normal: number;
-    core: number;
-  };
-  lastLeechedHealth?: number;
-  lastEnemyShieldRecovered?: number; // [신규] 적이 회복한 쉴드 양
+  lastDamageDealt: DamageDetails & { shieldRecovered?: number };
+  lastDamageTaken: DamageDetails;
+  lastLeechedHealth: number;
+  lastEnemyShieldRecovered: number;
   battleStartTime: number;
   reincarnationPoints: number;
   unlockedSkills: string[];
-  playerShield?: number;
-  enemyShield?: number;
-  windHitCount?: number;
-  hasWindEvasion?: boolean;
-  elecHitCount?: number;
-  isEnemyStunned?: boolean;
-  lastReflectedDamage?: number;
-  lastEnemyEvadedTime?: number;
-  lastPlayerEvadedTime?: number;
+  playerShield: number;
+  enemyShield: number;
+  windHitCount: number;
+  hasWindEvasion: boolean;
+  elecHitCount: number;
+  lastReflectedDamage: number;
+  lastEnemyEvadedTime: number;
+  lastPlayerEvadedTime: number;
   activeBuffs: Record<string, number>;
   defeatReason?: DefeatReason;
-  isPlayerStunned?: boolean;
-  playerStunEndTime?: number;
+  playerStunEndTime: number;
+  enemyStunEndTime: number;
 }
 
 export type SkillNodeType = 'NORMAL' | 'NOTABLE' | 'KEYSTONE';
 
 export interface CoreEffect {
-  // FIRE
   strRatio?: number;
   baseDamageMultiplier?: number;
   baseDamageFlat?: number;
-
-  // WATER
   shieldPerHitRatio?: number;
   initialShieldMultiplier?: number;
   reflectRatio?: number;
-
-  // WIND
   hitEvasionBonus?: number;
   comboThreshold?: number;
   comboDamageMultiplier?: number;
   evasionThreshold?: number;
-
-  // ELECTRIC
   stunThreshold?: number;
   stunDuration?: number;
-  stunDamageMultiplier?: number;
   executeDamageMultiplier?: number;
 }
 

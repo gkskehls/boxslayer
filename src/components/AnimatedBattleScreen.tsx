@@ -5,7 +5,6 @@ import { useGameStore, getComputedStats } from '../store/gameStore';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import type { CoreType } from '../types/game';
 
-// [수정됨] getDynamicStyle 함수: 플레이어는 고정 크기, 적은 스탯 기반 동적 크기
 const getDynamicStyle = (stats: { str: number; dex: number; con: number }, isPlayer: boolean, baseSize: number = 80) => {
   const { str, dex, con } = stats;
   const S = (str || 0) + (dex || 0) + (con || 0) || 1;
@@ -14,15 +13,11 @@ const getDynamicStyle = (stats: { str: number; dex: number; con: number }, isPla
   const g = Math.floor((dex / S) * 255);
   const b = Math.floor((con / S) * 255);
 
-  let size = baseSize; // 기본 크기는 baseSize로 설정
+  let size = baseSize;
 
   if (!isPlayer) {
-    // 적 캐릭터는 스탯에 따라 크기를 동적으로 조절합니다.
-    // 평균적인 적의 스탯 합계를 100으로 가정하고, 그에 대한 비율로 크기를 조절합니다.
-    const averageEnemyS = 100; // 이 값은 게임 디자인에 따라 조정될 수 있습니다.
+    const averageEnemyS = 100;
     const ratio = S / averageEnemyS;
-    // [수정됨] 스탯 차이가 심할 때 박스가 너무 작아져 표정이 깨지는 현상을 막기 위해 최소 크기를 64px로 유지
-    // [수정됨] 적 크기 변화 폭을 줄이기 위해 최대 크기를 96px로 제한 (이전 160px)
     size = Math.max(64, Math.min(96, baseSize * Math.sqrt(ratio)));
   }
 
@@ -30,20 +25,15 @@ const getDynamicStyle = (stats: { str: number; dex: number; con: number }, isPla
     backgroundColor: `rgb(${r}, ${g}, ${b})`,
     width: `${size}px`,
     height: `${size}px`,
-    borderRadius: '0px', // [수정됨] 레트로 도트 박스 아이덴티티를 위해 둥근 모서리(8px)를 완전히 각진 픽셀 사각형(0px)으로 전환
+    borderRadius: '0px',
   };
 };
 
-// [신규 추가] HP/EXP 수치를 고전 게임 감성의 █ ░ 도트 블록문자로 변환하는 함수
-// [수정됨] █와 ░의 폰트 자체 높이 차이 버그를 깨부수기 위해, 동일한 █ 문자를 쓰고 안 차있는 곳은 text-neutral-700(어두운 회색)으로 디밍 처리
-// [수정됨] 배경 패널이 stone 테마로 일체화됨에 따라, 빈 칸의 도트 색상을 text-stone-300으로 매핑하여 블록의 경계선이 픽셀 단위로 선명하게 보이도록 개편
-// [수정됨] 모바일 가로폭 폭주 방지 및 도트 간격 벌림 필터 도입
 const renderRetroGauge = (current: number, max: number, totalBlocks: number, activeClass: string) => {
   const ratio = Math.max(0, Math.min(1, current / max));
   const filledCount = Math.round(ratio * totalBlocks);
   
   return (
-    /* flex gap-[2px]를 주어 문자가 서로 달라붙지 않고 정밀한 픽셀 격자 칸으로 떨어지도록 수정 */
     <span className="inline-flex items-center gap-[2px] leading-none select-none">
       {Array.from({ length: totalBlocks }).map((_, i) => (
         <span key={i} className={`${i < filledCount ? activeClass : 'text-stone-300'} text-[11px] leading-none`}>
@@ -59,18 +49,18 @@ interface LogEntry {
   message: React.ReactNode;
 }
 
-// [신규] 적 코어 타입에 따른 약자와 색상을 반환하는 헬퍼 함수
 const getEnemyCoreDisplay = (type: CoreType) => {
   switch (type) {
     case 'FIRE': return { abbr: 'F', color: 'text-red-500' };
     case 'WATER': return { abbr: 'W', color: 'text-blue-500' };
-    case 'WIND': return { abbr: 'A', color: 'text-green-500' }; // Air
+    case 'WIND': return { abbr: 'A', color: 'text-green-500' };
     case 'ELECTRIC': return { abbr: 'E', color: 'text-yellow-500' };
     default: return { abbr: '', color: '' };
   }
 };
 
 const AnimatedBattleScreen: React.FC = () => {
+  const state = useGameStore();
   const {
     player,
     playerShield,
@@ -87,13 +77,16 @@ const AnimatedBattleScreen: React.FC = () => {
     lastEnemyShieldRecovered,
     lastEnemyEvadedTime,
     lastPlayerEvadedTime,
-    isPlayerStunned,
+    playerStunEndTime,
     spawnEnemy,
     attackEnemy,
     attackPlayer,
     retryCurrentFloor,
     setDefeat,
-  } = useGameStore();
+  } = state;
+
+  // [수정] isPlayerStunned 상태를 playerStunEndTime으로 계산
+  const isPlayerStunned = playerStunEndTime ? playerStunEndTime > Date.now() : false;
 
   const computed = getComputedStats(player.stats, useGameStore.getState().unlockedSkills);
   const currentEnemyId = currentEnemy?.id;
@@ -191,7 +184,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
   useEffect(() => {
     if (lastDamageDealt || (lastEnemyEvadedTime ?? 0) > 0) {
-      const { normal = 0, core = 0, shieldRecovered = 0 } = lastDamageDealt || {};
+      const { normal = 0, core = 0, shieldRecovered = 0 } = lastDamageDealt || { normal: 0, core: 0, shieldRecovered: 0 };
       const isMiss = (lastEnemyEvadedTime ?? 0) > 0;
 
       if (normal > 0) {
@@ -298,7 +291,7 @@ const AnimatedBattleScreen: React.FC = () => {
       );
     }
 
-  }, [lastDamageDealt, lastDamageTaken, lastReflectedDamage, lastLeechedHealth, lastEnemyShieldRecovered, lastEnemyEvadedTime, lastPlayerEvadedTime]);
+  }, [lastDamageDealt, lastDamageTaken, lastReflectedDamage, lastLeechedHealth, lastEnemyShieldRecovered, lastEnemyEvadedTime, lastPlayerEvadedTime, stage, turn]);
 
 
   useEffect(() => {
