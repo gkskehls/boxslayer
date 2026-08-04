@@ -21,28 +21,28 @@ export const SHOP_ITEMS: ShopItem[] = [
   {
     id: "stat_temp_1",
     name: "초급 훈련 교본",
-    description: "보너스 스탯 포인트를 10 얻습니다. (환생 시 초기화)",
+    description: "보너스 스탯 포인트를 1 얻습니다. (환생 시 초기화)",
     type: "TEMP_STAT",
-    cost: 5000,
-    effect: { target: "statPoints", value: 10 },
+    cost: 50000, // 50,000 골드
+    effect: { target: "statPoints", value: 1 }, // 1 스탯 포인트
     requiredSkillId: null
   },
   {
     id: "stat_temp_2",
     name: "중급 훈련 교본",
-    description: "보너스 스탯 포인트를 50 얻습니다. (환생 시 초기화)",
+    description: "보너스 스탯 포인트를 10 얻습니다. (환생 시 초기화)",
     type: "TEMP_STAT",
-    cost: 30000,
-    effect: { target: "statPoints", value: 50 },
+    cost: 500000, // 500,000 골드
+    effect: { target: "statPoints", value: 10 }, // 10 스탯 포인트
     requiredSkillId: null
   },
   {
     id: "stat_temp_3",
     name: "한계 돌파의 비약",
-    description: "보너스 스탯 포인트를 300 얻습니다. (환생 시 초기화)",
+    description: "보너스 스탯 포인트를 100 얻습니다. (환생 시 초기화)",
     type: "TEMP_STAT",
-    cost: 250000,
-    effect: { target: "statPoints", value: 300 },
+    cost: 5000000, // 5,000,000 골드
+    effect: { target: "statPoints", value: 100 }, // 100 스탯 포인트
     requiredSkillId: "skill_basic_master" // 예: 기초 훈련 마스터 노드
   },
 
