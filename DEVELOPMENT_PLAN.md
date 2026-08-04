@@ -103,21 +103,21 @@
   * [x] `GameState`에 `gold: number` 필드 추가 및 `attackEnemy` 액션에서 골드 지급 처리.
   * [x] UI에 현재 골드 보유량 표시.
 
-### [ ] 3.3. 환생 시스템 및 패시브 스킬 트리 구현
+### [x] 3.3. 환생 시스템 및 패시브 스킬 트리 구현 (완료)
 * **목표:** 환생 로직(포인트 계산 및 초기화)과 PoE 스타일의 스킬 트리 UI/엔진을 구현합니다.
 * **주요 작업:**
-  * [ ] `GameState`에 `reincarnationPoints: number` 및 `acquiredNodes: string[]` (활성화된 노드 ID 리스트) 필드 추가.
-  * [ ] `reincarnate()` 액션 구현:
+  * [x] `GameState`에 `reincarnationPoints: number` 및 `acquiredNodes: string[]` (활성화된 노드 ID 리스트) 필드 추가.
+  * [x] `reincarnate()` 액션 구현:
     * [x] 스테이지/레벨/코어 레벨에 따른 환생 포인트 계산.
     * [x] 플레이어 상태(스테이지, 레벨, 스탯, 골드, 코어 레벨) 초기화.
-    * [ ] `reincarnationPoints` 누적 및 `acquiredNodes` 유지.
-  * [ ] `SkillTree` 데이터 정의:
-    * [ ] 모든 노드 정보(ID, 능력치, 연결 정보, 위치 좌표)를 담은 정적 데이터 생성.
+    * [x] `reincarnationPoints` 누적 및 `acquiredNodes` 유지.
+  * [x] `SkillTree` 데이터 정의:
+    * [x] 모든 노드 정보(ID, 능력치, 연결 정보, 위치 좌표)를 담은 정적 데이터 생성.
   * [x] `TownScreen` 내 "환생 및 스킬 트리" 화면 구현:
     * [x] 환생 버튼: 현재 진행 상황 기준 획득 예상 포인트 표시.
     * [x] 트리 UI: SVG를 활용하여 노드와 연결 선을 렌더링.
     * [x] 노드 클릭 시: 포인트 소모 및 인접 노드 확인 후 활성화 로직.
-  * [ ] `getComputedStats` 고도화:
+  * [x] `getComputedStats` 고도화:
     * [x] 현재 활성화된 `acquiredNodes`를 기반으로 보너스 수치를 실시간 합산하여 실제 플레이어 스탯에 적용.
 
 ### [x] 3.4. 오프라인 보상 시스템 구현 (완료)

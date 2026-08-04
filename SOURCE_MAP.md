@@ -14,14 +14,16 @@
 - `components/TownScreen.tsx`: 마을 허브 화면
 - `components/Shop.tsx`: 재화 사용 상점
 - `components/NavigationBar.tsx`: 전역 내비게이션 바
+- `components/SkillTreeScreen.tsx`: 스킬 트리 UI 및 자동 배치 엔진
+- `components/BattleScreen..del`: [삭제 예정] 이전 버전의 전투 화면
 
 ## 3. 타입 정의 (Types)
-- `types/game.ts`: 게임 내 주요 인터페이스 (GameState, Player, Core 등 정의)
+- `types/game.ts`: 게임 내 주요 인터페이스 (GameState, Player, Core, SkillNode 등 정의)
 - `types/core.d.ts`: 코어 시스템 전용 타입 정의 (기존 구조 유지)
 
-## 4. 유틸리티 (Utils)
-- `utils/coreCalculator.ts`: [추가] 코어 성능 및 강화 비용 동적 계산 로직 (getCoreStats, getUpgradeCost 등)
-- `utils/math.ts`: [추가] 스탯 계산 및 시각화용 공통 수학 유틸리티
+## 4. 상수 및 데이터 (Constants)
+- `constants/skills.ts`: 스킬 트리 노드 데이터 전체 정의
+- `constants/shopItems.ts`: 상점에서 판매하는 아이템 목록 정의
 
 ## 5. 리소스 (Assets)
 - `assets/`: 이미지 및 정적 파일
