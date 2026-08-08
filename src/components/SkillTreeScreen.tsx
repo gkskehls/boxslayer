@@ -5,7 +5,7 @@ import { useGameStore } from '../store/gameStore';
 import { SKILL_TREE_DATA } from '../constants/skills';
 import type { SkillNode } from '../types/game';
 
-// [신규] 500개 대규모 스킬 트리의 5대 핵심 가지를 별자리 성운 형태로 정밀 배치하는 방사형 엔진
+// [신규] 500개 대규모 스킬 트리의 5대 핵심 가지를 absolute clean radial branch로 정밀 배치하는 방사형 엔진
 const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
     const positions: Record<string, { x: number; y: number }> = {};
     const depths: Record<string, number> = {};
@@ -13,59 +13,87 @@ const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
     // 1. 깊이(Depth) 계산: 중심점(core_origin)에서 몇 칸 떨어져 있는지 파악
     const calcDepth = (id: string): number => {
         if (depths[id] !== undefined) return depths[id];
-        if (!nodes[id] || nodes[id].requires.length === 0) {
+        if (!nodes[id] || id === 'core_origin' || nodes[id].requires.length === 0) {
             depths[id] = 0;
             return 0;
         }
-        depths[id] = Math.max(...nodes[id].requires.map(calcDepth)) + 1;
+        const parentDepths = nodes[id].requires.map(reqId => calcDepth(reqId));
+        depths[id] = Math.max(...parentDepths, 0) + 1;
         return depths[id];
     };
+
     Object.keys(nodes).forEach(calcDepth);
 
-    const maxDepth = Math.max(...Object.values(depths), 1);
-    const canvasSize = Math.max(4500, maxDepth * 240 + 800);
-    const center = canvasSize / 2;
-
+    // 2. 브랜치 기본 각도 (360도 5등분)
     const branchBaseAngles: Record<string, number> = {
-        'fire': 0,       // 동쪽 (화염)
-        'water': 72,     // 남동쪽 (수호)
-        'wind': 144,     // 남서쪽 (신속 연격)
-        'elec': 216,     // 북서쪽 (뇌전)
-        'util': 288      // 북동쪽 (차원 유틸)
+        'fire': 0,       // 동쪽 (0°)
+        'water': 72,     // 남동쪽 (72°)
+        'wind': 144,     // 남서쪽 (144°)
+        'elec': 216,     // 북서쪽 (216°)
+        'util': 288      // 북동쪽 (288°)
     };
 
-    // 2. 각 노드별 좌표 산출
-    Object.keys(nodes).forEach(id => {
-        if (id === 'core_origin') {
-            positions[id] = { x: center, y: center };
-            return;
+    const getBranchKey = (id: string): string => {
+        if (id.startsWith('fire')) return 'fire';
+        if (id.startsWith('water')) return 'water';
+        if (id.startsWith('wind')) return 'wind';
+        if (id.startsWith('elec') || id.startsWith('electric')) return 'elec';
+        if (id.startsWith('util')) return 'util';
+
+        if (nodes[id]?.requires?.length > 0) {
+            for (const req of nodes[id].requires) {
+                const parentBranch = getBranchKey(req);
+                if (parentBranch !== 'unknown') return parentBranch;
+            }
         }
+        return 'unknown';
+    };
 
-        const depth = depths[id] || 1;
+    // 브랜치 및 Depth 별로 노드 그룹화
+    const branchGroup: Record<string, Record<number, string[]>> = {
+        fire: {}, water: {}, wind: {}, elec: {}, util: {}, unknown: {}
+    };
 
-        // 브랜치 식별
-        let baseAngle: number;
-        if (id.startsWith('fire')) baseAngle = branchBaseAngles['fire'];
-        else if (id.startsWith('water')) baseAngle = branchBaseAngles['water'];
-        else if (id.startsWith('wind')) baseAngle = branchBaseAngles['wind'];
-        else if (id.startsWith('elec')) baseAngle = branchBaseAngles['elec'];
-        else if (id.startsWith('util')) baseAngle = branchBaseAngles['util'];
-        else baseAngle = (id.charCodeAt(0) * 17) % 360;
+    Object.keys(nodes).forEach(id => {
+        if (id === 'core_origin') return;
+        const bKey = getBranchKey(id);
+        const d = depths[id] || 1;
+        if (!branchGroup[bKey]) branchGroup[bKey] = {};
+        if (!branchGroup[bKey][d]) branchGroup[bKey][d] = [];
+        branchGroup[bKey][d].push(id);
+    });
 
-        // 노드 번호 추출을 통한 가지 확산 (서로 겹치지 않도록 삼각파/지그재그 부채꼴 확산)
-        const nodeNumMatch = id.match(/\d+$/);
-        const nodeNum = nodeNumMatch ? parseInt(nodeNumMatch[0], 10) : depth;
-        const spreadFactor = ((nodeNum % 5) - 2) * 6; // -12도 ~ +12도 부채꼴 확산
+    const maxDepth = Math.max(...Object.values(depths), 1);
+    const canvasSize = Math.max(6000, maxDepth * 320 + 1200);
+    const center = canvasSize / 2;
 
-        const angle = baseAngle + spreadFactor;
-        // depth 간격을 42px -> 120px로 약 3배 확장하여 클릭 및 식별 쾌적성 대폭 보장
-        const radius = 150 + depth * 120;
-        const radian = (angle * Math.PI) / 180;
+    positions['core_origin'] = { x: center, y: center };
 
-        positions[id] = {
-            x: center + radius * Math.cos(radian),
-            y: center + radius * Math.sin(radian)
-        };
+    // 3. 각 브랜치 및 깊이별 노드 좌표 산출 (호 형태 부채꼴 분산)
+    Object.keys(branchGroup).forEach(bKey => {
+        const baseAngle = branchBaseAngles[bKey] ?? 0;
+        const depthObj = branchGroup[bKey];
+
+        Object.keys(depthObj).forEach(dStr => {
+            const d = parseInt(dStr, 10);
+            const nodeList = depthObj[d];
+            const N = nodeList.length;
+
+            const radius = 220 + d * 160;
+            const maxSpread = N <= 1 ? 0 : Math.min(50, N * 6);
+            const step = N <= 1 ? 0 : maxSpread / (N - 1);
+
+            nodeList.forEach((id, index) => {
+                const angleOffset = N <= 1 ? 0 : -(maxSpread / 2) + index * step;
+                const finalAngle = baseAngle + angleOffset;
+                const radian = (finalAngle * Math.PI) / 180;
+
+                positions[id] = {
+                    x: center + radius * Math.cos(radian),
+                    y: center + radius * Math.sin(radian)
+                };
+            });
+        });
     });
 
     return { positions, dynamicCanvasSize: canvasSize };
