@@ -3,70 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { ShopItem } from '../types/game';
-
-// 📦 확정된 상점 아이템 리스트 (JSON 명세 기반)
-const SHOP_ITEMS: ShopItem[] = [
-  {
-    id: "stat_temp_1", name: "초급 훈련 교본", type: "TEMP_STAT", cost: 5000,
-    description: "보너스 스탯 포인트를 10 얻습니다. (환생 시 초기화)",
-    effect: { target: "statPoints", value: 10 }, requiredSkillId: null
-  },
-  {
-    id: "stat_temp_2", name: "중급 훈련 교본", type: "TEMP_STAT", cost: 30000,
-    description: "보너스 스탯 포인트를 50 얻습니다. (환생 시 초기화)",
-    effect: { target: "statPoints", value: 50 }, requiredSkillId: null
-  },
-  {
-    id: "stat_temp_3", name: "한계 돌파의 비약", type: "TEMP_STAT", cost: 250000,
-    description: "보너스 스탯 포인트를 300 얻습니다. (환생 시 초기화)",
-    effect: { target: "statPoints", value: 300 }, requiredSkillId: "skill_basic_master"
-  },
-  {
-    id: "buff_gold_2x", name: "황금 고블린의 축복", type: "TIMED_BUFF", cost: 10000, duration: 1800,
-    description: "30분 동안 획득하는 골드가 2배로 증가합니다.",
-    effect: { target: "goldMultiplier", value: 2.0 }, requiredSkillId: null
-  },
-  {
-    id: "buff_exp_2x", name: "현자의 스크롤", type: "TIMED_BUFF", cost: 15000, duration: 1800,
-    description: "30분 동안 획득하는 경험치가 2배로 증가합니다.",
-    effect: { target: "expMultiplier", value: 2.0 }, requiredSkillId: null
-  },
-  {
-    id: "buff_speed_up", name: "신속의 물약", type: "TIMED_BUFF", cost: 20000, duration: 900,
-    description: "15분 동안 공격 속도가 1.5배 빨라집니다.",
-    effect: { target: "atkSpeedMultiplier", value: 1.5 }, requiredSkillId: null
-  },
-  {
-    id: "buff_berserk", name: "광폭화 캡슐", type: "TIMED_BUFF", cost: 50000, duration: 600,
-    description: "10분 동안 공격력이 3배가 되지만, 방어력이 0이 됩니다.",
-    effect: { target: "berserkMode", value: 1 }, requiredSkillId: null
-  },
-  {
-    id: "buff_boss_tracker", name: "보스 추적기", type: "TIMED_BUFF", cost: 80000, duration: 1200,
-    description: "20분 동안 일반 몬스터를 건너뛰고 보스만 상대합니다.",
-    effect: { target: "bossTracking", value: 1 }, requiredSkillId: null
-  },
-  {
-    id: "buff_core_fire", name: "초열의 가열로 (특수)", type: "TIMED_BUFF", cost: 100000, duration: 1800,
-    description: "30분 동안 불 코어의 고정 데미지가 10배 폭발합니다.",
-    effect: { target: "fireExtreme", value: 10.0 }, requiredSkillId: "fire_core_3"
-  },
-  {
-    id: "buff_core_wind", name: "태풍의 눈 (특수)", type: "TIMED_BUFF", cost: 100000, duration: 1800,
-    description: "30분 동안 바람 콤보 요구 타격수가 5회로 감소합니다.",
-    effect: { target: "windExtreme", value: 5.0 }, requiredSkillId: "wind_core_3"
-  },
-  {
-    id: "buff_core_water", name: "절대 영도의 방패 (특수)", type: "TIMED_BUFF", cost: 100000, duration: 1800,
-    description: "30분 동안 물 코어의 반사 데미지가 500%로 증폭됩니다.",
-    effect: { target: "waterExtreme", value: 5.0 }, requiredSkillId: "water_core_3"
-  },
-  {
-    id: "buff_core_earth", name: "대지의 결속 (특수)", type: "TIMED_BUFF", cost: 100000, duration: 1800,
-    description: "30분 동안 최대 체력이 5배, 방어력이 3배 증가합니다.",
-    effect: { target: "earthExtreme", value: 1 }, requiredSkillId: "earth_core_3"
-  }
-];
+import { SHOP_ITEMS } from '../constants/shopItems';
 
 // 초 단위 시간을 mm:ss 포맷으로 변환
 const formatTime = (seconds: number) => {
@@ -78,7 +15,7 @@ const formatTime = (seconds: number) => {
 
 const Shop: React.FC = () => {
   const { player, buyShopItem, unlockedSkills, activeBuffs } = useGameStore();
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
 
   // 브라우저 표준 타이머 타입(number)으로 변경하여 NodeJS 네임스페이스 에러 해결
   const holdTimerRef = useRef<number | null>(null);
