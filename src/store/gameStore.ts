@@ -252,7 +252,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         state.player.level,
         [...state.playerCores, ...(state.equippedCore ? [state.equippedCore] : [])]
     );
-    const unlockedSkills = ['core_origin'];
+    const unlockedSkills = state.unlockedSkills;
     const startStage = 1 + (getComputedStats(initialStats, unlockedSkills).modifiers.startStageBonus || 0);
 
     set({
@@ -260,7 +260,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       reincarnationPoints: state.reincarnationPoints + pointsEarned,
       unlockedSkills,
       stage: startStage,
-      maxStage: Math.max(state.maxStage, startStage),
+      maxStage: startStage,
       playerCores: [
         { id: `core_fire_${Date.now()}`, name: '불의 코어', type: 'FIRE', level: 1 },
         { id: `core_water_${Date.now()}`, name: '물의 코어', type: 'WATER', level: 1 },
