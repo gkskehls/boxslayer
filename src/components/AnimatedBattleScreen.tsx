@@ -347,9 +347,21 @@ const AnimatedBattleScreen: React.FC = () => {
   };
 
   const statComparisonList = [
-    { label: '힘 (STR)', pValue: player.stats.str, eValue: currentEnemy?.stats.str },
-    { label: '민첩 (DEX)', pValue: player.stats.dex, eValue: currentEnemy?.stats.dex },
-    { label: '체력 (CON)', pValue: player.stats.con, eValue: currentEnemy?.stats.con },
+    {
+      label: '힘 (STR)',
+      pValue: computed.skillBonusStats.str > 0 ? `${player.stats.str} (+${computed.skillBonusStats.str})` : player.stats.str,
+      eValue: currentEnemy?.stats.str
+    },
+    {
+      label: '민첩 (DEX)',
+      pValue: computed.skillBonusStats.dex > 0 ? `${player.stats.dex} (+${computed.skillBonusStats.dex})` : player.stats.dex,
+      eValue: currentEnemy?.stats.dex
+    },
+    {
+      label: '체력 (CON)',
+      pValue: computed.skillBonusStats.con > 0 ? `${player.stats.con} (+${computed.skillBonusStats.con})` : player.stats.con,
+      eValue: currentEnemy?.stats.con
+    },
     { label: '공격력', pValue: computed.attack.toFixed(1), eValue: enemyComputed?.attack.toFixed(1) },
     { label: '방어력', pValue: computed.defense.toFixed(1), eValue: enemyComputed?.defense.toFixed(1) },
     { label: '공격속도', pValue: `${computed.attackSpeed.toFixed(1)}/s`, eValue: enemyComputed ? `${enemyComputed.attackSpeed.toFixed(1)}/s` : undefined },

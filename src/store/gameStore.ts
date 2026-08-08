@@ -169,6 +169,14 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], ac
   }
 
   return {
+    finalStr,
+    finalDex,
+    finalCon,
+    skillBonusStats: {
+      str: Math.max(0, finalStr - stats.str),
+      dex: Math.max(0, finalDex - stats.dex),
+      con: Math.max(0, finalCon - stats.con),
+    },
     attack,
     defense,
     maxHealth,

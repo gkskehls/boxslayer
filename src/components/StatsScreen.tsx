@@ -4,10 +4,9 @@ import React from 'react';
 import { useGameStore, getComputedStats } from '../store/gameStore';
 
 const StatsScreen: React.FC = () => {
-    // resetStats를 useGameStore에서 가져옵니다
-    const { player, distributeStat, resetStats } = useGameStore();
+    const { player, distributeStat, resetStats, unlockedSkills, activeBuffs } = useGameStore();
 
-    const computed = getComputedStats(player.stats);
+    const computed = getComputedStats(player.stats, unlockedSkills, activeBuffs);
 
     const handleReset = () => {
         if (window.confirm("정말 스탯을 초기화하고 포인트를 반환받으시겠습니까?")) {
@@ -27,7 +26,7 @@ const StatsScreen: React.FC = () => {
            - 기존의 둥근 모서리(rounded-xl)와 다크 다크모드(bg-neutral-900)를 완전히 탈피.
            - 오락기 프레임 통일을 위한 각진 바디, 선명한 border-4 border-black, 거대한 하드 블랙 그림자 주입.
         */
-        <div 
+        <div
             className="max-w-md mx-auto bg-stone-100 p-4 rounded-none border-4 border-black w-full flex flex-col gap-4 text-stone-900 font-mono select-none flex-grow"
             style={{
                 backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
@@ -91,41 +90,49 @@ const StatsScreen: React.FC = () => {
 
             {/* 스탯 투자 버튼 컨테이너 (간격 유지) */}
             <div className="flex flex-col gap-3 w-full">
-                {statsConfig.map(({ key, label, desc }) => (
-                    // 개별 스탯 슬롯 패딩 및 간격 유지
-                    // 리뉴얼: 각 스탯 카드를 하드웨어 박스 모듈 형태로 리폼
-                    <div key={key} className="bg-stone-200 p-3 rounded-none border-4 border-black flex flex-col gap-1.5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full">
-                        <div className="flex justify-between items-baseline w-full">
-                            {/* 폰트 약간 확대: text-[11px] -> text-xs, text-sm -> text-base */}
-                            <span className="text-xs font-black text-black tracking-wide leading-none">{label}</span>
-                            <span className="text-base font-black text-blue-700 font-mono leading-none">{player.stats[key]}</span>
+                {statsConfig.map(({ key, label, desc }) => {
+                    const baseVal = player.stats[key];
+                    const bonusVal = computed.skillBonusStats[key];
+                    const finalVal = key === 'str' ? computed.finalStr : key === 'dex' ? computed.finalDex : computed.finalCon;
+
+                    return (
+                        <div key={key} className="bg-stone-200 p-3 rounded-none border-4 border-black flex flex-col gap-1.5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full">
+                            <div className="flex justify-between items-center w-full">
+                                <span className="text-xs font-black text-black tracking-wide leading-none">{label}</span>
+                                <div className="flex items-center gap-1.5 font-mono">
+                                    <span className="text-sm font-black text-blue-700 leading-none" title="투자 스탯">{baseVal}</span>
+                                    {bonusVal > 0 && (
+                                        <span className="text-xs font-black text-emerald-800 bg-emerald-200 border border-emerald-600 px-1 py-0.5 leading-none" title="스킬 트리에 의한 스탯 보너스">
+                                            +{bonusVal}
+                                        </span>
+                                    )}
+                                    {bonusVal > 0 && (
+                                        <span className="text-xs font-black text-stone-600 leading-none" title="최종 적용 스탯">
+                                            (= {finalVal})
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <p className="text-[10px] font-bold text-stone-500 break-keep leading-tight mt-0.5">{desc}</p>
+                            <div className="flex gap-1 w-full mt-1.5">
+                                {[1, 10, 100].map((amount) => (
+                                    <button
+                                        key={amount}
+                                        disabled={player.statPoints < amount}
+                                        onClick={() => distributeStat(key, amount)}
+                                        className={`flex-1 py-1.5 rounded-none font-black text-xs transition-all break-keep border-2 border-black leading-none uppercase
+                                          ${player.statPoints >= amount
+                                            ? 'bg-stone-100 hover:bg-stone-50 text-green-700 border-b-[4px] shadow-[1px_1px_0px_rgba(255,255,255,0.6)_inset] active:border-b-2 active:translate-y-[2px] cursor-pointer'
+                                            : 'bg-stone-300 border-stone-400 text-stone-400 cursor-not-allowed opacity-30 shadow-none'
+                                        }`}
+                                    >
+                                        +{amount}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        {/* 폰트 약간 확대: text-[9px] -> text-[10px] */}
-                        <p className="text-[10px] font-bold text-stone-500 break-keep leading-tight mt-0.5">{desc}</p> {/* 추가됨 */}
-                        {/* 버튼 줄 바꿈 마진 및 간격 유지 */}
-                        <div className="flex gap-1 w-full mt-1.5">
-                            {[1, 10, 100].map((amount) => (
-                                <button
-                                    key={amount}
-                                    disabled={player.statPoints < amount}
-                                    onClick={() => distributeStat(key, amount)}
-                                    // 폰트 약간 확대: text-[11px] -> text-xs
-                                    /* 버튼 액션 질감 고도화:
-                                       - 가능상태: 오프라인 아케이드 기계식 버튼 누름 효과 (border-b-[4px]가 active 시 border-b-2 및 translate)
-                                       - 불가능상태: 투명도 30%에 납작하게 가라앉혀 촉각 피드백 차단
-                                    */
-                                    className={`flex-1 py-1.5 rounded-none font-black text-xs transition-all break-keep border-2 border-black leading-none uppercase
-                                      ${player.statPoints >= amount
-                                        ? 'bg-stone-100 hover:bg-stone-50 text-green-700 border-b-[4px] shadow-[1px_1px_0px_rgba(255,255,255,0.6)_inset] active:border-b-2 active:translate-y-[2px] cursor-pointer'
-                                        : 'bg-stone-300 border-stone-400 text-stone-400 cursor-not-allowed opacity-30 shadow-none'
-                                    }`}
-                                >
-                                    +{amount}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
