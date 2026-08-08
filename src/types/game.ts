@@ -101,6 +101,12 @@ export interface SkillEffects {
   str?: number;
   dex?: number;
   con?: number;
+  strPercent?: number;  // 예: 0.05 = +5%
+  dexPercent?: number;  // 예: 0.05 = +5%
+  conPercent?: number;  // 예: 0.05 = +5%
+  comboChance?: number;      // 연격 발동 확률 (예: 0.15 = 15%)
+  comboMultiplier?: number;  // 연격 데미지 배율 (예: 1.5 = 150%)
+  comboHitsAdded?: number;   // 연격 시 추가 타격 수 (예: +1회)
   statPoints?: number;
   goldMultiplier?: number;
   expMultiplier?: number;

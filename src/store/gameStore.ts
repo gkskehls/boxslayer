@@ -104,7 +104,18 @@ interface GameActions {
 const initialStats: Stats = { str: 10, dex: 10, con: 10 };
 
 export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], activeBuffs: Record<string, number> = {}) => {
-  const finalStats = { ...stats };
+  let baseStr = stats.str;
+  let baseDex = stats.dex;
+  let baseCon = stats.con;
+
+  let percentStr = 0;
+  let percentDex = 0;
+  let percentCon = 0;
+
+  let comboChance = 0;
+  let comboMultiplier = 1.5; // 기본 연격 데미지 배율은 1.5배 (150%)에서 시작
+  let comboHitsAdded = 0;
+
   const modifiers = {
     offlineRewardMultiplier: 0,
     startStageBonus: 0,
@@ -115,9 +126,22 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], ac
   unlockedSkills.forEach(skillId => {
     const skill = SKILL_TREE_DATA[skillId];
     if (skill?.effects) {
-      if (skill.effects.str) finalStats.str += skill.effects.str;
-      if (skill.effects.dex) finalStats.dex += skill.effects.dex;
-      if (skill.effects.con) finalStats.con += skill.effects.con;
+      // 1) 고정형 보너스 스탯 누적
+      if (skill.effects.str) baseStr += skill.effects.str;
+      if (skill.effects.dex) baseDex += skill.effects.dex;
+      if (skill.effects.con) baseCon += skill.effects.con;
+
+      // 2) 백분율(%) 보너스 스탯 누적
+      if (skill.effects.strPercent) percentStr += skill.effects.strPercent;
+      if (skill.effects.dexPercent) percentDex += skill.effects.dexPercent;
+      if (skill.effects.conPercent) percentCon += skill.effects.conPercent;
+
+      // 3) 연격(Combo) 옵션 누적
+      if (skill.effects.comboChance) comboChance += skill.effects.comboChance;
+      if (skill.effects.comboMultiplier) comboMultiplier += skill.effects.comboMultiplier;
+      if (skill.effects.comboHitsAdded) comboHitsAdded += skill.effects.comboHitsAdded;
+
+      // 4) 기타 유틸리티 누적
       if (skill.effects.offlineRewardMultiplier) modifiers.offlineRewardMultiplier += skill.effects.offlineRewardMultiplier;
       if (skill.effects.startStageBonus) modifiers.startStageBonus += skill.effects.startStageBonus;
       if (skill.effects.feverMultiplier) modifiers.feverMultiplier = Math.max(modifiers.feverMultiplier, skill.effects.feverMultiplier);
@@ -125,9 +149,14 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], ac
     }
   });
 
-  let attack = 20 + (finalStats.str * 2);
-  let defense = 5 + (finalStats.con * 0.2);
-  let maxHealth = 100 + (finalStats.con * 5);
+  // 고정형 보너스 가산 후 백분율(%) 보너스 복리 계산
+  const finalStr = Math.floor(baseStr * (1 + percentStr));
+  const finalDex = Math.floor(baseDex * (1 + percentDex));
+  const finalCon = Math.floor(baseCon * (1 + percentCon));
+
+  let attack = 20 + (finalStr * 2);
+  let defense = 5 + (finalCon * 0.2);
+  let maxHealth = 100 + (finalCon * 5);
 
   const now = Date.now();
   if (activeBuffs['buff_berserk'] && activeBuffs['buff_berserk'] > now) {
@@ -139,7 +168,18 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], ac
     defense *= 3;
   }
 
-  return { attack, defense, maxHealth, attackSpeed: 2.0, accuracy: finalStats.dex, evasion: finalStats.dex, modifiers };
+  return {
+    attack,
+    defense,
+    maxHealth,
+    attackSpeed: 2.0, // 공격 속도는 기획에 명세된 규칙대로 완전히 2.0초로 고정
+    accuracy: finalDex,
+    evasion: finalDex,
+    comboChance,
+    comboMultiplier,
+    comboHitsAdded,
+    modifiers
+  };
 };
 
 const initialPlayer: Player = {
