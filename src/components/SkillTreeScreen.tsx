@@ -5,10 +5,9 @@ import { useGameStore } from '../store/gameStore';
 import { SKILL_TREE_DATA } from '../constants/skills';
 import type { SkillNode } from '../types/game';
 
-// [신규] 스킬 트리의 연결 관계(requires)를 분석하여 방사형(Radial)으로 자동 배치하는 엔진
+// [신규] 500개 대규모 스킬 트리의 5대 핵심 가지를 별자리 성운 형태로 정밀 배치하는 방사형 엔진
 const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
     const positions: Record<string, { x: number; y: number }> = {};
-    const angles: Record<string, number> = {};
     const depths: Record<string, number> = {};
 
     // 1. 깊이(Depth) 계산: 중심점(core_origin)에서 몇 칸 떨어져 있는지 파악
@@ -23,52 +22,49 @@ const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
     };
     Object.keys(nodes).forEach(calcDepth);
 
-    // 2. 1티어 노드(중앙에서 바로 뻗어나온 가지)들에게 360도를 N등분하여 기본 각도 배정
-    const originChildren = Object.keys(nodes).filter(id => depths[id] === 1);
-    originChildren.forEach((id, index) => {
-        angles[id] = (360 / originChildren.length) * index;
-    });
+    const maxDepth = Math.max(...Object.values(depths), 1);
+    const canvasSize = Math.max(4500, maxDepth * 240 + 800);
+    const center = canvasSize / 2;
 
-    // 3. 자식 노드들에게 부모의 각도 상속 및 형제간 겹침 방지 벌림 처리
-    const calcAngle = (id: string): number => {
-        if (angles[id] !== undefined) return angles[id];
-        if (depths[id] === 0) return 0;
-
-        const parents = nodes[id].requires;
-        const parentAngles = parents.map(p => calcAngle(p));
-        const avgAngle = parentAngles.reduce((sum, val) => sum + val, 0) / parentAngles.length;
-
-        const mainParent = parents[0];
-        const siblings = Object.keys(nodes).filter(n => nodes[n].requires.includes(mainParent));
-
-        if (siblings.length > 1) {
-            const myIndex = siblings.indexOf(id);
-            const offset = (myIndex - (siblings.length - 1) / 2) * 20;
-            angles[id] = avgAngle + offset;
-        } else {
-            angles[id] = avgAngle;
-        }
-        return angles[id];
+    const branchBaseAngles: Record<string, number> = {
+        'fire': 0,       // 동쪽 (화염)
+        'water': 72,     // 남동쪽 (수호)
+        'wind': 144,     // 남서쪽 (신속 연격)
+        'elec': 216,     // 북서쪽 (뇌전)
+        'util': 288      // 북동쪽 (차원 유틸)
     };
-    Object.keys(nodes).forEach(calcAngle);
 
-    // [수정됨] TS6133 빌드 에러를 유발하던 미사용 유령 함수(getMaxUpgrades)를 완벽하게 도려내어 청소했습니다.
-    const maxDepth = Math.max(...Object.values(depths), 0);
-    const canvasSize = Math.max(1200, maxDepth * 350);
-
-    // 좌표 명세 생성
+    // 2. 각 노드별 좌표 산출
     Object.keys(nodes).forEach(id => {
         if (id === 'core_origin') {
-            positions[id] = { x: canvasSize / 2, y: canvasSize / 2 };
+            positions[id] = { x: center, y: center };
             return;
         }
+
         const depth = depths[id] || 1;
-        const angle = angles[id] || 0;
-        const radius = depth * 140; 
+
+        // 브랜치 식별
+        let baseAngle: number;
+        if (id.startsWith('fire')) baseAngle = branchBaseAngles['fire'];
+        else if (id.startsWith('water')) baseAngle = branchBaseAngles['water'];
+        else if (id.startsWith('wind')) baseAngle = branchBaseAngles['wind'];
+        else if (id.startsWith('elec')) baseAngle = branchBaseAngles['elec'];
+        else if (id.startsWith('util')) baseAngle = branchBaseAngles['util'];
+        else baseAngle = (id.charCodeAt(0) * 17) % 360;
+
+        // 노드 번호 추출을 통한 가지 확산 (서로 겹치지 않도록 삼각파/지그재그 부채꼴 확산)
+        const nodeNumMatch = id.match(/\d+$/);
+        const nodeNum = nodeNumMatch ? parseInt(nodeNumMatch[0], 10) : depth;
+        const spreadFactor = ((nodeNum % 5) - 2) * 6; // -12도 ~ +12도 부채꼴 확산
+
+        const angle = baseAngle + spreadFactor;
+        // depth 간격을 42px -> 120px로 약 3배 확장하여 클릭 및 식별 쾌적성 대폭 보장
+        const radius = 150 + depth * 120;
         const radian = (angle * Math.PI) / 180;
+
         positions[id] = {
-            x: (canvasSize / 2) + radius * Math.cos(radian),
-            y: (canvasSize / 2) + radius * Math.sin(radian)
+            x: center + radius * Math.cos(radian),
+            y: center + radius * Math.sin(radian)
         };
     });
 
@@ -81,13 +77,34 @@ const { positions: AUTO_NODE_POSITIONS, dynamicCanvasSize: DYNAMIC_CANVAS_SIZE }
 const SkillTreeScreen: React.FC = () => {
     const { reincarnationPoints = 0, unlockedSkills = ['core_origin'], unlockSkill, resetSkills } = useGameStore();
     const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
-    
+
     /* [수정됨] 기본 배율 조율 (1.0 -> 0.5)
        - 진입 시 스킬 트리가 너무 조금 보이는 현상을 해결하기 위해 디폴트 배율을 50%로 축소했습니다.
        - 시야 영역이 4배 넓어져 천 개 규모로 확장될 거대 성운형 노드의 줄기들을 한눈에 조망할 수 있습니다.
     */
-    const [zoom, setZoom] = useState(0.5);
+    const [zoom, setZoom] = useState(0.4);
+    const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL');
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // 특정한 가지(Branch) 방향으로 카메라 시점 자동 이동
+    const navigateToBranch = (branchKey: string) => {
+        setSelectedBranchFilter(branchKey);
+        if (!scrollContainerRef.current) return;
+        const container = scrollContainerRef.current;
+        const center = DYNAMIC_CANVAS_SIZE / 2;
+
+        let targetX = center;
+        let targetY = center;
+
+        if (branchKey === 'fire') { targetX = center + 1200; targetY = center; }
+        else if (branchKey === 'water') { targetX = center + 750; targetY = center + 1000; }
+        else if (branchKey === 'wind') { targetX = center - 750; targetY = center + 1000; }
+        else if (branchKey === 'elec') { targetX = center - 750; targetY = center - 1000; }
+        else if (branchKey === 'util') { targetX = center + 750; targetY = center - 1000; }
+
+        container.scrollLeft = targetX * zoom - container.clientWidth / 2;
+        container.scrollTop = targetY * zoom - container.clientHeight / 2;
+    };
 
     // 컴포넌트 마운트 시 스크롤을 줌 비율(50%)에 맞춰 중앙(core_origin)으로 자동 이동
     useEffect(() => {
@@ -96,6 +113,7 @@ const SkillTreeScreen: React.FC = () => {
             container.scrollLeft = ((DYNAMIC_CANVAS_SIZE * zoom) - container.clientWidth) / 2;
             container.scrollTop = ((DYNAMIC_CANVAS_SIZE * zoom) - container.clientHeight) / 2;
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // 처음 렌더링될 때 한 번만 실행
 
     // 화면 중앙을 유지하며 줌 인/아웃을 처리하는 함수
@@ -150,7 +168,7 @@ const SkillTreeScreen: React.FC = () => {
            - 각진 모서리, 단단한 border-4 border-black 명세 가동.
            - 연한 모눈종이 8비트 격자무늬(linear-gradient) 주입 완료.
         */
-        <div 
+        <div
             className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-3 text-stone-900 font-mono select-none text-xs shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex-grow"
             style={{
                 backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
@@ -161,12 +179,52 @@ const SkillTreeScreen: React.FC = () => {
             {/* 헤더: 슬레어의 석판 대시보드로 통일화 */}
             <div className="bg-stone-300 p-3 rounded-none border-4 border-black w-full flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-black">
                 <h2 className="text-xs font-black text-stone-500 tracking-widest uppercase leading-none">
-                    -[ SKILL_TREE ]-
+                    -[ 500PASSIVE_TREE ]-
                 </h2>
                 <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-neutral-500 uppercase">RP_POOL:</span>
                     <span className="text-sm font-mono font-black text-purple-700">{reincarnationPoints} RP</span>
                 </div>
+            </div>
+
+            {/* 5대 성운 브랜치 신속 이동 네비게이터 */}
+            <div className="grid grid-cols-6 gap-1 w-full text-[9px] font-black">
+                <button
+                    onClick={() => navigateToBranch('ALL')}
+                    className={`py-1 border border-black rounded-none cursor-pointer ${selectedBranchFilter === 'ALL' ? 'bg-black text-white' : 'bg-stone-200 text-black hover:bg-stone-300'}`}
+                >
+                    전체
+                </button>
+                <button
+                    onClick={() => navigateToBranch('fire')}
+                    className={`py-1 border border-black rounded-none cursor-pointer ${selectedBranchFilter === 'fire' ? 'bg-red-600 text-white' : 'bg-red-100 text-red-900 hover:bg-red-200'}`}
+                >
+                    🔥불
+                </button>
+                <button
+                    onClick={() => navigateToBranch('water')}
+                    className={`py-1 border border-black rounded-none cursor-pointer ${selectedBranchFilter === 'water' ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-900 hover:bg-blue-200'}`}
+                >
+                    💧물
+                </button>
+                <button
+                    onClick={() => navigateToBranch('wind')}
+                    className={`py-1 border border-black rounded-none cursor-pointer ${selectedBranchFilter === 'wind' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200'}`}
+                >
+                    🍃연격
+                </button>
+                <button
+                    onClick={() => navigateToBranch('elec')}
+                    className={`py-1 border border-black rounded-none cursor-pointer ${selectedBranchFilter === 'elec' ? 'bg-amber-500 text-black' : 'bg-amber-100 text-amber-900 hover:bg-amber-200'}`}
+                >
+                    ⚡번개
+                </button>
+                <button
+                    onClick={() => navigateToBranch('util')}
+                    className={`py-1 border border-black rounded-none cursor-pointer ${selectedBranchFilter === 'util' ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-900 hover:bg-purple-200'}`}
+                >
+                    🌀유틸
+                </button>
             </div>
 
             {/* 줌 컨트롤러 바 - 기계식 조작 패널 단추로 개편 */}
@@ -178,15 +236,15 @@ const SkillTreeScreen: React.FC = () => {
                     스킬 초기화
                 </button>
                 <div className="flex items-center gap-1">
-                    <button 
-                        onClick={() => handleZoom(-0.1)} 
+                    <button
+                        onClick={() => handleZoom(-0.1)}
                         className="bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 px-2.5 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
                     >
                         -
                     </button>
                     <span className="text-[10px] font-black text-stone-500 w-12 text-center bg-stone-200 border-2 border-black py-0.5">{Math.round(zoom * 100)}%</span>
-                    <button 
-                        onClick={() => handleZoom(0.1)} 
+                    <button
+                        onClick={() => handleZoom(0.1)}
                         className="bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 px-2 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
                     >
                         +
@@ -282,8 +340,8 @@ const SkillTreeScreen: React.FC = () => {
                                 {selectedNode.name}
                             </h3>
                         </div>
-                        <button 
-                            onClick={() => setSelectedNode(null)} 
+                        <button
+                            onClick={() => setSelectedNode(null)}
                             className="w-5 h-5 flex justify-center items-center rounded-none border border-black bg-stone-100 hover:bg-stone-50 font-black text-[9px] cursor-pointer"
                         >
                             ✕

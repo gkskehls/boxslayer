@@ -274,7 +274,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const state = get();
     const now = Date.now();
     const isBossTrackerActive = state.activeBuffs['buff_boss_tracker'] && state.activeBuffs['buff_boss_tracker'] > now;
-    
+
     let nextStage = state.stage;
     if (isBossTrackerActive && nextStage % 5 !== 0) {
       nextStage = nextStage + (5 - (nextStage % 5));
@@ -387,7 +387,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const speedMult = (state.activeBuffs['buff_speed_up'] && state.activeBuffs['buff_speed_up'] > now) ? 1.5 : 1.0;
     const hitCount = Math.floor(config.multiplier * playerComputed.modifiers.feverMultiplier * speedMult);
 
-    let normalDamage = 0;
     let coreDamage = 0;
     let shieldRecovered = 0;
     let nextPlayerShield = state.playerShield;
@@ -447,10 +446,16 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         enemyStunEndTime: nextEnemyStunEndTime,
       };
     }
-    
+
     const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
     const randomMultiplier = 0.85 + Math.random() * 0.3;
-    normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount);
+
+    // 연격(Combo/Multi-Hit) 확률 주사위
+    const isCombo = playerComputed.comboChance > 0 && Math.random() < playerComputed.comboChance;
+    const comboHits = isCombo ? (1 + (playerComputed.comboHitsAdded || 0)) : 1;
+    const comboMult = isCombo ? (playerComputed.comboMultiplier || 1.5) : 1.0;
+
+    const normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount * comboHits * comboMult);
 
     const totalDamage = normalDamage + coreDamage;
     let remainingEnemyShield = state.enemyShield;
@@ -494,7 +499,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         stage: state.stage + 1,
         maxStage: Math.max(state.maxStage, state.stage + 1),
         gameStatus: 'VICTORY',
-        lastDamageDealt: { normal: normalDamage, core: coreDamage, shieldRecovered },
+        lastDamageDealt: { normal: normalDamage, core: coreDamage, shieldRecovered, isCombo, comboHits },
         playerShield: nextPlayerShield,
         enemyShield: 0,
         windHitCount: currentWindHits,
@@ -507,7 +512,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     return {
       currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
-      lastDamageDealt: { normal: normalDamage, core: coreDamage, shieldRecovered },
+      lastDamageDealt: { normal: normalDamage, core: coreDamage, shieldRecovered, isCombo, comboHits },
       playerShield: nextPlayerShield,
       enemyShield: remainingEnemyShield,
       windHitCount: currentWindHits,
@@ -520,7 +525,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
   attackPlayer: () => set((state) => {
     if (state.gameStatus !== 'BATTLE' || !state.currentEnemy || state.currentEnemy.currentHealth <= 0) return state;
-    
+
     const now = Date.now();
     if (now < state.enemyStunEndTime) return state;
 
@@ -549,7 +554,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     const baseDamage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
     const randomMultiplier = 0.85 + Math.random() * 0.3;
-    let normalDamage = Math.floor(baseDamage * randomMultiplier);
+    const normalDamage = Math.floor(baseDamage * randomMultiplier);
     let coreDamage = 0;
     let nextPlayerStunEndTime = state.playerStunEndTime;
     let amountLeeched = 0;
@@ -631,7 +636,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       playerStunEndTime: nextPlayerStunEndTime,
     };
   }),
-  
+
   upgradeCore: (amount = 1) => set((state) => {
     const target = state.equippedCore;
     if (!target) {
@@ -663,12 +668,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     };
   }),
 
-  resetStats: () => set((state) => ({ 
-      player: { 
-          ...state.player, 
-          stats: initialStats, 
-          statPoints: (state.player.level - 1) * 3 + (state.player.tempStatPoints || 0) 
-      } 
+  resetStats: () => set((state) => ({
+    player: {
+      ...state.player,
+      stats: initialStats,
+      statPoints: (state.player.level - 1) * 3 + (state.player.tempStatPoints || 0)
+    }
   })),
 
   levelUp: () => set((state) => ({ player: { ...state.player, level: state.player.level + 1, statPoints: state.player.statPoints + 3 } })),
@@ -751,12 +756,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   resetSkills: () => set((state) => {
     if (window.confirm('정말로 모든 스킬을 초기화하시겠습니까? 사용한 환생 포인트는 모두 돌려받지만, 스탯은 초기화됩니다.')) {
       const refundedPoints = state.unlockedSkills
-        .filter(id => id !== 'core_origin')
-        .reduce((sum, id) => sum + (SKILL_TREE_DATA[id]?.cost || 0), 0);
+          .filter(id => id !== 'core_origin')
+          .reduce((sum, id) => sum + (SKILL_TREE_DATA[id]?.cost || 0), 0);
 
       const statPointsFromLevels = (state.player.level - 1) * 3;
       const tempStatPoints = state.player.tempStatPoints || 0;
-      
+
       return {
         reincarnationPoints: state.reincarnationPoints + refundedPoints,
         unlockedSkills: ['core_origin'],
@@ -775,7 +780,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       alert("골드가 부족합니다.");
       return state;
     }
-    
+
     if (item.requiredSkillId && !state.unlockedSkills.includes(item.requiredSkillId)) {
       alert("이 아이템을 구매하기 위한 선행 스킬을 해금하지 않았습니다.");
       return state;
@@ -795,10 +800,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     } else if (item.type === 'TIMED_BUFF') {
       const durationMs = (item.duration || 0) * 1000;
       const now = Date.now();
-      const currentEndTime = (state.activeBuffs[item.id] && state.activeBuffs[item.id] > now) 
-          ? state.activeBuffs[item.id] 
+      const currentEndTime = (state.activeBuffs[item.id] && state.activeBuffs[item.id] > now)
+          ? state.activeBuffs[item.id]
           : now;
-      
+
       return {
         player: { ...state.player, gold: newGold },
         activeBuffs: {
@@ -812,13 +817,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 }));
 
 useGameStore.subscribe((state) => {
-  const {
-    attackEnemy, attackPlayer, levelUp, distributeStat, resetStats, 
-    spawnEnemy, resetGame, acquireCore, equipCore, unequipCore, 
-    upgradeCore, calculateOfflineRewards, retryCurrentFloor, spendGold, 
-    removeCore, canClaimRewards, reincarnate, unlockSkill, resetSkills, 
-    buyShopItem, setDefeat,
-    ...gameState
-  } = state;
-  saveStateToLocalStorage(gameState);
+  const gameState = Object.fromEntries(
+      Object.entries(state).filter(([, value]) => typeof value !== 'function')
+  );
+  saveStateToLocalStorage(gameState as unknown as GameState);
 });

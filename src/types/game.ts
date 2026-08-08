@@ -46,6 +46,8 @@ export type DefeatReason = 'HEALTH' | 'TIMEOUT';
 export interface DamageDetails {
   normal: number;
   core: number;
+  isCombo?: boolean;
+  comboHits?: number;
 }
 
 export interface GameState {

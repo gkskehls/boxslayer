@@ -32,11 +32,11 @@ const getDynamicStyle = (stats: { str: number; dex: number; con: number }, isPla
 const renderRetroGauge = (current: number, max: number, totalBlocks: number, activeClass: string) => {
   const ratio = Math.max(0, Math.min(1, current / max));
   const filledCount = Math.round(ratio * totalBlocks);
-  
+
   return (
-    <span className="inline-flex items-center gap-[2px] leading-none select-none">
+      <span className="inline-flex items-center gap-[2px] leading-none select-none">
       {Array.from({ length: totalBlocks }).map((_, i) => (
-        <span key={i} className={`${i < filledCount ? activeClass : 'text-stone-300'} text-[11px] leading-none`}>
+          <span key={i} className={`${i < filledCount ? activeClass : 'text-stone-300'} text-[11px] leading-none`}>
           █
         </span>
       ))}
@@ -86,6 +86,7 @@ const AnimatedBattleScreen: React.FC = () => {
   } = state;
 
   // [수정] isPlayerStunned 상태를 playerStunEndTime으로 계산
+  // eslint-disable-next-line react-hooks/purity
   const isPlayerStunned = playerStunEndTime ? playerStunEndTime > Date.now() : false;
 
   const computed = getComputedStats(player.stats, useGameStore.getState().unlockedSkills);
@@ -95,7 +96,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit' | 'stunned'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
-  
+
   const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'taken-core' | 'miss-enemy' | 'miss-player' | 'shield' | 'enemy-shield' | 'leech', coreType?: string }[]>([]);
   const [showStats, setShowStats] = useState<boolean>(false);
   const [damageLog, setDamageLog] = useState<LogEntry[]>([]);
@@ -104,16 +105,20 @@ const AnimatedBattleScreen: React.FC = () => {
   const [turn, setTurn] = useState(1);
 
   useEffect(() => {
-    setPlayerAnim(isPlayerStunned ? 'stunned' : 'idle');
+    queueMicrotask(() => {
+      setPlayerAnim(isPlayerStunned ? 'stunned' : 'idle');
+    });
   }, [isPlayerStunned]);
 
   useEffect(() => {
     if (gameStatus !== 'BATTLE') {
-      setPlayerAnim('idle');
-      setEnemyAnim('idle');
-      setBattleTime(0);
-      setTimeMultiplier(1);
-      setTurn(1);
+      queueMicrotask(() => {
+        setPlayerAnim('idle');
+        setEnemyAnim('idle');
+        setBattleTime(0);
+        setTimeMultiplier(1);
+        setTurn(1);
+      });
     }
   }, [gameStatus]);
 
@@ -146,8 +151,10 @@ const AnimatedBattleScreen: React.FC = () => {
 
   useEffect(() => {
     if (gameStatus === 'IDLE') {
-      spawnEnemy();
-      setTurn(1);
+      queueMicrotask(() => {
+        spawnEnemy();
+        setTurn(1);
+      });
     }
 
     let playerAttackTimer: number;
@@ -179,7 +186,9 @@ const AnimatedBattleScreen: React.FC = () => {
   }, [gameStatus, currentEnemyId, computed.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer, timeMultiplier]);
 
   const addLog = (message: React.ReactNode) => {
-    setDamageLog(prev => [{ id: Date.now() + Math.random(), message }, ...prev.slice(0, 49)]);
+    queueMicrotask(() => {
+      setDamageLog(prev => [{ id: Date.now() + Math.random(), message }, ...prev.slice(0, 49)]);
+    });
   };
 
   useEffect(() => {
@@ -189,7 +198,9 @@ const AnimatedBattleScreen: React.FC = () => {
 
       if (normal > 0) {
         const popup = { id: Date.now(), val: normal, type: 'normal' as const };
-        setDamagePopups(prev => [...prev, popup]);
+        queueMicrotask(() => {
+          setDamagePopups(prev => [...prev, popup]);
+        });
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
       }
       if (core > 0) {
@@ -208,28 +219,40 @@ const AnimatedBattleScreen: React.FC = () => {
       }
       if (isMiss) {
         const popup = { id: Date.now() + 3, val: 0, type: 'miss-enemy' as const };
-        setDamagePopups(prev => [...prev, popup]);
+        queueMicrotask(() => {
+          setDamagePopups(prev => [...prev, popup]);
+        });
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
       }
 
       if (isMiss) {
         addLog(
-          <span>
+            <span>
             <span className="text-blue-500">[S{stage}-{turn}] P: </span>
             <span className="text-yellow-400 italic">회피</span>
-            {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{shieldRecovered})</span>}
+              {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{shieldRecovered})</span>}
           </span>
         );
       } else if (normal > 0 || core > 0 || shieldRecovered > 0) {
         const damageParts = [];
-        if (normal > 0) damageParts.push(<span key="n" className="text-blue-400">일반 {normal}</span>);
+        if (normal > 0) {
+          if (lastDamageDealt?.isCombo) {
+            damageParts.push(
+                <span key="n" className="text-amber-400 font-bold animate-pulse">
+                ⚡연격({lastDamageDealt.comboHits || 2}히트) {normal}
+              </span>
+            );
+          } else {
+            damageParts.push(<span key="n" className="text-blue-400">일반 {normal}</span>);
+          }
+        }
         if (core > 0) damageParts.push(<span key="c" className="text-orange-500">코어 {core}</span>);
-        
+
         addLog(
-          <span>
+            <span>
             <span className="text-blue-500">[S{stage}-{turn}] P: </span>
-            {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
-            {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{shieldRecovered})</span>}
+              {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
+              {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{shieldRecovered})</span>}
           </span>
         );
       }
@@ -239,7 +262,9 @@ const AnimatedBattleScreen: React.FC = () => {
       const { normal, core } = lastDamageTaken;
       if (normal > 0) {
         const popup = { id: Date.now() + Math.random(), val: normal, type: 'taken' as const };
-        setDamagePopups(prev => [...prev, popup]);
+        queueMicrotask(() => {
+          setDamagePopups(prev => [...prev, popup]);
+        });
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
       }
       if (core > 0) {
@@ -259,12 +284,12 @@ const AnimatedBattleScreen: React.FC = () => {
       const enemyShieldText = (lastEnemyShieldRecovered ?? 0) > 0 ? <span className="text-blue-400 ml-1">(적 쉴드 +{lastEnemyShieldRecovered})</span> : '';
 
       addLog(
-        <span>
+          <span>
           <span className="text-red-500">[S{stage}-{turn}] E: </span>
-          {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
-          {reflectionText}
-          {leechText}
-          {enemyShieldText}
+            {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
+            {reflectionText}
+            {leechText}
+            {enemyShieldText}
         </span>
       );
     }
@@ -284,7 +309,7 @@ const AnimatedBattleScreen: React.FC = () => {
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
       }, 150);
       addLog(
-        <span>
+          <span>
           <span className="text-red-500">[S{stage}-{turn}] E: </span>
           <span className="text-yellow-400 italic">회피</span>
         </span>
@@ -365,53 +390,53 @@ const AnimatedBattleScreen: React.FC = () => {
           </div>
         </div>
 
-        <div 
-          className="bg-stone-100 px-6 pt-2 pb-0 flex flex-col border-4 border-neutral-900 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)] flex-grow"
-          style={{
-            backgroundImage: 'linear-gradient(to right, #e7e5e4 2px, transparent 2px), linear-gradient(to bottom, #e7e5e4 2px, transparent 2px)',
-            backgroundSize: '16px 16px',
-          }}
+        <div
+            className="bg-stone-100 px-6 pt-2 pb-0 flex flex-col border-4 border-neutral-900 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)] flex-grow"
+            style={{
+              backgroundImage: 'linear-gradient(to right, #e7e5e4 2px, transparent 2px), linear-gradient(to bottom, #e7e5e4 2px, transparent 2px)',
+              backgroundSize: '16px 16px',
+            }}
         >
 
           {gameStatus === 'BATTLE' && (
-            <div className={`absolute top-2 left-1/2 -translate-x-1/2 font-mono text-2xl font-black z-20 transition-colors duration-300 ${remainingTime <= 10 ? 'text-red-500 animate-pulse' : 'text-stone-400'}`}>
-              {remainingTime}
-            </div>
+              <div className={`absolute top-2 left-1/2 -translate-x-1/2 font-mono text-2xl font-black z-20 transition-colors duration-300 ${remainingTime <= 10 ? 'text-red-500 animate-pulse' : 'text-stone-400'}`}>
+                {remainingTime}
+              </div>
           )}
 
-<div className="grid grid-cols-2 gap-2 w-full relative z-10 font-mono p-2 border-4 border-neutral-900 bg-stone-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)]">
-  
-  <div className="flex flex-col items-start select-none w-full min-w-0">
-    <div className="text-[10px] font-black text-neutral-700 flex items-center gap-1 leading-none mb-1 truncate w-full">
-      <span>PLAYER</span>
-      {(playerShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(playerShield || 0)}</span>}
-      {isPlayerStunned && <span className="text-yellow-500 text-xs font-bold animate-pulse">STUN</span>}
-    </div>
-    <div className="text-xs font-black flex items-center leading-none text-neutral-400">
-      [{renderRetroGauge(player.currentHealth, computed.maxHealth, 10, 'text-green-600')}]
-    </div>
-    <div className="text-[9px] font-black text-neutral-800 mt-1.5 leading-none font-mono tracking-tighter">
-      {Math.max(0, player.currentHealth)}<span className="text-stone-400 mx-0.5">/</span>{computed.maxHealth.toFixed(0)}
-    </div>
-  </div>
+          <div className="grid grid-cols-2 gap-2 w-full relative z-10 font-mono p-2 border-4 border-neutral-900 bg-stone-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)]">
 
-  <div className="flex flex-col items-end select-none w-full min-w-0">
-    <div className="text-[10px] font-black text-neutral-700 leading-none mb-1 truncate w-full text-right flex justify-end items-center gap-1">
-      {enemyCoreDisplay && (
-        <span className={`font-bold ${enemyCoreDisplay.color}`}>[{enemyCoreDisplay.abbr}]</span>
-      )}
-      <span>ENEMY</span>
-      {(enemyShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(enemyShield || 0)}</span>}
-    </div>
-    <div className="text-xs font-black flex items-center leading-none text-neutral-400">
-      [{renderRetroGauge(currentEnemy?.currentHealth || 0, enemyComputed?.maxHealth || 1, 10, 'text-red-600')}]
-    </div>
-    <div className="text-[9px] font-black text-neutral-800 mt-1.5 leading-none font-mono tracking-tighter text-right">
-      {Math.max(0, currentEnemy?.currentHealth || 0)}<span className="text-stone-400 mx-0.5">/</span>{enemyComputed?.maxHealth.toFixed(0) || 1}
-    </div>
-  </div>
+            <div className="flex flex-col items-start select-none w-full min-w-0">
+              <div className="text-[10px] font-black text-neutral-700 flex items-center gap-1 leading-none mb-1 truncate w-full">
+                <span>PLAYER</span>
+                {(playerShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(playerShield || 0)}</span>}
+                {isPlayerStunned && <span className="text-yellow-500 text-xs font-bold animate-pulse">STUN</span>}
+              </div>
+              <div className="text-xs font-black flex items-center leading-none text-neutral-400">
+                [{renderRetroGauge(player.currentHealth, computed.maxHealth, 10, 'text-green-600')}]
+              </div>
+              <div className="text-[9px] font-black text-neutral-800 mt-1.5 leading-none font-mono tracking-tighter">
+                {Math.max(0, player.currentHealth)}<span className="text-stone-400 mx-0.5">/</span>{computed.maxHealth.toFixed(0)}
+              </div>
+            </div>
 
-</div>
+            <div className="flex flex-col items-end select-none w-full min-w-0">
+              <div className="text-[10px] font-black text-neutral-700 leading-none mb-1 truncate w-full text-right flex justify-end items-center gap-1">
+                {enemyCoreDisplay && (
+                    <span className={`font-bold ${enemyCoreDisplay.color}`}>[{enemyCoreDisplay.abbr}]</span>
+                )}
+                <span>ENEMY</span>
+                {(enemyShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(enemyShield || 0)}</span>}
+              </div>
+              <div className="text-xs font-black flex items-center leading-none text-neutral-400">
+                [{renderRetroGauge(currentEnemy?.currentHealth || 0, enemyComputed?.maxHealth || 1, 10, 'text-red-600')}]
+              </div>
+              <div className="text-[9px] font-black text-neutral-800 mt-1.5 leading-none font-mono tracking-tighter text-right">
+                {Math.max(0, currentEnemy?.currentHealth || 0)}<span className="text-stone-400 mx-0.5">/</span>{enemyComputed?.maxHealth.toFixed(0) || 1}
+              </div>
+            </div>
+
+          </div>
 
           <div className="flex justify-center items-end gap-16 mt-6 pb-2 z-10 relative">
 
@@ -425,15 +450,15 @@ const AnimatedBattleScreen: React.FC = () => {
                 <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-950 font-mono select-none">
                   <div className="flex justify-between w-full px-2 mb-1.5">
                     {playerAnim === 'hit' || playerAnim === 'stunned' ? (
-                      <>
-                        <span className="text-xs font-black leading-none">&gt;</span>
-                        <span className="text-xs font-black leading-none">&lt;</span>
-                      </>
+                        <>
+                          <span className="text-xs font-black leading-none">&gt;</span>
+                          <span className="text-xs font-black leading-none">&lt;</span>
+                        </>
                     ) : (
-                      <>
-                        <span className="w-2 h-2 bg-neutral-950 block"></span>
-                        <span className="w-2 h-2 bg-neutral-950 block"></span>
-                      </>
+                        <>
+                          <span className="w-2 h-2 bg-neutral-950 block"></span>
+                          <span className="w-2 h-2 bg-neutral-950 block"></span>
+                        </>
                     )}
                   </div>
                   <div className={`h-1 bg-neutral-950 transition-all duration-100 ${playerAnim === 'attack' ? 'w-4 bg-red-950' : 'w-2.5'}`}></div>
@@ -448,8 +473,8 @@ const AnimatedBattleScreen: React.FC = () => {
 
                   let text = `-${popup.val}`;
                   let colorClass = 'text-red-500 text-lg';
-                  let xOffset = 0;
-                  let yOffset = -60;
+                  let xOffset: number;
+                  let yOffset: number;
                   let scaleVal = 1.3;
 
                   if (isMiss) {
@@ -471,7 +496,7 @@ const AnimatedBattleScreen: React.FC = () => {
                     xOffset = -20;
                     yOffset = -50;
                   }
-                  
+
                   return (
                       <motion.div
                           key={popup.id}
@@ -499,15 +524,15 @@ const AnimatedBattleScreen: React.FC = () => {
                     <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-900 font-mono select-none">
                       <div className="flex justify-between w-full px-2 mb-1 text-xs font-black leading-none">
                         {enemyAnim === 'hit' ? (
-                          <>
-                            <span className="text-red-900">✖</span>
-                            <span className="text-red-900">✖</span>
-                          </>
+                            <>
+                              <span className="text-red-900">✖</span>
+                              <span className="text-red-900">✖</span>
+                            </>
                         ) : (
-                          <>
-                            <span>■</span>
-                            <span>■</span>
-                          </>
+                            <>
+                              <span>■</span>
+                              <span>■</span>
+                            </>
                         )}
                       </div>
                       <div className="w-5 h-1 bg-neutral-900 mt-1"></div>
@@ -522,15 +547,15 @@ const AnimatedBattleScreen: React.FC = () => {
                   let colorClass = 'text-white text-base';
                   let scaleVal = 1.2;
                   let text = `-${popup.val}`;
-                  
-                  let xOffset = 0;   
-                  let yOffset = -60; 
+
+                  let xOffset = 0;
+                  let yOffset = -60;
 
                   if (popup.type === 'core') {
                     scaleVal = 1.5;
                     xOffset = 20;
                     yOffset = -75;
-                    
+
                     if (popup.coreType === 'FIRE') {
                       colorClass = 'text-red-500 text-xl font-extrabold';
                     } else if (popup.coreType === 'WIND') {
@@ -576,11 +601,11 @@ const AnimatedBattleScreen: React.FC = () => {
 
           {gameStatus === 'DEFEAT' && (
               <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center z-50 pointer-events-none">
-                  <h2 className="text-6xl font-black text-red-500 mb-4 animate-pulse font-mono tracking-widest drop-shadow-[0_4px_2px_rgba(0,0,0,1)]">GAME OVER</h2>
-                  <p className="text-white text-lg font-bold mb-2 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
-                    {defeatReason === 'TIMEOUT' ? '시간이 초과되었습니다!' : '전투에서 패배했습니다!'}
-                  </p>
-                  <p className="text-neutral-300 text-sm font-mono drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">잠시 후 이전 층으로 돌아갑니다...</p>
+                <h2 className="text-6xl font-black text-red-500 mb-4 animate-pulse font-mono tracking-widest drop-shadow-[0_4px_2px_rgba(0,0,0,1)]">GAME OVER</h2>
+                <p className="text-white text-lg font-bold mb-2 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
+                  {defeatReason === 'TIMEOUT' ? '시간이 초과되었습니다!' : '전투에서 패배했습니다!'}
+                </p>
+                <p className="text-neutral-300 text-sm font-mono drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">잠시 후 이전 층으로 돌아갑니다...</p>
               </div>
           )}
         </div>
@@ -588,9 +613,9 @@ const AnimatedBattleScreen: React.FC = () => {
         <div className="bg-neutral-950 p-2 rounded-none border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <div className="h-24 overflow-y-auto custom-scrollbar text-[10px] font-mono text-neutral-200 text-left">
             {damageLog.map((entry) => (
-              <div key={entry.id} className="leading-tight">
-                {entry.message}
-              </div>
+                <div key={entry.id} className="leading-tight">
+                  {entry.message}
+                </div>
             ))}
           </div>
         </div>
