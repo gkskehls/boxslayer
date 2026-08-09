@@ -19,12 +19,13 @@ const calculatePoEClusterPositions = (nodes: Record<string, SkillNode>) => {
     const positions: Record<string, { x: number; y: number }> = {};
     const clusters: ClusterInfo[] = [];
 
-    // 1. 브랜치 기본 각도 (360도 5등분)
+    // 1. 브랜치 메인 각도 (360도 5등분)
     const branchBaseAngles: Record<string, number> = {
         'fire': 0,       // 동쪽 (0°)
         'water': 72,     // 남동쪽 (72°)
         'wind': 144,     // 남서쪽 (144°)
-        'elec': 216,     // 북서쪽 (216°)
+        'electric': 216, // 북서쪽 (216°)
+        'elec': 216,     // 레가시 호환
         'util': 288      // 북동쪽 (288°)
     };
 
@@ -32,7 +33,7 @@ const calculatePoEClusterPositions = (nodes: Record<string, SkillNode>) => {
         if (id.startsWith('fire')) return 'fire';
         if (id.startsWith('water')) return 'water';
         if (id.startsWith('wind')) return 'wind';
-        if (id.startsWith('elec') || id.startsWith('electric')) return 'elec';
+        if (id.startsWith('electric') || id.startsWith('elec')) return 'electric';
         if (id.startsWith('util')) return 'util';
 
         if (nodes[id]?.requires?.length > 0) {
@@ -44,52 +45,106 @@ const calculatePoEClusterPositions = (nodes: Record<string, SkillNode>) => {
         return 'unknown';
     };
 
-    // 2. 브랜치 & Tier(1~10) 클러스터 허브 형성
-    const canvasSize = 6500;
+    const canvasSize = 8000;
     const center = canvasSize / 2;
 
     positions['core_origin'] = { x: center, y: center };
 
-    // 브랜치별 및 티어별 노드 분류
-    const branchTierNodes: Record<string, Record<number, string[]>> = {
-        fire: {}, water: {}, wind: {}, elec: {}, util: {}, unknown: {}
+    // 2. 레가시 노드 세팅 (거리 180~280px 지점)
+    const legacyOffsets: Record<string, { branch: string; dist: number; angleOffset: number }> = {
+        'util_idle_1': { branch: 'util', dist: 180, angleOffset: -12 },
+        'util_idle_2': { branch: 'util', dist: 220, angleOffset: -12 },
+        'util_idle_3': { branch: 'util', dist: 260, angleOffset: -12 },
+        'util_reincarnate_1': { branch: 'util', dist: 300, angleOffset: -15 },
+
+        'util_fever_1': { branch: 'util', dist: 180, angleOffset: 0 },
+        'util_fever_2': { branch: 'util', dist: 220, angleOffset: 0 },
+        'util_fever_3': { branch: 'util', dist: 260, angleOffset: 0 },
+        'util_fever_notable': { branch: 'util', dist: 300, angleOffset: 0 },
+
+        'util_stat_1': { branch: 'util', dist: 180, angleOffset: 12 },
+        'util_stat_2': { branch: 'util', dist: 220, angleOffset: 12 },
+        'util_stat_3': { branch: 'util', dist: 260, angleOffset: 12 },
+        'util_core_notable': { branch: 'util', dist: 300, angleOffset: 15 },
+
+        'fire_str_1': { branch: 'fire', dist: 180, angleOffset: -10 },
+        'fire_str_2': { branch: 'fire', dist: 220, angleOffset: -10 },
+        'fire_str_3': { branch: 'fire', dist: 260, angleOffset: -10 },
+        'fire_notable_1': { branch: 'fire', dist: 300, angleOffset: 0 },
+        'fire_dmg_1': { branch: 'fire', dist: 330, angleOffset: -12 },
+        'fire_dmg_2': { branch: 'fire', dist: 360, angleOffset: -12 },
+        'fire_dmg_3': { branch: 'fire', dist: 390, angleOffset: -12 },
+        'fire_notable_dmg': { branch: 'fire', dist: 420, angleOffset: -15 },
+        'fire_pen_1': { branch: 'fire', dist: 330, angleOffset: 12 },
+        'fire_pen_2': { branch: 'fire', dist: 360, angleOffset: 12 },
+        'fire_pen_3': { branch: 'fire', dist: 390, angleOffset: 12 },
+        'fire_notable_pen': { branch: 'fire', dist: 420, angleOffset: 15 },
+        'fire_keystone_1': { branch: 'fire', dist: 460, angleOffset: 0 },
+
+        'water_con_1': { branch: 'water', dist: 180, angleOffset: 0 },
+        'water_con_2': { branch: 'water', dist: 220, angleOffset: 0 },
+        'water_con_3': { branch: 'water', dist: 260, angleOffset: 0 },
+        'water_notable_1': { branch: 'water', dist: 300, angleOffset: 0 },
+        'water_ref_1': { branch: 'water', dist: 330, angleOffset: -12 },
+        'water_ref_2': { branch: 'water', dist: 360, angleOffset: -12 },
+        'water_ref_3': { branch: 'water', dist: 390, angleOffset: -12 },
+        'water_notable_ref': { branch: 'water', dist: 420, angleOffset: -15 },
+        'water_hp_1': { branch: 'water', dist: 330, angleOffset: 12 },
+        'water_hp_2': { branch: 'water', dist: 360, angleOffset: 12 },
+        'water_hp_3': { branch: 'water', dist: 390, angleOffset: 12 },
+        'water_notable_hp': { branch: 'water', dist: 420, angleOffset: 15 },
+        'water_keystone_1': { branch: 'water', dist: 460, angleOffset: 0 },
+
+        'wind_dex_1': { branch: 'wind', dist: 180, angleOffset: 0 },
+        'wind_dex_2': { branch: 'wind', dist: 220, angleOffset: 0 },
+        'wind_dex_3': { branch: 'wind', dist: 260, angleOffset: 0 },
+        'wind_notable_1': { branch: 'wind', dist: 300, angleOffset: 0 },
+        'wind_combo_1': { branch: 'wind', dist: 330, angleOffset: -12 },
+        'wind_combo_2': { branch: 'wind', dist: 360, angleOffset: -12 },
+        'wind_combo_3': { branch: 'wind', dist: 390, angleOffset: -12 },
+        'wind_notable_combo': { branch: 'wind', dist: 420, angleOffset: -15 },
+        'wind_eva_1': { branch: 'wind', dist: 330, angleOffset: 12 },
+        'wind_eva_2': { branch: 'wind', dist: 360, angleOffset: 12 },
+        'wind_eva_3': { branch: 'wind', dist: 390, angleOffset: 12 },
+        'wind_notable_eva': { branch: 'wind', dist: 420, angleOffset: 15 },
+        'wind_keystone_1': { branch: 'wind', dist: 460, angleOffset: 0 },
+
+        'elec_util_1': { branch: 'electric', dist: 180, angleOffset: 0 },
+        'elec_util_2': { branch: 'electric', dist: 220, angleOffset: 0 },
+        'elec_util_3': { branch: 'electric', dist: 260, angleOffset: 0 },
+        'elec_notable_1': { branch: 'electric', dist: 300, angleOffset: 0 },
+        'elec_stun_1': { branch: 'electric', dist: 330, angleOffset: -12 },
+        'elec_stun_2': { branch: 'electric', dist: 360, angleOffset: -12 },
+        'elec_stun_3': { branch: 'electric', dist: 390, angleOffset: -12 },
+        'elec_notable_stun': { branch: 'electric', dist: 420, angleOffset: -15 },
+        'elec_exec_1': { branch: 'electric', dist: 330, angleOffset: 12 },
+        'elec_exec_2': { branch: 'electric', dist: 360, angleOffset: 12 },
+        'elec_exec_3': { branch: 'electric', dist: 390, angleOffset: 12 },
+        'elec_notable_exec': { branch: 'electric', dist: 420, angleOffset: 15 },
+        'elec_keystone_1': { branch: 'electric', dist: 460, angleOffset: 0 },
     };
 
-    Object.keys(nodes).forEach(id => {
-        if (id === 'core_origin') return;
-
-        const bKey = getBranchKey(id);
-
-        let tier = 1;
-        const numMatch = id.match(/\d+$/);
-        if (numMatch) {
-            const num = parseInt(numMatch[0], 10);
-            if (num >= 1 && num <= 100) {
-                tier = Math.ceil(num / 10);
-            }
-        }
-
-        if (!branchTierNodes[bKey]) branchTierNodes[bKey] = {};
-        if (!branchTierNodes[bKey][tier]) branchTierNodes[bKey][tier] = [];
-        branchTierNodes[bKey][tier].push(id);
+    Object.entries(legacyOffsets).forEach(([legId, cfg]) => {
+        const baseAng = branchBaseAngles[cfg.branch] || 0;
+        const rad = ((baseAng + cfg.angleOffset) * Math.PI) / 180;
+        positions[legId] = {
+            x: center + cfg.dist * Math.cos(rad),
+            y: center + cfg.dist * Math.sin(rad)
+        };
     });
 
-    // 3. PoE 방식 클러스터 원형 궤도(Orbit) 배치
-    Object.keys(branchBaseAngles).forEach(bKey => {
+    // 3. 500개 대규모 트리 노드 배치 (PoE Cluster Orbit Algorithm)
+    const branches = ['fire', 'water', 'wind', 'electric', 'util'];
+
+    branches.forEach(bKey => {
         const baseAngle = branchBaseAngles[bKey];
-        const rad = (baseAngle * Math.PI) / 180;
-        const tierObj = branchTierNodes[bKey] || {};
 
-        Object.keys(tierObj).forEach(tStr => {
-            const tier = parseInt(tStr, 10);
-            const nodeList = tierObj[tier];
-            const N = nodeList.length;
-
-            const trunkDistance = 320 + tier * 280; // 메인 줄기
-            const clusterCx = center + trunkDistance * Math.cos(rad);
-            const clusterCy = center + trunkDistance * Math.sin(rad);
-
-            const clusterRadius = 110; // 원형 궤도 반지름
+        // Tier 1 ~ 10 클러스터 주줄기 허브 생성
+        for (let tier = 1; tier <= 10; tier++) {
+            const trunkDistance = 450 + tier * 340; // 클러스터 허브 간 거리
+            const clusterRad = (baseAngle * Math.PI) / 180;
+            const clusterCx = center + trunkDistance * Math.cos(clusterRad);
+            const clusterCy = center + trunkDistance * Math.sin(clusterRad);
 
             clusters.push({
                 key: `${bKey}_cluster_${tier}`,
@@ -97,25 +152,68 @@ const calculatePoEClusterPositions = (nodes: Record<string, SkillNode>) => {
                 tier,
                 cx: clusterCx,
                 cy: clusterCy,
-                radius: clusterRadius
+                radius: 120
             });
 
-            // 원형 오비트 360도 균등 배치
-            nodeList.forEach((id, index) => {
-                const nodeAngle = baseAngle - 90 + (index * (360 / Math.max(N, 1)));
-                const nodeRad = (nodeAngle * Math.PI) / 180;
+            // 해당 티어의 10개 노드 배치 (i = (tier-1)*10 + 1 ~ tier*10)
+            const startNum = (tier - 1) * 10 + 1;
+            for (let offset = 0; offset < 10; offset++) {
+                const nodeNum = startNum + offset;
+                const nodeId = `${bKey}_tree_node_${nodeNum}`;
+                if (!nodes[nodeId]) continue;
 
-                positions[id] = {
-                    x: clusterCx + clusterRadius * Math.cos(nodeRad),
-                    y: clusterCy + clusterRadius * Math.sin(nodeRad)
+                const subGroup = offset < 5 ? 0 : 1; // 0: 가지 A, 1: 가지 B
+                const subIndex = offset % 5;        // 0~4 (가지 내부 순서)
+
+                // 선이 꼬이지 않게 순서대로 호(Arc) 상에 일렬 곡선 배치
+                let nodeDist: number;
+                let angleDev: number; // 메인 축 기준 각도 편차
+
+                if (subGroup === 0) {
+                    // 서브 가지 A (상단/좌측 호)
+                    if (subIndex === 0) {
+                        nodeDist = 45;
+                        angleDev = -15;
+                    } else if (subIndex === 4) {
+                        nodeDist = 145;
+                        angleDev = -38;
+                    } else {
+                        nodeDist = 70 + (subIndex - 1) * 25;
+                        angleDev = -32 + (subIndex - 1) * 10;
+                    }
+                } else {
+                    // 서브 가지 B (하단/우측 호)
+                    if (subIndex === 0) {
+                        nodeDist = 45;
+                        angleDev = 15;
+                    } else if (subIndex === 4) {
+                        nodeDist = 145;
+                        angleDev = 38;
+                    } else {
+                        nodeDist = 70 + (subIndex - 1) * 25;
+                        angleDev = 32 - (subIndex - 1) * 10;
+                    }
+                }
+
+                const finalRad = ((baseAngle + angleDev) * Math.PI) / 180;
+                positions[nodeId] = {
+                    x: clusterCx + nodeDist * Math.cos(finalRad),
+                    y: clusterCy + nodeDist * Math.sin(finalRad)
                 };
-            });
-        });
+            }
+        }
     });
 
+    // 예외 노드 자동 정렬
     Object.keys(nodes).forEach(id => {
         if (!positions[id]) {
-            positions[id] = { x: center + 300, y: center + 300 };
+            const bKey = getBranchKey(id);
+            const baseAngle = branchBaseAngles[bKey] || 0;
+            const rad = (baseAngle * Math.PI) / 180;
+            positions[id] = {
+                x: center + 300 * Math.cos(rad),
+                y: center + 300 * Math.sin(rad)
+            };
         }
     });
 
