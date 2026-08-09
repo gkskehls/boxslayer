@@ -5,7 +5,7 @@ import { useGameStore } from '../store/gameStore';
 import { SKILL_TREE_DATA } from '../constants/skills';
 import type { SkillNode } from '../types/game';
 
-// [신규] PoE(Path of Exile) 스타일 클러스터링(Cluster Orbit Ring) 배치 엔진
+// // [신규] PoE(Path of Exile) 스타일 클러스터링(Cluster Orbit Ring) 배치 엔진
 interface ClusterInfo {
     key: string;
     branch: string;
@@ -45,83 +45,83 @@ const calculatePoEClusterPositions = (nodes: Record<string, SkillNode>) => {
         return 'unknown';
     };
 
-    const canvasSize = 8000;
+    const canvasSize = 18000; // 넓고 신원한 초대형 캔버스
     const center = canvasSize / 2;
 
     positions['core_origin'] = { x: center, y: center };
 
-    // 2. 레가시 노드 세팅 (거리 180~280px 지점)
+    // 2. 레가시 노드 세팅 (중심 주변 250~650px 지점)
     const legacyOffsets: Record<string, { branch: string; dist: number; angleOffset: number }> = {
-        'util_idle_1': { branch: 'util', dist: 180, angleOffset: -12 },
-        'util_idle_2': { branch: 'util', dist: 220, angleOffset: -12 },
-        'util_idle_3': { branch: 'util', dist: 260, angleOffset: -12 },
-        'util_reincarnate_1': { branch: 'util', dist: 300, angleOffset: -15 },
+        'util_idle_1': { branch: 'util', dist: 250, angleOffset: -12 },
+        'util_idle_2': { branch: 'util', dist: 350, angleOffset: -12 },
+        'util_idle_3': { branch: 'util', dist: 450, angleOffset: -12 },
+        'util_reincarnate_1': { branch: 'util', dist: 550, angleOffset: -15 },
 
-        'util_fever_1': { branch: 'util', dist: 180, angleOffset: 0 },
-        'util_fever_2': { branch: 'util', dist: 220, angleOffset: 0 },
-        'util_fever_3': { branch: 'util', dist: 260, angleOffset: 0 },
-        'util_fever_notable': { branch: 'util', dist: 300, angleOffset: 0 },
+        'util_fever_1': { branch: 'util', dist: 250, angleOffset: 0 },
+        'util_fever_2': { branch: 'util', dist: 350, angleOffset: 0 },
+        'util_fever_3': { branch: 'util', dist: 450, angleOffset: 0 },
+        'util_fever_notable': { branch: 'util', dist: 550, angleOffset: 0 },
 
-        'util_stat_1': { branch: 'util', dist: 180, angleOffset: 12 },
-        'util_stat_2': { branch: 'util', dist: 220, angleOffset: 12 },
-        'util_stat_3': { branch: 'util', dist: 260, angleOffset: 12 },
-        'util_core_notable': { branch: 'util', dist: 300, angleOffset: 15 },
+        'util_stat_1': { branch: 'util', dist: 250, angleOffset: 12 },
+        'util_stat_2': { branch: 'util', dist: 350, angleOffset: 12 },
+        'util_stat_3': { branch: 'util', dist: 450, angleOffset: 12 },
+        'util_core_notable': { branch: 'util', dist: 550, angleOffset: 15 },
 
-        'fire_str_1': { branch: 'fire', dist: 180, angleOffset: -10 },
-        'fire_str_2': { branch: 'fire', dist: 220, angleOffset: -10 },
-        'fire_str_3': { branch: 'fire', dist: 260, angleOffset: -10 },
-        'fire_notable_1': { branch: 'fire', dist: 300, angleOffset: 0 },
-        'fire_dmg_1': { branch: 'fire', dist: 330, angleOffset: -12 },
-        'fire_dmg_2': { branch: 'fire', dist: 360, angleOffset: -12 },
-        'fire_dmg_3': { branch: 'fire', dist: 390, angleOffset: -12 },
-        'fire_notable_dmg': { branch: 'fire', dist: 420, angleOffset: -15 },
-        'fire_pen_1': { branch: 'fire', dist: 330, angleOffset: 12 },
-        'fire_pen_2': { branch: 'fire', dist: 360, angleOffset: 12 },
-        'fire_pen_3': { branch: 'fire', dist: 390, angleOffset: 12 },
-        'fire_notable_pen': { branch: 'fire', dist: 420, angleOffset: 15 },
-        'fire_keystone_1': { branch: 'fire', dist: 460, angleOffset: 0 },
+        'fire_str_1': { branch: 'fire', dist: 250, angleOffset: -10 },
+        'fire_str_2': { branch: 'fire', dist: 320, angleOffset: -10 },
+        'fire_str_3': { branch: 'fire', dist: 390, angleOffset: -10 },
+        'fire_notable_1': { branch: 'fire', dist: 460, angleOffset: 0 },
+        'fire_dmg_1': { branch: 'fire', dist: 510, angleOffset: -15 },
+        'fire_dmg_2': { branch: 'fire', dist: 560, angleOffset: -15 },
+        'fire_dmg_3': { branch: 'fire', dist: 610, angleOffset: -15 },
+        'fire_notable_dmg': { branch: 'fire', dist: 660, angleOffset: -18 },
+        'fire_pen_1': { branch: 'fire', dist: 510, angleOffset: 15 },
+        'fire_pen_2': { branch: 'fire', dist: 560, angleOffset: 15 },
+        'fire_pen_3': { branch: 'fire', dist: 610, angleOffset: 15 },
+        'fire_notable_pen': { branch: 'fire', dist: 660, angleOffset: 18 },
+        'fire_keystone_1': { branch: 'fire', dist: 720, angleOffset: 0 },
 
-        'water_con_1': { branch: 'water', dist: 180, angleOffset: 0 },
-        'water_con_2': { branch: 'water', dist: 220, angleOffset: 0 },
-        'water_con_3': { branch: 'water', dist: 260, angleOffset: 0 },
-        'water_notable_1': { branch: 'water', dist: 300, angleOffset: 0 },
-        'water_ref_1': { branch: 'water', dist: 330, angleOffset: -12 },
-        'water_ref_2': { branch: 'water', dist: 360, angleOffset: -12 },
-        'water_ref_3': { branch: 'water', dist: 390, angleOffset: -12 },
-        'water_notable_ref': { branch: 'water', dist: 420, angleOffset: -15 },
-        'water_hp_1': { branch: 'water', dist: 330, angleOffset: 12 },
-        'water_hp_2': { branch: 'water', dist: 360, angleOffset: 12 },
-        'water_hp_3': { branch: 'water', dist: 390, angleOffset: 12 },
-        'water_notable_hp': { branch: 'water', dist: 420, angleOffset: 15 },
-        'water_keystone_1': { branch: 'water', dist: 460, angleOffset: 0 },
+        'water_con_1': { branch: 'water', dist: 250, angleOffset: 0 },
+        'water_con_2': { branch: 'water', dist: 320, angleOffset: 0 },
+        'water_con_3': { branch: 'water', dist: 390, angleOffset: 0 },
+        'water_notable_1': { branch: 'water', dist: 460, angleOffset: 0 },
+        'water_ref_1': { branch: 'water', dist: 510, angleOffset: -15 },
+        'water_ref_2': { branch: 'water', dist: 560, angleOffset: -15 },
+        'water_ref_3': { branch: 'water', dist: 610, angleOffset: -15 },
+        'water_notable_ref': { branch: 'water', dist: 660, angleOffset: -18 },
+        'water_hp_1': { branch: 'water', dist: 510, angleOffset: 15 },
+        'water_hp_2': { branch: 'water', dist: 560, angleOffset: 15 },
+        'water_hp_3': { branch: 'water', dist: 610, angleOffset: 15 },
+        'water_notable_hp': { branch: 'water', dist: 660, angleOffset: 18 },
+        'water_keystone_1': { branch: 'water', dist: 720, angleOffset: 0 },
 
-        'wind_dex_1': { branch: 'wind', dist: 180, angleOffset: 0 },
-        'wind_dex_2': { branch: 'wind', dist: 220, angleOffset: 0 },
-        'wind_dex_3': { branch: 'wind', dist: 260, angleOffset: 0 },
-        'wind_notable_1': { branch: 'wind', dist: 300, angleOffset: 0 },
-        'wind_combo_1': { branch: 'wind', dist: 330, angleOffset: -12 },
-        'wind_combo_2': { branch: 'wind', dist: 360, angleOffset: -12 },
-        'wind_combo_3': { branch: 'wind', dist: 390, angleOffset: -12 },
-        'wind_notable_combo': { branch: 'wind', dist: 420, angleOffset: -15 },
-        'wind_eva_1': { branch: 'wind', dist: 330, angleOffset: 12 },
-        'wind_eva_2': { branch: 'wind', dist: 360, angleOffset: 12 },
-        'wind_eva_3': { branch: 'wind', dist: 390, angleOffset: 12 },
-        'wind_notable_eva': { branch: 'wind', dist: 420, angleOffset: 15 },
-        'wind_keystone_1': { branch: 'wind', dist: 460, angleOffset: 0 },
+        'wind_dex_1': { branch: 'wind', dist: 250, angleOffset: 0 },
+        'wind_dex_2': { branch: 'wind', dist: 320, angleOffset: 0 },
+        'wind_dex_3': { branch: 'wind', dist: 390, angleOffset: 0 },
+        'wind_notable_1': { branch: 'wind', dist: 460, angleOffset: 0 },
+        'wind_combo_1': { branch: 'wind', dist: 510, angleOffset: -15 },
+        'wind_combo_2': { branch: 'wind', dist: 560, angleOffset: -15 },
+        'wind_combo_3': { branch: 'wind', dist: 610, angleOffset: -15 },
+        'wind_notable_combo': { branch: 'wind', dist: 660, angleOffset: -18 },
+        'wind_eva_1': { branch: 'wind', dist: 510, angleOffset: 15 },
+        'wind_eva_2': { branch: 'wind', dist: 560, angleOffset: 15 },
+        'wind_eva_3': { branch: 'wind', dist: 610, angleOffset: 15 },
+        'wind_notable_eva': { branch: 'wind', dist: 660, angleOffset: 18 },
+        'wind_keystone_1': { branch: 'wind', dist: 720, angleOffset: 0 },
 
-        'elec_util_1': { branch: 'electric', dist: 180, angleOffset: 0 },
-        'elec_util_2': { branch: 'electric', dist: 220, angleOffset: 0 },
-        'elec_util_3': { branch: 'electric', dist: 260, angleOffset: 0 },
-        'elec_notable_1': { branch: 'electric', dist: 300, angleOffset: 0 },
-        'elec_stun_1': { branch: 'electric', dist: 330, angleOffset: -12 },
-        'elec_stun_2': { branch: 'electric', dist: 360, angleOffset: -12 },
-        'elec_stun_3': { branch: 'electric', dist: 390, angleOffset: -12 },
-        'elec_notable_stun': { branch: 'electric', dist: 420, angleOffset: -15 },
-        'elec_exec_1': { branch: 'electric', dist: 330, angleOffset: 12 },
-        'elec_exec_2': { branch: 'electric', dist: 360, angleOffset: 12 },
-        'elec_exec_3': { branch: 'electric', dist: 390, angleOffset: 12 },
-        'elec_notable_exec': { branch: 'electric', dist: 420, angleOffset: 15 },
-        'elec_keystone_1': { branch: 'electric', dist: 460, angleOffset: 0 },
+        'elec_util_1': { branch: 'electric', dist: 250, angleOffset: 0 },
+        'elec_util_2': { branch: 'electric', dist: 320, angleOffset: 0 },
+        'elec_util_3': { branch: 'electric', dist: 390, angleOffset: 0 },
+        'elec_notable_1': { branch: 'electric', dist: 460, angleOffset: 0 },
+        'elec_stun_1': { branch: 'electric', dist: 510, angleOffset: -15 },
+        'elec_stun_2': { branch: 'electric', dist: 560, angleOffset: -15 },
+        'elec_stun_3': { branch: 'electric', dist: 610, angleOffset: -15 },
+        'elec_notable_stun': { branch: 'electric', dist: 660, angleOffset: -18 },
+        'elec_exec_1': { branch: 'electric', dist: 510, angleOffset: 15 },
+        'elec_exec_2': { branch: 'electric', dist: 560, angleOffset: 15 },
+        'elec_exec_3': { branch: 'electric', dist: 610, angleOffset: 15 },
+        'elec_notable_exec': { branch: 'electric', dist: 660, angleOffset: 18 },
+        'elec_keystone_1': { branch: 'electric', dist: 720, angleOffset: 0 },
     };
 
     Object.entries(legacyOffsets).forEach(([legId, cfg]) => {
@@ -133,18 +133,20 @@ const calculatePoEClusterPositions = (nodes: Record<string, SkillNode>) => {
         };
     });
 
-    // 3. 500개 대규모 트리 노드 배치 (PoE Cluster Orbit Algorithm)
+    // 3. 500개 대규모 트리 노드 배치 (PoE Cluster Orbit Algorithm - 넓은 링 궤도)
     const branches = ['fire', 'water', 'wind', 'electric', 'util'];
 
     branches.forEach(bKey => {
         const baseAngle = branchBaseAngles[bKey];
 
-        // Tier 1 ~ 10 클러스터 주줄기 허브 생성
+        // Tier 1 ~ 10 클러스터 주줄기 허브 생성 (티어간 거리 750px로 시원하게 확장)
         for (let tier = 1; tier <= 10; tier++) {
-            const trunkDistance = 450 + tier * 340; // 클러스터 허브 간 거리
+            const trunkDistance = 800 + tier * 700; // 클러스터 허브 간 유격 700px 확보
             const clusterRad = (baseAngle * Math.PI) / 180;
             const clusterCx = center + trunkDistance * Math.cos(clusterRad);
             const clusterCy = center + trunkDistance * Math.sin(clusterRad);
+
+            const clusterOrbitRadius = 240; // 클러스터 원형 궤도 반지름 (노드 간 거리 약 150px 확보)
 
             clusters.push({
                 key: `${bKey}_cluster_${tier}`,
@@ -152,53 +154,24 @@ const calculatePoEClusterPositions = (nodes: Record<string, SkillNode>) => {
                 tier,
                 cx: clusterCx,
                 cy: clusterCy,
-                radius: 120
+                radius: clusterOrbitRadius
             });
 
-            // 해당 티어의 10개 노드 배치 (i = (tier-1)*10 + 1 ~ tier*10)
+            // 해당 티어의 10개 노드를 360도 원형 링(Circle Orbit) 상에 균등(36도 간격) 배치
             const startNum = (tier - 1) * 10 + 1;
             for (let offset = 0; offset < 10; offset++) {
                 const nodeNum = startNum + offset;
                 const nodeId = `${bKey}_tree_node_${nodeNum}`;
                 if (!nodes[nodeId]) continue;
 
-                const subGroup = offset < 5 ? 0 : 1; // 0: 가지 A, 1: 가지 B
-                const subIndex = offset % 5;        // 0~4 (가지 내부 순서)
+                // 36도 간격으로 궤도 회전하여 원형으로 깔끔하게 배치
+                // 메인 가지에서 자연스럽게 진입하도록 진입 각도 맞춤
+                const nodeOrbitAngle = baseAngle - 90 + offset * 36;
+                const nodeRad = (nodeOrbitAngle * Math.PI) / 180;
 
-                // 선이 꼬이지 않게 순서대로 호(Arc) 상에 일렬 곡선 배치
-                let nodeDist: number;
-                let angleDev: number; // 메인 축 기준 각도 편차
-
-                if (subGroup === 0) {
-                    // 서브 가지 A (상단/좌측 호)
-                    if (subIndex === 0) {
-                        nodeDist = 45;
-                        angleDev = -15;
-                    } else if (subIndex === 4) {
-                        nodeDist = 145;
-                        angleDev = -38;
-                    } else {
-                        nodeDist = 70 + (subIndex - 1) * 25;
-                        angleDev = -32 + (subIndex - 1) * 10;
-                    }
-                } else {
-                    // 서브 가지 B (하단/우측 호)
-                    if (subIndex === 0) {
-                        nodeDist = 45;
-                        angleDev = 15;
-                    } else if (subIndex === 4) {
-                        nodeDist = 145;
-                        angleDev = 38;
-                    } else {
-                        nodeDist = 70 + (subIndex - 1) * 25;
-                        angleDev = 32 - (subIndex - 1) * 10;
-                    }
-                }
-
-                const finalRad = ((baseAngle + angleDev) * Math.PI) / 180;
                 positions[nodeId] = {
-                    x: clusterCx + nodeDist * Math.cos(finalRad),
-                    y: clusterCy + nodeDist * Math.sin(finalRad)
+                    x: clusterCx + clusterOrbitRadius * Math.cos(nodeRad),
+                    y: clusterCy + clusterOrbitRadius * Math.sin(nodeRad)
                 };
             }
         }
@@ -211,8 +184,8 @@ const calculatePoEClusterPositions = (nodes: Record<string, SkillNode>) => {
             const baseAngle = branchBaseAngles[bKey] || 0;
             const rad = (baseAngle * Math.PI) / 180;
             positions[id] = {
-                x: center + 300 * Math.cos(rad),
-                y: center + 300 * Math.sin(rad)
+                x: center + 500 * Math.cos(rad),
+                y: center + 500 * Math.sin(rad)
             };
         }
     });
@@ -245,17 +218,17 @@ const SkillTreeScreen: React.FC = () => {
         let targetX = center;
         let targetY = center;
 
-        if (branchKey === 'fire') { targetX = center + 1200; targetY = center; }
-        else if (branchKey === 'water') { targetX = center + 750; targetY = center + 1000; }
-        else if (branchKey === 'wind') { targetX = center - 750; targetY = center + 1000; }
-        else if (branchKey === 'elec') { targetX = center - 750; targetY = center - 1000; }
-        else if (branchKey === 'util') { targetX = center + 750; targetY = center - 1000; }
+        if (branchKey === 'fire') { targetX = center + 2500; targetY = center; }
+        else if (branchKey === 'water') { targetX = center + 1500; targetY = center + 2000; }
+        else if (branchKey === 'wind') { targetX = center - 1500; targetY = center + 2000; }
+        else if (branchKey === 'elec' || branchKey === 'electric') { targetX = center - 1500; targetY = center - 2000; }
+        else if (branchKey === 'util') { targetX = center + 1500; targetY = center - 2000; }
 
         container.scrollLeft = targetX * zoom - container.clientWidth / 2;
         container.scrollTop = targetY * zoom - container.clientHeight / 2;
     };
 
-    // 컴포넌트 마운트 시 스크롤을 줌 비율(50%)에 맞춰 중앙(core_origin)으로 자동 이동
+    // 컴포넌트 마운트 시 스크롤을 줌 비율에 맞춰 중앙(core_origin)으로 자동 이동
     useEffect(() => {
         if (scrollContainerRef.current) {
             const container = scrollContainerRef.current;
@@ -292,18 +265,18 @@ const SkillTreeScreen: React.FC = () => {
     };
 
     const getNodeStyle = (type: string, isUnlocked: boolean, isSelectable: boolean) => {
-        const baseStyle = "absolute transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center cursor-pointer transition-all text-xs font-mono font-black z-10 hover:scale-110";
+        const baseStyle = "absolute transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center cursor-pointer transition-all text-sm font-mono font-black z-10 hover:scale-125 hover:z-30 p-1 active:scale-95";
 
-        let colorClass = "bg-stone-300 border-stone-400 text-stone-400 opacity-60 border-2"; // 잠김
+        let colorClass = "bg-stone-800 text-stone-500 border-stone-600 border-2 hover:border-stone-400"; // 잠김
         if (isUnlocked) {
-            colorClass = "bg-amber-400 text-black border-black border-2 shadow-[0_0_12px_#facc15] z-20"; // 해금됨
+            colorClass = "bg-amber-400 text-black border-black border-2 shadow-[0_0_16px_#facc15] z-20"; // 해금됨
         } else if (isSelectable) {
-            colorClass = "bg-blue-600 text-white border-blue-400 border-2 shadow-[0_0_12px_rgba(59,130,246,0.6)] animate-pulse z-20"; // 해금 가능
+            colorClass = "bg-blue-600 text-white border-blue-300 border-2 shadow-[0_0_16px_rgba(59,130,246,0.8)] animate-pulse z-20 hover:bg-blue-500"; // 해금 가능
         }
 
-        let shapeClass = "w-9 h-9 rounded-none"; // NORMAL (직각 픽셀 블록화)
-        if (type === 'NOTABLE') shapeClass = "w-11 h-11 rounded-none border-2 rotate-45"; // NOTABLE
-        if (type === 'KEYSTONE') shapeClass = "w-14 h-14 rounded-none border-double border-4"; // KEYSTONE
+        let shapeClass = "w-12 h-12 rounded-none"; // NORMAL
+        if (type === 'NOTABLE') shapeClass = "w-14 h-14 rounded-none border-2 rotate-45"; // NOTABLE
+        if (type === 'KEYSTONE') shapeClass = "w-16 h-16 rounded-none border-double border-4"; // KEYSTONE
 
         return `${baseStyle} ${colorClass} ${shapeClass}`;
     };
@@ -401,10 +374,10 @@ const SkillTreeScreen: React.FC = () => {
                 </div>
             </div>
 
-            {/* 스크롤 캔버스: 아케이드 뷰포트 크기 최적화 (h-[40vh]) */}
+            {/* 스크롤 캔버스: 아케이드 뷰포트 크기 최적화 (h-[52vh]) */}
             <div
                 ref={scrollContainerRef}
-                className="relative w-full h-[40vh] bg-neutral-950 rounded-none border-4 border-black overflow-auto custom-scrollbar"
+                className="relative w-full h-[52vh] bg-neutral-950 rounded-none border-4 border-black overflow-auto custom-scrollbar"
                 style={{
                     boxShadow: 'inset 4px 4px 0px rgba(0,0,0,0.3)'
                 }}
@@ -420,34 +393,60 @@ const SkillTreeScreen: React.FC = () => {
                             transform: `scale(${zoom})`,
                             transformOrigin: '0 0',
                             backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px)',
-                            backgroundSize: '20px 20px'
+                            backgroundSize: '24px 24px'
                         }}
                     >
                         {/* SVG 연결선 및 PoE 클러스터 오비트 링 */}
                         <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                            {/* 1. PoE 클러스터 원형 백드롭 오비트 링 (Cluster Orbit Circles) */}
-                            {POE_CLUSTERS.map(cluster => (
-                                <g key={cluster.key}>
-                                    <circle
-                                        cx={cluster.cx}
-                                        cy={cluster.cy}
-                                        r={cluster.radius}
-                                        fill="none"
-                                        stroke="#334155"
-                                        strokeWidth="1.5"
-                                        strokeDasharray="4 4"
-                                        className="opacity-60"
-                                    />
-                                    <circle
-                                        cx={cluster.cx}
-                                        cy={cluster.cy}
-                                        r="6"
-                                        fill="#1e293b"
-                                        stroke="#475569"
-                                        strokeWidth="1"
-                                    />
-                                </g>
-                            ))}
+                            {/* 1. PoE 클러스터 원형 백드롭 오비트 링 (Cluster Orbit Circles & Labels) */}
+                            {POE_CLUSTERS.map(cluster => {
+                                const branchNames: Record<string, string> = {
+                                    fire: '🔥 FIRE',
+                                    water: '💧 WATER',
+                                    wind: '🍃 WIND (COMBO)',
+                                    electric: '⚡ ELEC (STUN)',
+                                    util: '🌀 UTIL'
+                                };
+                                const branchName = branchNames[cluster.branch] || cluster.branch.toUpperCase();
+
+                                return (
+                                    <g key={cluster.key}>
+                                        {/* 원형 궤도 가이드선 */}
+                                        <circle
+                                            cx={cluster.cx}
+                                            cy={cluster.cy}
+                                            r={cluster.radius}
+                                            fill="none"
+                                            stroke="#475569"
+                                            strokeWidth="2"
+                                            strokeDasharray="6 6"
+                                            className="opacity-75"
+                                        />
+                                        {/* 클러스터 중심 포인트 */}
+                                        <circle
+                                            cx={cluster.cx}
+                                            cy={cluster.cy}
+                                            r="8"
+                                            fill="#1e293b"
+                                            stroke="#facc15"
+                                            strokeWidth="2"
+                                        />
+                                        {/* 클러스터 티어 명칭 라벨 (PoE 감성 서명) */}
+                                        <text
+                                            x={cluster.cx}
+                                            y={cluster.cy - cluster.radius - 18}
+                                            fill="#94a3b8"
+                                            fontSize="22"
+                                            fontWeight="900"
+                                            fontFamily="monospace"
+                                            textAnchor="middle"
+                                            className="uppercase tracking-widest select-none"
+                                        >
+                                            {branchName} - TIER {cluster.tier}
+                                        </text>
+                                    </g>
+                                );
+                            })}
 
                             {/* 2. SVG 노드 연결선 */}
                             {Object.values(SKILL_TREE_DATA).map(node => {
@@ -465,8 +464,8 @@ const SkillTreeScreen: React.FC = () => {
                                             y1={start.y}
                                             x2={end.x}
                                             y2={end.y}
-                                            stroke={isPathActive ? '#facc15' : '#262626'}
-                                            strokeWidth={isPathActive ? "3.5" : "1.5"}
+                                            stroke={isPathActive ? '#facc15' : '#334155'}
+                                            strokeWidth={isPathActive ? "4" : "2"}
                                             style={{ shapeRendering: 'crispEdges' }}
                                             className="transition-colors duration-500"
                                         />
