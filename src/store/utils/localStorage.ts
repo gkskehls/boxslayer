@@ -1,4 +1,5 @@
 import type { GameState } from '../../types/game';
+import { SKILL_TREE_DATA } from '../../constants/skills';
 
 const LOCAL_STORAGE_KEY = 'boxslayer-game-state';
 
@@ -18,6 +19,33 @@ export const loadStateFromLocalStorage = (): GameState | null => {
             parsedState.equippedCores = parsedState.equippedCores || [null, null, null]; // 3 slots for example
             // Initialize lastOnlineTime if it doesn't exist
             parsedState.lastOnlineTime = parsedState.lastOnlineTime || Date.now();
+
+            // Sanitize unlockedSkills and refund RP for removed legacy skills
+            if (Array.isArray(parsedState.unlockedSkills)) {
+                let refundedRP = 0;
+                const validUnlockedSkills: string[] = [];
+
+                parsedState.unlockedSkills.forEach((skillId: string) => {
+                    if (SKILL_TREE_DATA[skillId]) {
+                        validUnlockedSkills.push(skillId);
+                    } else {
+                        // 레가시 노드가 제거되었으므로 어림잡아 RP 환불 (기본 1~10 RP)
+                        refundedRP += 5;
+                    }
+                });
+
+                if (!validUnlockedSkills.includes('core_origin')) {
+                    validUnlockedSkills.unshift('core_origin');
+                }
+
+                parsedState.unlockedSkills = validUnlockedSkills;
+                if (refundedRP > 0) {
+                    parsedState.reincarnationPoints = (parsedState.reincarnationPoints || 0) + refundedRP;
+                }
+            } else {
+                parsedState.unlockedSkills = ['core_origin'];
+            }
+
             return parsedState as GameState;
         }
         return null;
