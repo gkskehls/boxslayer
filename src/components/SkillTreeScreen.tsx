@@ -45,25 +45,25 @@ const calculatePoEClusterPositions = (nodes: Record<string, SkillNode>) => {
         return 'unknown';
     };
 
-    const canvasSize = 18000; // 넓고 신원한 초대형 캔버스
+    const canvasSize = 18000; // 초대형 캔버스 (클러스터 및 노드 간 겹침 완전 차단)
     const center = canvasSize / 2;
 
     positions['core_origin'] = { x: center, y: center };
 
-    // 2. 500개 대규모 트리 노드 배치 (PoE Cluster Orbit Algorithm - 넓은 링 궤도)
+    // 2. 500개 대규모 트리 노드 배치 (PoE Cluster Orbit Algorithm - 넉넉한 시원한 유격 궤도)
     const branches = ['fire', 'water', 'wind', 'electric', 'util'];
 
     branches.forEach(bKey => {
         const baseAngle = branchBaseAngles[bKey];
 
-        // Tier 1 ~ 10 클러스터 주줄기 허브 생성 (티어간 거리 750px로 시원하게 확장)
+        // Tier 1 ~ 10 클러스터 주줄기 허브 생성 (티어간 유격 750px 확보)
         for (let tier = 1; tier <= 10; tier++) {
-            const trunkDistance = 800 + tier * 700; // 클러스터 허브 간 유격 700px 확보
+            const trunkDistance = 600 + tier * 750; // 클러스터 허브 간 유격 750px
             const clusterRad = (baseAngle * Math.PI) / 180;
             const clusterCx = center + trunkDistance * Math.cos(clusterRad);
             const clusterCy = center + trunkDistance * Math.sin(clusterRad);
 
-            const clusterOrbitRadius = 240; // 클러스터 원형 궤도 반지름 (노드 간 거리 약 150px 확보)
+            const clusterOrbitRadius = 220; // 원형 궤도 반지름 220px (노드 간 및 클러스터 간 간섭 완전 해소)
 
             clusters.push({
                 key: `${bKey}_cluster_${tier}`,
@@ -82,7 +82,6 @@ const calculatePoEClusterPositions = (nodes: Record<string, SkillNode>) => {
                 if (!nodes[nodeId]) continue;
 
                 // 36도 간격으로 궤도 회전하여 원형으로 깔끔하게 배치
-                // 메인 가지에서 자연스럽게 진입하도록 진입 각도 맞춤
                 const nodeOrbitAngle = baseAngle - 90 + offset * 36;
                 const nodeRad = (nodeOrbitAngle * Math.PI) / 180;
 
@@ -117,15 +116,12 @@ const SkillTreeScreen: React.FC = () => {
     const { reincarnationPoints = 0, unlockedSkills = ['core_origin'], unlockSkill, resetSkills } = useGameStore();
     const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
 
-    /* [수정됨] 기본 배율 조율 (1.0 -> 0.5)
-       - 진입 시 스킬 트리가 너무 조금 보이는 현상을 해결하기 위해 디폴트 배율을 50%로 축소했습니다.
-       - 시야 영역이 4배 넓어져 천 개 규모로 확장될 거대 성운형 노드의 줄기들을 한눈에 조망할 수 있습니다.
-    */
-    const [zoom, setZoom] = useState(0.4);
+    /* [수정됨] 기본 배율을 10%(0.1)로 조정하여 모바일에서 한 화면에 전체 500개 노드가 한눈에 조망됨 */
+    const [zoom, setZoom] = useState(0.1);
     const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL');
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // 특정한 가지(Branch) 방향으로 카메라 시점 자동 이동
+    // 특정한 가지(Branch) 방향으로 카메라 시점 자동 이동 및 줌 배율 자동 맞춤
     const navigateToBranch = (branchKey: string) => {
         setSelectedBranchFilter(branchKey);
         if (!scrollContainerRef.current) return;
@@ -135,14 +131,32 @@ const SkillTreeScreen: React.FC = () => {
         let targetX = center;
         let targetY = center;
 
-        if (branchKey === 'fire') { targetX = center + 2500; targetY = center; }
-        else if (branchKey === 'water') { targetX = center + 1500; targetY = center + 2000; }
-        else if (branchKey === 'wind') { targetX = center - 1500; targetY = center + 2000; }
-        else if (branchKey === 'elec' || branchKey === 'electric') { targetX = center - 1500; targetY = center - 2000; }
-        else if (branchKey === 'util') { targetX = center + 1500; targetY = center - 2000; }
+        if (branchKey === 'ALL') {
+            setZoom(0.1);
+            setTimeout(() => {
+                if (scrollContainerRef.current) {
+                    scrollContainerRef.current.scrollLeft = (DYNAMIC_CANVAS_SIZE * 0.1 - container.clientWidth) / 2;
+                    scrollContainerRef.current.scrollTop = (DYNAMIC_CANVAS_SIZE * 0.1 - container.clientHeight) / 2;
+                }
+            }, 0);
+            return;
+        }
 
-        container.scrollLeft = targetX * zoom - container.clientWidth / 2;
-        container.scrollTop = targetY * zoom - container.clientHeight / 2;
+        const targetZoom = 0.25; // 개별 브랜치 클릭 시 보기 좋은 줌 레벨
+        setZoom(targetZoom);
+
+        if (branchKey === 'fire') { targetX = center + 3000; targetY = center; }
+        else if (branchKey === 'water') { targetX = center + 1800; targetY = center + 2400; }
+        else if (branchKey === 'wind') { targetX = center - 1800; targetY = center + 2400; }
+        else if (branchKey === 'elec' || branchKey === 'electric') { targetX = center - 1800; targetY = center - 2400; }
+        else if (branchKey === 'util') { targetX = center + 1800; targetY = center - 2400; }
+
+        setTimeout(() => {
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollLeft = targetX * targetZoom - container.clientWidth / 2;
+                scrollContainerRef.current.scrollTop = targetY * targetZoom - container.clientHeight / 2;
+            }
+        }, 0);
     };
 
     // 컴포넌트 마운트 시 스크롤을 줌 비율에 맞춰 중앙(core_origin)으로 자동 이동
@@ -157,21 +171,18 @@ const SkillTreeScreen: React.FC = () => {
 
     // 화면 중앙을 유지하며 줌 인/아웃을 처리하는 함수
     const handleZoom = (delta: number) => {
-        const nextZoom = Math.max(0.1, Math.min(Math.round((zoom + delta) * 10) / 10, 2.0));
+        const nextZoom = Math.max(0.05, Math.min(Math.round((zoom + delta) * 100) / 100, 1.5));
         if (nextZoom === zoom) return;
 
         if (scrollContainerRef.current) {
             const container = scrollContainerRef.current;
-            // 1. 현재 스크롤바 기준 화면의 정중앙 픽셀 좌표 구하기
             const W = container.clientWidth;
             const H = container.clientHeight;
             const currentCenterX = (container.scrollLeft + W / 2) / zoom;
             const currentCenterY = (container.scrollTop + H / 2) / zoom;
 
-            // 2. 줌 상태 업데이트
             setZoom(nextZoom);
 
-            // 3. React 렌더링이 끝나고 캔버스 크기가 변한 직후(setTimeout 0), 스크롤바 위치를 새로운 배율에 맞춰 보정
             setTimeout(() => {
                 if (scrollContainerRef.current) {
                     scrollContainerRef.current.scrollLeft = currentCenterX * nextZoom - W / 2;
@@ -270,20 +281,27 @@ const SkillTreeScreen: React.FC = () => {
             <div className="flex justify-between items-center gap-1 mb-[-4px] z-10 pr-1">
                 <button
                     onClick={resetSkills}
-                    className="bg-red-600 hover:bg-red-500 text-white border-2 border-black border-b-4 px-3 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
+                    className="bg-red-600 hover:bg-red-500 text-white border-2 border-black border-b-4 px-2.5 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[10px]"
                 >
                     스킬 초기화
                 </button>
                 <div className="flex items-center gap-1">
                     <button
-                        onClick={() => handleZoom(-0.1)}
-                        className="bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 px-2.5 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
+                        onClick={() => navigateToBranch('ALL')}
+                        className="bg-purple-800 hover:bg-purple-700 text-white border-2 border-black border-b-4 px-2 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[10px]"
+                        title="전체 한눈에 보기 (10%)"
+                    >
+                        10%전체
+                    </button>
+                    <button
+                        onClick={() => handleZoom(-0.05)}
+                        className="bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 px-2 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
                     >
                         -
                     </button>
-                    <span className="text-[10px] font-black text-stone-500 w-12 text-center bg-stone-200 border-2 border-black py-0.5">{Math.round(zoom * 100)}%</span>
+                    <span className="text-[10px] font-black text-stone-700 w-12 text-center bg-stone-200 border-2 border-black py-0.5">{Math.round(zoom * 100)}%</span>
                     <button
-                        onClick={() => handleZoom(0.1)}
+                        onClick={() => handleZoom(0.05)}
                         className="bg-stone-100 hover:bg-stone-50 text-black border-2 border-black border-b-4 px-2 py-0.5 font-black rounded-none active:border-b-2 active:translate-y-[2px] transition-all cursor-pointer text-[11px]"
                     >
                         +
