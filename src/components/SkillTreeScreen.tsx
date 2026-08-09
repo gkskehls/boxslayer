@@ -5,26 +5,21 @@ import { useGameStore } from '../store/gameStore';
 import { SKILL_TREE_DATA } from '../constants/skills';
 import type { SkillNode } from '../types/game';
 
-// [신규] 500개 대규모 스킬 트리의 5대 핵심 가지를 absolute clean radial branch로 정밀 배치하는 방사형 엔진
-const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
+// [신규] PoE(Path of Exile) 스타일 클러스터링(Cluster Orbit Ring) 배치 엔진
+interface ClusterInfo {
+    key: string;
+    branch: string;
+    tier: number;
+    cx: number;
+    cy: number;
+    radius: number;
+}
+
+const calculatePoEClusterPositions = (nodes: Record<string, SkillNode>) => {
     const positions: Record<string, { x: number; y: number }> = {};
-    const depths: Record<string, number> = {};
+    const clusters: ClusterInfo[] = [];
 
-    // 1. 깊이(Depth) 계산: 중심점(core_origin)에서 몇 칸 떨어져 있는지 파악
-    const calcDepth = (id: string): number => {
-        if (depths[id] !== undefined) return depths[id];
-        if (!nodes[id] || id === 'core_origin' || nodes[id].requires.length === 0) {
-            depths[id] = 0;
-            return 0;
-        }
-        const parentDepths = nodes[id].requires.map(reqId => calcDepth(reqId));
-        depths[id] = Math.max(...parentDepths, 0) + 1;
-        return depths[id];
-    };
-
-    Object.keys(nodes).forEach(calcDepth);
-
-    // 2. 브랜치 기본 각도 (360도 5등분)
+    // 1. 브랜치 기본 각도 (360도 5등분)
     const branchBaseAngles: Record<string, number> = {
         'fire': 0,       // 동쪽 (0°)
         'water': 72,     // 남동쪽 (72°)
@@ -49,58 +44,86 @@ const calculateAutoPositions = (nodes: Record<string, SkillNode>) => {
         return 'unknown';
     };
 
-    // 브랜치 및 Depth 별로 노드 그룹화
-    const branchGroup: Record<string, Record<number, string[]>> = {
+    // 2. 브랜치 & Tier(1~10) 클러스터 허브 형성
+    const canvasSize = 6500;
+    const center = canvasSize / 2;
+
+    positions['core_origin'] = { x: center, y: center };
+
+    // 브랜치별 및 티어별 노드 분류
+    const branchTierNodes: Record<string, Record<number, string[]>> = {
         fire: {}, water: {}, wind: {}, elec: {}, util: {}, unknown: {}
     };
 
     Object.keys(nodes).forEach(id => {
         if (id === 'core_origin') return;
+
         const bKey = getBranchKey(id);
-        const d = depths[id] || 1;
-        if (!branchGroup[bKey]) branchGroup[bKey] = {};
-        if (!branchGroup[bKey][d]) branchGroup[bKey][d] = [];
-        branchGroup[bKey][d].push(id);
+
+        let tier = 1;
+        const numMatch = id.match(/\d+$/);
+        if (numMatch) {
+            const num = parseInt(numMatch[0], 10);
+            if (num >= 1 && num <= 100) {
+                tier = Math.ceil(num / 10);
+            }
+        }
+
+        if (!branchTierNodes[bKey]) branchTierNodes[bKey] = {};
+        if (!branchTierNodes[bKey][tier]) branchTierNodes[bKey][tier] = [];
+        branchTierNodes[bKey][tier].push(id);
     });
 
-    const maxDepth = Math.max(...Object.values(depths), 1);
-    const canvasSize = Math.max(6000, maxDepth * 320 + 1200);
-    const center = canvasSize / 2;
+    // 3. PoE 방식 클러스터 원형 궤도(Orbit) 배치
+    Object.keys(branchBaseAngles).forEach(bKey => {
+        const baseAngle = branchBaseAngles[bKey];
+        const rad = (baseAngle * Math.PI) / 180;
+        const tierObj = branchTierNodes[bKey] || {};
 
-    positions['core_origin'] = { x: center, y: center };
-
-    // 3. 각 브랜치 및 깊이별 노드 좌표 산출 (호 형태 부채꼴 분산)
-    Object.keys(branchGroup).forEach(bKey => {
-        const baseAngle = branchBaseAngles[bKey] ?? 0;
-        const depthObj = branchGroup[bKey];
-
-        Object.keys(depthObj).forEach(dStr => {
-            const d = parseInt(dStr, 10);
-            const nodeList = depthObj[d];
+        Object.keys(tierObj).forEach(tStr => {
+            const tier = parseInt(tStr, 10);
+            const nodeList = tierObj[tier];
             const N = nodeList.length;
 
-            const radius = 220 + d * 160;
-            const maxSpread = N <= 1 ? 0 : Math.min(50, N * 6);
-            const step = N <= 1 ? 0 : maxSpread / (N - 1);
+            const trunkDistance = 320 + tier * 280; // 메인 줄기
+            const clusterCx = center + trunkDistance * Math.cos(rad);
+            const clusterCy = center + trunkDistance * Math.sin(rad);
 
+            const clusterRadius = 110; // 원형 궤도 반지름
+
+            clusters.push({
+                key: `${bKey}_cluster_${tier}`,
+                branch: bKey,
+                tier,
+                cx: clusterCx,
+                cy: clusterCy,
+                radius: clusterRadius
+            });
+
+            // 원형 오비트 360도 균등 배치
             nodeList.forEach((id, index) => {
-                const angleOffset = N <= 1 ? 0 : -(maxSpread / 2) + index * step;
-                const finalAngle = baseAngle + angleOffset;
-                const radian = (finalAngle * Math.PI) / 180;
+                const nodeAngle = baseAngle - 90 + (index * (360 / Math.max(N, 1)));
+                const nodeRad = (nodeAngle * Math.PI) / 180;
 
                 positions[id] = {
-                    x: center + radius * Math.cos(radian),
-                    y: center + radius * Math.sin(radian)
+                    x: clusterCx + clusterRadius * Math.cos(nodeRad),
+                    y: clusterCy + clusterRadius * Math.sin(nodeRad)
                 };
             });
         });
     });
 
-    return { positions, dynamicCanvasSize: canvasSize };
+    Object.keys(nodes).forEach(id => {
+        if (!positions[id]) {
+            positions[id] = { x: center + 300, y: center + 300 };
+        }
+    });
+
+    return { positions, clusters, dynamicCanvasSize: canvasSize };
 };
 
-// 반환받은 좌표와 동적 캔버스 사이즈를 전역 상수로 꺼내옵니다.
-const { positions: AUTO_NODE_POSITIONS, dynamicCanvasSize: DYNAMIC_CANVAS_SIZE } = calculateAutoPositions(SKILL_TREE_DATA);
+// 반환받은 좌표와 클러스터 오비트 정보 전역 상수화
+const { positions: AUTO_NODE_POSITIONS, clusters: POE_CLUSTERS, dynamicCanvasSize: DYNAMIC_CANVAS_SIZE } = calculatePoEClusterPositions(SKILL_TREE_DATA);
 
 const SkillTreeScreen: React.FC = () => {
     const { reincarnationPoints = 0, unlockedSkills = ['core_origin'], unlockSkill, resetSkills } = useGameStore();
@@ -302,9 +325,33 @@ const SkillTreeScreen: React.FC = () => {
                             backgroundSize: '20px 20px'
                         }}
                     >
-                        {/* SVG 연결선 */}
+                        {/* SVG 연결선 및 PoE 클러스터 오비트 링 */}
                         <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                            {/* SVG 선을 도트처럼 딱딱 끊어지게 만드는 crispEdges 치트키 강제 삽입 */}
+                            {/* 1. PoE 클러스터 원형 백드롭 오비트 링 (Cluster Orbit Circles) */}
+                            {POE_CLUSTERS.map(cluster => (
+                                <g key={cluster.key}>
+                                    <circle
+                                        cx={cluster.cx}
+                                        cy={cluster.cy}
+                                        r={cluster.radius}
+                                        fill="none"
+                                        stroke="#334155"
+                                        strokeWidth="1.5"
+                                        strokeDasharray="4 4"
+                                        className="opacity-60"
+                                    />
+                                    <circle
+                                        cx={cluster.cx}
+                                        cy={cluster.cy}
+                                        r="6"
+                                        fill="#1e293b"
+                                        stroke="#475569"
+                                        strokeWidth="1"
+                                    />
+                                </g>
+                            ))}
+
+                            {/* 2. SVG 노드 연결선 */}
                             {Object.values(SKILL_TREE_DATA).map(node => {
                                 return node.requires.map(reqId => {
                                     const start = AUTO_NODE_POSITIONS[reqId];
@@ -321,7 +368,7 @@ const SkillTreeScreen: React.FC = () => {
                                             x2={end.x}
                                             y2={end.y}
                                             stroke={isPathActive ? '#facc15' : '#262626'}
-                                            strokeWidth={isPathActive ? "4" : "2"}
+                                            strokeWidth={isPathActive ? "3.5" : "1.5"}
                                             style={{ shapeRendering: 'crispEdges' }}
                                             className="transition-colors duration-500"
                                         />
