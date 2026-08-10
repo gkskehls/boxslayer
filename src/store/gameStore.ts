@@ -5,12 +5,6 @@ import type { GameState, Player, Stats, Core, ShopItem, DefeatReason, CoreType, 
 import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage';
 import { SKILL_TREE_DATA } from '../constants/skills';
 
-const BATTLE_SPEED_CONFIG = [
-  { threshold: 0, multiplier: 1 },
-  { threshold: 5000, multiplier: 5 },
-  { threshold: 10000, multiplier: 10 }
-];
-
 export interface CoreStats {
   desc: string;
   effects: CoreEffect;
@@ -289,31 +283,20 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
     const isBoss = nextStage % 5 === 0;
 
-    const baseStat = 1 + (nextStage * 0.3);
-    let strMult = 1.0, dexMult = 1.0, conMult = 1.0;
+    // 기획 스펙 19.1 몬스터 스탯 지수 스케일링
+    // 일반 몬스터 HP: 100 * (1.082 ^ (stage - 1))
+    // 일반 몬스터 ATK: 12 * (1.065 ^ (stage - 1))
+    // 보스 몬스터 HP: 일반의 3.5배
+    const normalHp = Math.floor(100 * Math.pow(1.082, Math.max(0, nextStage - 1)));
+    const normalAtk = Math.floor(12 * Math.pow(1.065, Math.max(0, nextStage - 1)));
 
-    if (nextStage % 100 === 0) {
-      strMult = 2.0; dexMult = 2.0; conMult = 10.0;
-    } else {
-      const stageMod = nextStage % 10;
-      switch (stageMod) {
-        case 1: strMult = 1.0; dexMult = 1.0; conMult = 1.0; break;
-        case 2: strMult = 1.6; dexMult = 0.7; conMult = 0.7; break;
-        case 3: strMult = 0.7; dexMult = 1.6; conMult = 0.7; break;
-        case 4: strMult = 0.7; dexMult = 0.7; conMult = 1.6; break;
-        case 5: strMult = 1.5; dexMult = 1.5; conMult = 1.5; break;
-        case 6: strMult = 1.3; dexMult = 1.3; conMult = 0.4; break;
-        case 7: strMult = 0.4; dexMult = 1.3; conMult = 1.3; break;
-        case 8: strMult = 1.3; dexMult = 0.4; conMult = 1.3; break;
-        case 9: strMult = 1.0; dexMult = 1.0; conMult = 1.1; break;
-        case 0: strMult = 2.0; dexMult = 2.0; conMult = 2.0; break;
-      }
-    }
+    const enemyHp = isBoss ? Math.floor(normalHp * 3.5) : normalHp;
+    const enemyAtk = isBoss ? Math.floor(normalAtk * 1.25) : normalAtk;
 
     const stats = {
-      str: Math.max(1, Math.floor(baseStat * strMult)),
-      dex: Math.max(1, Math.floor(baseStat * dexMult)),
-      con: Math.max(1, Math.floor(baseStat * conMult))
+      str: Math.max(1, Math.floor(enemyAtk / 2)),
+      dex: Math.max(1, Math.floor(10 + nextStage * 0.5)),
+      con: Math.max(1, Math.floor((enemyHp - 100) / 5))
     };
 
     const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
@@ -338,8 +321,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (enemyCore.type === 'WATER') {
       const unlockedEnemySkills = Object.keys(SKILL_TREE_DATA);
       const waterStats = getCoreStats('WATER', enemyCore.level, unlockedEnemySkills);
-      const enemyComputed = getComputedStats(stats);
-      enemyInitialShield = Math.floor(enemyComputed.maxHealth * (waterStats.effects.initialShieldMultiplier || 0));
+      enemyInitialShield = Math.floor(enemyHp * (waterStats.effects.initialShieldMultiplier || 0));
     }
 
     const goldMult = (state.activeBuffs['buff_gold_2x'] && state.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0;
@@ -354,9 +336,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         level: nextStage,
         type: isBoss ? 'BOSS' : 'NORMAL',
         stats: stats,
-        currentHealth: Math.floor(getComputedStats(stats).maxHealth),
-        goldReward: Math.floor((10 + nextStage) * (isBoss ? 2 : 1) * goldMult),
-        expReward: Math.floor((20 + (nextStage * 5)) * (isBoss ? 2 : 1) * expMult),
+        currentHealth: enemyHp,
+        goldReward: Math.floor((10 + nextStage) * (isBoss ? 3 : 1) * goldMult),
+        expReward: Math.floor((20 + (nextStage * 5)) * (isBoss ? 3 : 1) * expMult),
         core: enemyCore,
         shield: enemyInitialShield,
       },
@@ -390,10 +372,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
     const isEvaded = Math.random() > finalHitChance;
 
-    const elapsedTime = now - state.battleStartTime;
-    const config = BATTLE_SPEED_CONFIG.slice().reverse().find(c => elapsedTime >= c.threshold) || BATTLE_SPEED_CONFIG[0];
-    const speedMult = (state.activeBuffs['buff_speed_up'] && state.activeBuffs['buff_speed_up'] > now) ? 1.5 : 1.0;
-    const hitCount = Math.floor(config.multiplier * playerComputed.modifiers.feverMultiplier * speedMult);
+    // 피버타임은 데미지를 뻥튀기하는 시스템이 아니라 전투 시뮬레이션 배속(시간가속) 시스템임
+    const hitCount = 1;
 
     let coreDamage = 0;
     let shieldRecovered = 0;

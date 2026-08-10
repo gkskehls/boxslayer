@@ -141,11 +141,14 @@ const AnimatedBattleScreen: React.FC = () => {
 
   useEffect(() => {
     if (gameStatus !== 'BATTLE') return;
-    const timeout1 = setTimeout(() => setTimeMultiplier(2), 5000);
-    const timeout2 = setTimeout(() => setTimeMultiplier(5), 10000);
+    // 피버 타임: 전투 지루함 방지용 시간 가속(배속 연출) - 데미지/스탯 변동 없이 시뮬레이션 및 속도만 가속
+    const timeout1 = setTimeout(() => setTimeMultiplier(1.5), 5000);
+    const timeout2 = setTimeout(() => setTimeMultiplier(2.0), 10000);
+    const timeout3 = setTimeout(() => setTimeMultiplier(3.0), 18000);
     return () => {
       clearTimeout(timeout1);
       clearTimeout(timeout2);
+      clearTimeout(timeout3);
     };
   }, [gameStatus]);
 
@@ -411,8 +414,15 @@ const AnimatedBattleScreen: React.FC = () => {
         >
 
           {gameStatus === 'BATTLE' && (
-              <div className={`absolute top-2 left-1/2 -translate-x-1/2 font-mono text-2xl font-black z-20 transition-colors duration-300 ${remainingTime <= 10 ? 'text-red-500 animate-pulse' : 'text-stone-400'}`}>
-                {remainingTime}
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
+                <div className={`font-mono text-2xl font-black transition-colors duration-300 ${remainingTime <= 10 ? 'text-red-500 animate-pulse' : 'text-stone-400'}`}>
+                  {remainingTime}
+                </div>
+                {timeMultiplier > 1.0 && (
+                    <div className="bg-amber-500 text-black text-[10px] font-black px-1.5 py-0.5 border-2 border-neutral-900 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] animate-pulse">
+                      🔥 FEVER {timeMultiplier}x SPEED
+                    </div>
+                )}
               </div>
           )}
 

@@ -76,7 +76,7 @@ const generateFull500SkillTree = (): Record<string, SkillNode> => {
 
             if (b.key === 'fire') {
                 if (tier <= 3) {
-                    const flatVal = tier * 2 + (i % 10);
+                    const flatVal = 10 + (tier - 1) * 5 + (i % 10) * 2;
                     effects.str = flatVal;
                     name = `화염 불꽃 [Str +${flatVal}]`;
                     description = `공격력의 근본이 되는 힘(STR)이 고정 +${flatVal} 증가합니다.`;
@@ -99,7 +99,7 @@ const generateFull500SkillTree = (): Record<string, SkillNode> => {
                 }
             } else if (b.key === 'water') {
                 if (tier <= 3) {
-                    const flatVal = tier * 3 + (i % 10);
+                    const flatVal = 15 + (tier - 1) * 8 + (i % 10) * 3;
                     effects.con = flatVal;
                     name = `수호의 샘 [Con +${flatVal}]`;
                     description = `생명력과 방어력의 근본이 되는 체력(CON)이 고정 +${flatVal} 증가합니다.`;
@@ -123,11 +123,11 @@ const generateFull500SkillTree = (): Record<string, SkillNode> => {
             } else if (b.key === 'wind') {
                 // 연격 (Multi-Hit) 중심
                 if (tier <= 3) {
-                    const flatVal = tier * 2 + (i % 10);
+                    const flatVal = 10 + (tier - 1) * 5 + (i % 10) * 2;
                     effects.dex = flatVal;
-                    effects.comboChance = 0.01 * tier;
-                    name = `신속의 바람 [Dex +${flatVal}, 연격 +${tier}%]`;
-                    description = `민첩(DEX) +${flatVal} 및 공격 시 연격 발동 확률이 +${tier}% 증가합니다.`;
+                    effects.comboChance = 0.03 + (tier * 0.01);
+                    name = `신속의 바람 [Dex +${flatVal}, 연격 +${Math.round((0.03 + tier * 0.01) * 100)}%]`;
+                    description = `민첩(DEX) +${flatVal} 및 공격 시 연격 발동 확률이 +${Math.round((0.03 + tier * 0.01) * 100)}% 증가합니다.`;
                 } else {
                     const percentVal = Math.round((tier * 0.01 + (i % 10) * 0.005) * 100) / 100;
                     effects.dexPercent = percentVal;
@@ -152,11 +152,12 @@ const generateFull500SkillTree = (): Record<string, SkillNode> => {
                 }
             } else if (b.key === 'electric') {
                 if (tier <= 3) {
-                    effects.str = tier;
-                    effects.dex = tier;
-                    effects.con = tier;
-                    name = `뇌전의 스파크 [올스탯 +${tier}]`;
-                    description = `모든 스탯(STR/DEX/CON)이 고정 +${tier} 증가합니다.`;
+                    const allStat = 5 + tier * 2;
+                    effects.str = allStat;
+                    effects.dex = allStat;
+                    effects.con = allStat;
+                    name = `뇌전의 스파크 [올스탯 +${allStat}]`;
+                    description = `모든 스탯(STR/DEX/CON)이 고정 +${allStat} 증가합니다.`;
                 } else {
                     const percentVal = Math.round((tier * 0.008 + (i % 10) * 0.003) * 100) / 100;
                     effects.strPercent = percentVal;
