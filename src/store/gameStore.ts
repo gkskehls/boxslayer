@@ -308,13 +308,13 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const isBoss = nextStage % 5 === 0;
 
     // 기획 스펙 19.1 몬스터 스탯 지수 스케일링 & 보스 단계별 배율
-    // 일반 몬스터 HP: 100 * (1.082 ^ (stage - 1))
-    // 일반 몬스터 ATK: 12 * (1.065 ^ (stage - 1))
-    // 5층 단위(미니보스): HP 1.2배, ATK 1.05배 (초반 5층 관문 난이도 완화)
+    // 일반 몬스터 HP: 50 * (1.026 ^ (stage - 1)) (50층까지 노스탯으로도 무난히 진행 가능)
+    // 일반 몬스터 ATK: 5 * (1.020 ^ (stage - 1))
+    // 5층 단위(미니보스): HP 1.2배, ATK 1.05배
     // 10층 단위(중간보스): HP 3.0배, ATK 1.20배
     // 100층 단위(대보스): HP 5.0배, ATK 1.35배
-    const normalHp = Math.floor(100 * Math.pow(1.082, Math.max(0, nextStage - 1)));
-    const normalAtk = Math.floor(12 * Math.pow(1.065, Math.max(0, nextStage - 1)));
+    const normalHp = Math.floor(50 * Math.pow(1.026, Math.max(0, nextStage - 1)));
+    const normalAtk = Math.floor(5 * Math.pow(1.020, Math.max(0, nextStage - 1)));
 
     let enemyHp = normalHp;
     let enemyAtk = normalAtk;
