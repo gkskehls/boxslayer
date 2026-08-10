@@ -330,12 +330,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       enemyAtk = Math.floor(normalAtk * 1.05);
     }
 
-    const stats = {
-      str: Math.max(1, Math.floor(enemyAtk / 2)),
-      dex: Math.max(1, Math.floor(10 + nextStage * 0.5)),
-      con: Math.max(1, Math.floor((enemyHp - 100) / 5))
-    };
-
     const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
     const coreTypeIndex = (nextStage % 7) % 4;
     const coreType = coreTypes[coreTypeIndex];
@@ -346,6 +340,25 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       type: coreType,
       level: coreLevel,
     };
+
+    const baseStat = 10 + Math.floor(nextStage * 0.3);
+    let str = Math.max(baseStat, Math.floor(enemyAtk / 2));
+    let dex = baseStat;
+    let con = baseStat;
+
+    // 코어 타입별 스탯 분배 순환 및 특화
+    if (coreType === 'FIRE') {
+      str += Math.floor(nextStage * 0.2);
+    } else if (coreType === 'WIND') {
+      dex += Math.floor(nextStage * 0.2);
+    } else if (coreType === 'WATER') {
+      con += Math.floor(nextStage * 0.2);
+    } else if (coreType === 'ELECTRIC') {
+      str += Math.floor(nextStage * 0.1);
+      dex += Math.floor(nextStage * 0.1);
+    }
+
+    const stats = { str, dex, con };
 
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
     let playerInitialShield = 0;
