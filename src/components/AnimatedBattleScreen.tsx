@@ -376,7 +376,7 @@ const AnimatedBattleScreen: React.FC = () => {
     { label: '공격력', pValue: computed.attack.toFixed(1), eValue: enemyComputed?.attack.toFixed(1) },
     { label: '방어력', pValue: computed.defense.toFixed(1), eValue: enemyComputed?.defense.toFixed(1) },
     { label: '공격속도', pValue: `${computed.attackSpeed.toFixed(1)}/s`, eValue: enemyComputed ? `${enemyComputed.attackSpeed.toFixed(1)}/s` : undefined },
-    { label: '최대체력', pValue: computed.maxHealth.toFixed(0), eValue: enemyComputed?.maxHealth.toFixed(0) },
+    { label: '최대체력', pValue: computed.maxHealth.toFixed(0), eValue: currentEnemy?.maxHealth ? currentEnemy.maxHealth.toFixed(0) : '-' },
     { label: '명중', pValue: computed.accuracy.toFixed(0), eValue: enemyComputed?.accuracy.toFixed(0) },
     { label: '회피', pValue: computed.evasion.toFixed(0), eValue: enemyComputed?.evasion.toFixed(0) },
   ];
@@ -459,10 +459,10 @@ const AnimatedBattleScreen: React.FC = () => {
                 {(enemyShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(enemyShield || 0)}</span>}
               </div>
               <div className="text-xs font-black flex items-center leading-none text-neutral-400">
-                [{renderRetroGauge(currentEnemy?.currentHealth || 0, enemyComputed?.maxHealth || 1, 10, 'text-red-600')}]
+                [{renderRetroGauge(currentEnemy?.currentHealth || 0, currentEnemy?.maxHealth || 1, 10, 'text-red-600')}]
               </div>
               <div className="text-[9px] font-black text-neutral-800 mt-1.5 leading-none font-mono tracking-tighter text-right">
-                {Math.max(0, currentEnemy?.currentHealth || 0)}<span className="text-stone-400 mx-0.5">/</span>{enemyComputed?.maxHealth.toFixed(0) || 1}
+                {Math.max(0, currentEnemy?.currentHealth || 0)}<span className="text-stone-400 mx-0.5">/</span>{currentEnemy?.maxHealth ? currentEnemy.maxHealth.toFixed(0) : 1}
               </div>
             </div>
 

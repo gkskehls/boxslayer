@@ -26,6 +26,7 @@ export interface Player extends Entity {
 
 export interface Enemy extends Entity {
   type: EnemyType;
+  maxHealth: number;
   goldReward: number;
   expReward: number;
   core?: Core | null;

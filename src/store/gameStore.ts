@@ -361,6 +361,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         level: nextStage,
         type: isBoss ? 'BOSS' : 'NORMAL',
         stats: stats,
+        maxHealth: enemyHp,
         currentHealth: enemyHp,
         goldReward: Math.floor((10 + nextStage) * (isBoss ? 3 : 1) * goldMult),
         expReward: Math.floor((20 + (nextStage * 5)) * (isBoss ? 3 : 1) * expMult),
@@ -588,7 +589,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         }
       }
       if (enemyCore.type === 'WATER' && effects.shieldPerHitRatio) {
-        enemyShieldRecovered = Math.floor(enemyComputed.maxHealth * effects.shieldPerHitRatio);
+        enemyShieldRecovered = Math.floor(state.currentEnemy.maxHealth * effects.shieldPerHitRatio);
         nextEnemyShield += enemyShieldRecovered;
       }
     }
@@ -619,7 +620,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     if (enemyCore?.type === 'WATER') {
       amountLeeched = Math.floor(actualHealthDamage * 0.01);
-      enemyNextHealth = Math.min(enemyComputed.maxHealth, enemyNextHealth + amountLeeched);
+      enemyNextHealth = Math.min(state.currentEnemy.maxHealth, enemyNextHealth + amountLeeched);
     }
 
     if (nextHealth <= 0) {
