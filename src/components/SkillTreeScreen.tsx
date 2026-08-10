@@ -1,9 +1,9 @@
 // src/components/SkillTreeScreen.tsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { SKILL_TREE_DATA } from '../constants/skills';
-import type { SkillNode } from '../types/game';
+import type { SkillNode, CoreType } from '../types/game';
 
 // // [신규] PoE(Path of Exile) 스타일 클러스터링(Cluster Orbit Ring) 배치 엔진
 interface ClusterInfo {
@@ -115,11 +115,86 @@ const { positions: AUTO_NODE_POSITIONS, clusters: POE_CLUSTERS, dynamicCanvasSiz
 const SkillTreeScreen: React.FC = () => {
     const { reincarnationPoints = 0, unlockedSkills = ['core_origin'], unlockSkill, resetSkills } = useGameStore();
     const [selectedNode, setSelectedNode] = useState<SkillNode | null>(null);
+    const [showSummaryModal, setShowSummaryModal] = useState(false);
+    const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
 
     /* [수정됨] 기본 배율을 10%(0.1)로 조정하여 모바일에서 한 화면에 전체 500개 노드가 한눈에 조망됨 */
     const [zoom, setZoom] = useState(0.1);
     const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>('ALL');
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // 해금한 스킬들의 누적 패시브 효과 자동 집계
+    const activeSummary = useMemo(() => {
+        const summary = {
+            count: unlockedSkills.length,
+            totalSpentRP: 0,
+            flatStats: { str: 0, dex: 0, con: 0 },
+            percentStats: { strPercent: 0, dexPercent: 0, conPercent: 0 },
+            combo: { chance: 0, multiplier: 0, hitsAdded: 0 },
+            utility: { offline: 0, startStage: 0, evasion: 0 },
+            coreEffects: {
+                FIRE: { baseDamageFlat: 0, strRatio: 0, baseDamageMultiplier: 1 },
+                WATER: { initialShieldMultiplier: 0, shieldPerHitRatio: 0, reflectRatio: 0 },
+                WIND: { hitEvasionBonus: 0, comboThreshold: 0, evasionThreshold: 0 },
+                ELECTRIC: { baseDamageFlat: 0, stunThreshold: 0, executeDamageMultiplier: 0 }
+            },
+            notables: [] as { id: string; name: string; type: string; desc: string }[],
+        };
+
+        unlockedSkills.forEach(id => {
+            const node = SKILL_TREE_DATA[id];
+            if (!node) return;
+
+            summary.totalSpentRP += node.cost || 0;
+
+            if (node.type === 'NOTABLE' || node.type === 'KEYSTONE') {
+                summary.notables.push({ id: node.id, name: node.name, type: node.type, desc: node.description });
+            }
+
+            if (node.effects) {
+                if (node.effects.str) summary.flatStats.str += node.effects.str;
+                if (node.effects.dex) summary.flatStats.dex += node.effects.dex;
+                if (node.effects.con) summary.flatStats.con += node.effects.con;
+
+                if (node.effects.strPercent) summary.percentStats.strPercent += node.effects.strPercent;
+                if (node.effects.dexPercent) summary.percentStats.dexPercent += node.effects.dexPercent;
+                if (node.effects.conPercent) summary.percentStats.conPercent += node.effects.conPercent;
+
+                if (node.effects.comboChance) summary.combo.chance += node.effects.comboChance;
+                if (node.effects.comboMultiplier) summary.combo.multiplier += node.effects.comboMultiplier;
+                if (node.effects.comboHitsAdded) summary.combo.hitsAdded += node.effects.comboHitsAdded;
+
+                if (node.effects.offlineRewardMultiplier) summary.utility.offline += node.effects.offlineRewardMultiplier;
+                if (node.effects.startStageBonus) summary.utility.startStage += node.effects.startStageBonus;
+                if (node.effects.evasionChanceBonus) summary.utility.evasion += node.effects.evasionChanceBonus;
+
+                if (node.effects.coreEffects) {
+                    (['FIRE', 'WATER', 'WIND', 'ELECTRIC'] as CoreType[]).forEach(cType => {
+                        const eff = node.effects?.coreEffects?.[cType];
+                        if (eff) {
+                            if (eff.baseDamageFlat && cType === 'FIRE') summary.coreEffects.FIRE.baseDamageFlat += eff.baseDamageFlat;
+                            if (eff.strRatio) summary.coreEffects.FIRE.strRatio += eff.strRatio;
+                            if (eff.baseDamageMultiplier) summary.coreEffects.FIRE.baseDamageMultiplier *= eff.baseDamageMultiplier;
+
+                            if (eff.initialShieldMultiplier) summary.coreEffects.WATER.initialShieldMultiplier += eff.initialShieldMultiplier;
+                            if (eff.shieldPerHitRatio) summary.coreEffects.WATER.shieldPerHitRatio += eff.shieldPerHitRatio;
+                            if (eff.reflectRatio) summary.coreEffects.WATER.reflectRatio += eff.reflectRatio;
+
+                            if (eff.hitEvasionBonus) summary.coreEffects.WIND.hitEvasionBonus += eff.hitEvasionBonus;
+                            if (eff.comboThreshold) summary.coreEffects.WIND.comboThreshold = eff.comboThreshold;
+                            if (eff.evasionThreshold) summary.coreEffects.WIND.evasionThreshold = eff.evasionThreshold;
+
+                            if (eff.baseDamageFlat && cType === 'ELECTRIC') summary.coreEffects.ELECTRIC.baseDamageFlat += eff.baseDamageFlat;
+                            if (eff.stunThreshold) summary.coreEffects.ELECTRIC.stunThreshold = eff.stunThreshold;
+                            if (eff.executeDamageMultiplier) summary.coreEffects.ELECTRIC.executeDamageMultiplier += eff.executeDamageMultiplier;
+                        }
+                    });
+                }
+            }
+        });
+
+        return summary;
+    }, [unlockedSkills]);
 
     // 특정한 가지(Branch) 방향으로 카메라 시점 자동 이동 및 줌 배율 자동 맞춤
     const navigateToBranch = (branchKey: string) => {
@@ -228,13 +303,109 @@ const SkillTreeScreen: React.FC = () => {
 
             {/* 헤더: 슬레어의 석판 대시보드로 통일화 */}
             <div className="bg-stone-300 p-3 rounded-none border-4 border-black w-full flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-black">
-                <h2 className="text-xs font-black text-stone-500 tracking-widest uppercase leading-none">
-                    -[ 500PASSIVE_TREE ]-
-                </h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xs font-black text-stone-600 tracking-widest uppercase leading-none">
+                        -[ 500PASSIVE_TREE ]-
+                    </h2>
+                </div>
                 <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-neutral-500 uppercase">RP_POOL:</span>
                     <span className="text-sm font-mono font-black text-purple-700">{reincarnationPoints} RP</span>
                 </div>
+            </div>
+
+            {/* 상단 상시 스킬 요약 대시보드 패널 (Active Skill Summary Dashboard) */}
+            <div className="bg-stone-300 border-2 border-black p-2 flex flex-col gap-1.5 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                <div className="flex justify-between items-center text-[10px] font-black border-b border-black/20 pb-1">
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-purple-900 font-black">📊 찍은 스킬 누적 효과 요약</span>
+                        <span className="bg-purple-900 text-white text-[8px] font-mono px-1.5 py-0.2 border border-black">
+                            {activeSummary.count} / 500 개 ({activeSummary.totalSpentRP.toLocaleString()} RP)
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+                            className="text-[9px] bg-stone-200 hover:bg-stone-100 text-black px-1.5 py-0.5 border border-black cursor-pointer font-bold active:translate-y-[1px]"
+                        >
+                            {isSummaryExpanded ? '접기 ▲' : '펼치기 ▼'}
+                        </button>
+                        <button
+                            onClick={() => setShowSummaryModal(true)}
+                            className="text-[9px] bg-purple-900 hover:bg-purple-800 text-white px-2 py-0.5 border border-black cursor-pointer font-bold shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px]"
+                        >
+                            전체팝업 🔍
+                        </button>
+                    </div>
+                </div>
+
+                {/* 펼쳐진 상단 대시보드 카드리스트 */}
+                {isSummaryExpanded ? (
+                    <div className="grid grid-cols-3 gap-1.5 text-[9px] font-mono">
+                        {/* 1. 스탯 누적 */}
+                        <div className="bg-white/90 p-1.5 border border-black flex flex-col justify-between">
+                            <span className="text-stone-500 font-bold text-[8px] flex justify-between border-b border-stone-200 pb-0.5">
+                                <span>💪 캐릭터 스탯</span>
+                            </span>
+                            <div className="font-black text-stone-900 text-[9px] leading-tight mt-1 flex justify-between">
+                                <span>STR</span>
+                                <div><span className="text-red-700">+{activeSummary.flatStats.str}</span><span className="text-[7.5px] text-red-500 ml-0.5">({(activeSummary.percentStats.strPercent * 100).toFixed(0)}%)</span></div>
+                            </div>
+                            <div className="font-black text-stone-900 text-[9px] leading-tight flex justify-between">
+                                <span>DEX</span>
+                                <div><span className="text-emerald-700">+{activeSummary.flatStats.dex}</span><span className="text-[7.5px] text-emerald-500 ml-0.5">({(activeSummary.percentStats.dexPercent * 100).toFixed(0)}%)</span></div>
+                            </div>
+                            <div className="font-black text-stone-900 text-[9px] leading-tight flex justify-between">
+                                <span>CON</span>
+                                <div><span className="text-blue-700">+{activeSummary.flatStats.con}</span><span className="text-[7.5px] text-blue-500 ml-0.5">({(activeSummary.percentStats.conPercent * 100).toFixed(0)}%)</span></div>
+                            </div>
+                        </div>
+
+                        {/* 2. 연격(Combo) 시스템 */}
+                        <div className="bg-white/90 p-1.5 border border-black flex flex-col justify-between">
+                            <span className="text-stone-500 font-bold text-[8px] border-b border-stone-200 pb-0.5">
+                                ⚔️ 연격(Combo)
+                            </span>
+                            <div className="font-bold text-stone-800 text-[8.5px] leading-tight mt-1 flex justify-between">
+                                <span>발생확률:</span>
+                                <span className="text-purple-700 font-black">+{(activeSummary.combo.chance * 100).toFixed(1)}%</span>
+                            </div>
+                            <div className="font-bold text-stone-800 text-[8.5px] leading-tight flex justify-between">
+                                <span>피해배율:</span>
+                                <span className="text-purple-700 font-black">+{(activeSummary.combo.multiplier * 100).toFixed(0)}%</span>
+                            </div>
+                            <div className="font-bold text-stone-800 text-[8.5px] leading-tight flex justify-between">
+                                <span>추가타격:</span>
+                                <span className="text-purple-700 font-black">+{activeSummary.combo.hitsAdded}타</span>
+                            </div>
+                        </div>
+
+                        {/* 3. 유틸 및 핵심 노터블 */}
+                        <div className="bg-white/90 p-1.5 border border-black flex flex-col justify-between">
+                            <span className="text-stone-500 font-bold text-[8px] border-b border-stone-200 pb-0.5">
+                                🌟 노터블/유틸
+                            </span>
+                            <div className="font-bold text-stone-800 text-[8.5px] leading-tight mt-1 flex justify-between">
+                                <span>주요노드:</span>
+                                <span className="text-purple-900 font-black">{activeSummary.notables.length}개 해금</span>
+                            </div>
+                            <div className="font-bold text-stone-800 text-[8.5px] leading-tight flex justify-between">
+                                <span>시작층수:</span>
+                                <span className="text-amber-700 font-black">+{activeSummary.utility.startStage}층</span>
+                            </div>
+                            <div className="font-bold text-stone-800 text-[8.5px] leading-tight flex justify-between">
+                                <span>오프라인:</span>
+                                <span className="text-green-700 font-black">+{(activeSummary.utility.offline * 100).toFixed(0)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-between text-[8.5px] font-mono font-black text-stone-800 bg-white/80 p-1 border border-black/40">
+                        <span>💪 STR+{activeSummary.flatStats.str} | DEX+{activeSummary.flatStats.dex} | CON+{activeSummary.flatStats.con}</span>
+                        <span className="text-purple-800">⚔️ 연격확률 +{(activeSummary.combo.chance * 100).toFixed(1)}%</span>
+                        <span className="text-amber-800">🌟 주요노드 {activeSummary.notables.length}개</span>
+                    </div>
+                )}
             </div>
 
             {/* 5대 성운 브랜치 신속 이동 네비게이터 */}
@@ -478,6 +649,134 @@ const SkillTreeScreen: React.FC = () => {
                                 ACTIVATE [개방]
                             </button>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* 해금 스킬 종합 요약 모달 */}
+            {showSummaryModal && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 animate-fade-in font-mono">
+                    <div className="bg-stone-200 border-4 border-black p-4 w-full max-w-md max-h-[85vh] flex flex-col gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] text-stone-900 overflow-hidden">
+                        {/* 모달 헤더 */}
+                        <div className="flex justify-between items-center border-b-2 border-black pb-2">
+                            <div>
+                                <h3 className="text-xs font-black text-purple-900 tracking-wider flex items-center gap-1.5 uppercase">
+                                    <span>📊</span> PASSIVE_SKILL_SUMMARY
+                                </h3>
+                                <div className="text-[10px] text-stone-600 font-bold mt-0.5">
+                                    해금 노드: <span className="text-purple-700 font-black">{activeSummary.count} / 500</span>개 | 사용 RP: <span className="text-amber-700 font-black">{activeSummary.totalSpentRP.toLocaleString()}</span> RP
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowSummaryModal(false)}
+                                className="w-7 h-7 bg-red-600 hover:bg-red-500 text-white font-black border-2 border-black flex items-center justify-center cursor-pointer text-xs active:translate-y-[1px]"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        {/* 모달 스크롤 바디 */}
+                        <div className="overflow-y-auto custom-scrollbar flex flex-col gap-2.5 pr-1 text-xs">
+                            {/* 1. 스탯 종합 보너스 */}
+                            <div className="bg-white/80 p-2.5 border-2 border-black flex flex-col gap-1.5">
+                                <h4 className="text-[11px] font-black text-black border-b border-black/20 pb-1">
+                                    💪 캐릭터 기본 스탯 보너스
+                                </h4>
+                                <div className="grid grid-cols-3 gap-1.5 text-[10px] text-center font-bold">
+                                    <div className="bg-red-50 border border-red-300 p-1.5">
+                                        <div className="text-red-800 font-black">힘 (STR)</div>
+                                        <div className="text-black font-extrabold mt-0.5">+{activeSummary.flatStats.str}</div>
+                                        <div className="text-red-600 text-[9px]">(+{(activeSummary.percentStats.strPercent * 100).toFixed(0)}%)</div>
+                                    </div>
+                                    <div className="bg-emerald-50 border border-emerald-300 p-1.5">
+                                        <div className="text-emerald-800 font-black">민첩 (DEX)</div>
+                                        <div className="text-black font-extrabold mt-0.5">+{activeSummary.flatStats.dex}</div>
+                                        <div className="text-emerald-600 text-[9px]">(+{(activeSummary.percentStats.dexPercent * 100).toFixed(0)}%)</div>
+                                    </div>
+                                    <div className="bg-blue-50 border border-blue-300 p-1.5">
+                                        <div className="text-blue-800 font-black">체력 (CON)</div>
+                                        <div className="text-black font-extrabold mt-0.5">+{activeSummary.flatStats.con}</div>
+                                        <div className="text-blue-600 text-[9px]">(+{(activeSummary.percentStats.conPercent * 100).toFixed(0)}%)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 2. 연격 & 유틸리티 */}
+                            <div className="bg-white/80 p-2.5 border-2 border-black flex flex-col gap-1.5">
+                                <h4 className="text-[11px] font-black text-black border-b border-black/20 pb-1">
+                                    ⚔️ 연격(Combo) & 유틸리티 옵션
+                                </h4>
+                                <div className="grid grid-cols-2 gap-1.5 text-[10px] font-bold">
+                                    <div className="bg-stone-100 p-1.5 border border-stone-300">
+                                        연격 발생 확률: <span className="text-purple-700 font-black">+{(activeSummary.combo.chance * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <div className="bg-stone-100 p-1.5 border border-stone-300">
+                                        연격 피해 배율: <span className="text-purple-700 font-black">+{(activeSummary.combo.multiplier * 100).toFixed(0)}%</span>
+                                    </div>
+                                    <div className="bg-stone-100 p-1.5 border border-stone-300">
+                                        추가 연격 타격: <span className="text-purple-700 font-black">+{activeSummary.combo.hitsAdded}타</span>
+                                    </div>
+                                    <div className="bg-stone-100 p-1.5 border border-stone-300">
+                                        시작 스테이지: <span className="text-amber-700 font-black">+{activeSummary.utility.startStage}층</span>
+                                    </div>
+                                    <div className="bg-stone-100 p-1.5 border border-stone-300 col-span-2">
+                                        오프라인 보상 증폭: <span className="text-green-700 font-black">+{(activeSummary.utility.offline * 100).toFixed(0)}%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 3. 코어 강화 효과 */}
+                            <div className="bg-white/80 p-2.5 border-2 border-black flex flex-col gap-1.5">
+                                <h4 className="text-[11px] font-black text-black border-b border-black/20 pb-1">
+                                    🌀 4대 속성 코어 패시브 강화
+                                </h4>
+                                <div className="flex flex-col gap-1 text-[10px] font-bold">
+                                    <div className="bg-red-50 p-1.5 border border-red-200">
+                                        <span className="text-red-800 font-black">🔥 화염:</span> 피해 +{activeSummary.coreEffects.FIRE.baseDamageFlat.toFixed(1)} | 힘 계수 +{(activeSummary.coreEffects.FIRE.strRatio * 100).toFixed(0)}% | 증폭 {activeSummary.coreEffects.FIRE.baseDamageMultiplier.toFixed(1)}배
+                                    </div>
+                                    <div className="bg-blue-50 p-1.5 border border-blue-200">
+                                        <span className="text-blue-800 font-black">💧 물:</span> 시작 쉴드 +{(activeSummary.coreEffects.WATER.initialShieldMultiplier * 100).toFixed(0)}% | 타격 회복 +{(activeSummary.coreEffects.WATER.shieldPerHitRatio * 100).toFixed(2)}% | 피해 반사 +{(activeSummary.coreEffects.WATER.reflectRatio * 100).toFixed(0)}%
+                                    </div>
+                                    <div className="bg-emerald-50 p-1.5 border border-emerald-200">
+                                        <span className="text-emerald-800 font-black">🍃 바람:</span> 명중/회피 +{(activeSummary.coreEffects.WIND.hitEvasionBonus * 100).toFixed(1)}% {activeSummary.coreEffects.WIND.comboThreshold > 0 && `| ${activeSummary.coreEffects.WIND.comboThreshold}타 연격`}
+                                    </div>
+                                    <div className="bg-amber-50 p-1.5 border border-amber-200">
+                                        <span className="text-amber-800 font-black">⚡ 번개:</span> 피해 +{activeSummary.coreEffects.ELECTRIC.baseDamageFlat.toFixed(1)} {activeSummary.coreEffects.ELECTRIC.stunThreshold > 0 && `| ${activeSummary.coreEffects.ELECTRIC.stunThreshold}타 기절`} | 기절 처형 +{(activeSummary.coreEffects.ELECTRIC.executeDamageMultiplier * 100).toFixed(0)}%
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 4. 해금된 노터블 / 키스톤 스킬 목록 */}
+                            <div className="bg-white/80 p-2.5 border-2 border-black flex flex-col gap-1.5">
+                                <h4 className="text-[11px] font-black text-black border-b border-black/20 pb-1 flex justify-between">
+                                    <span>🌟 주요 해금 노터블 노드 ({activeSummary.notables.length}개)</span>
+                                </h4>
+                                {activeSummary.notables.length === 0 ? (
+                                    <div className="text-[10px] text-stone-400 font-bold py-2 text-center">
+                                        아직 해금된 노터블 / 키스톤 노드가 없습니다.
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-1 max-h-36 overflow-y-auto custom-scrollbar pr-1">
+                                        {activeSummary.notables.map(item => (
+                                            <div key={item.id} className="bg-purple-50 p-1.5 border border-purple-200 flex flex-col gap-0.5">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-purple-900 font-black text-[10px]">{item.name}</span>
+                                                    <span className="text-[8px] bg-purple-200 text-purple-900 font-black px-1 border border-purple-400 uppercase">{item.type}</span>
+                                                </div>
+                                                <p className="text-[9px] text-stone-600 font-bold leading-tight">{item.desc}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setShowSummaryModal(false)}
+                            className="w-full bg-black hover:bg-neutral-800 text-white font-black py-2 text-xs border-2 border-black active:translate-y-[1px] cursor-pointer mt-1"
+                        >
+                            닫기 (CLOSE)
+                        </button>
                     </div>
                 </div>
             )}
