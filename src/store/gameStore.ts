@@ -307,15 +307,28 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
     const isBoss = nextStage % 5 === 0;
 
-    // 기획 스펙 19.1 몬스터 스탯 지수 스케일링
+    // 기획 스펙 19.1 몬스터 스탯 지수 스케일링 & 보스 단계별 배율
     // 일반 몬스터 HP: 100 * (1.082 ^ (stage - 1))
     // 일반 몬스터 ATK: 12 * (1.065 ^ (stage - 1))
-    // 보스 몬스터 HP: 일반의 3.5배
+    // 5층 단위(미니보스): HP 1.2배, ATK 1.05배 (초반 5층 관문 난이도 완화)
+    // 10층 단위(중간보스): HP 3.0배, ATK 1.20배
+    // 100층 단위(대보스): HP 5.0배, ATK 1.35배
     const normalHp = Math.floor(100 * Math.pow(1.082, Math.max(0, nextStage - 1)));
     const normalAtk = Math.floor(12 * Math.pow(1.065, Math.max(0, nextStage - 1)));
 
-    const enemyHp = isBoss ? Math.floor(normalHp * 3.5) : normalHp;
-    const enemyAtk = isBoss ? Math.floor(normalAtk * 1.25) : normalAtk;
+    let enemyHp = normalHp;
+    let enemyAtk = normalAtk;
+
+    if (nextStage % 100 === 0) {
+      enemyHp = Math.floor(normalHp * 5.0);
+      enemyAtk = Math.floor(normalAtk * 1.35);
+    } else if (nextStage % 10 === 0) {
+      enemyHp = Math.floor(normalHp * 3.0);
+      enemyAtk = Math.floor(normalAtk * 1.20);
+    } else if (nextStage % 5 === 0) {
+      enemyHp = Math.floor(normalHp * 1.2);
+      enemyAtk = Math.floor(normalAtk * 1.05);
+    }
 
     const stats = {
       str: Math.max(1, Math.floor(enemyAtk / 2)),
