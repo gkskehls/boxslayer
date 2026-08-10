@@ -17,6 +17,30 @@ export const calculateReincarnationPoints = (stage: number, level: number, cores
   return Math.max(0, stagePoints + levelPoints + corePoints);
 };
 
+export const getUnlockedEnemySkillsForStage = (stage: number): string[] => {
+  if (stage < 200) {
+    return []; // 0~199층: 0단계 (미해금 - 스킬 없음)
+  }
+  const allSkills = Object.keys(SKILL_TREE_DATA);
+  if (stage >= 1000) {
+    return allSkills; // 1,000층 이상: 3차 스킬까지 전체 해금
+  } else if (stage >= 500) {
+    return allSkills.filter(id => {
+      const match = id.match(/_node_(\d+)/);
+      if (!match) return true;
+      const nodeNum = parseInt(match[1], 10);
+      return nodeNum <= 60; // 500~999층: 2차 스킬까지 해금
+    });
+  } else {
+    return allSkills.filter(id => {
+      const match = id.match(/_node_(\d+)/);
+      if (!match) return true;
+      const nodeNum = parseInt(match[1], 10);
+      return nodeNum <= 30; // 200~499층: 1차 스킬 해금
+    });
+  }
+};
+
 export const getCoreStats = (type: CoreType, level: number, unlockedSkills: string[] = []): CoreStats => {
   const coreLevel = level > 0 ? level : 1;
   const finalEffects: CoreEffect = {};
@@ -319,7 +343,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     let enemyInitialShield = 0;
     if (enemyCore.type === 'WATER') {
-      const unlockedEnemySkills = Object.keys(SKILL_TREE_DATA);
+      const unlockedEnemySkills = getUnlockedEnemySkillsForStage(nextStage);
       const waterStats = getCoreStats('WATER', enemyCore.level, unlockedEnemySkills);
       enemyInitialShield = Math.floor(enemyHp * (waterStats.effects.initialShieldMultiplier || 0));
     }
@@ -522,8 +546,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     let hitChance = 0.95 + ((enemyComputed.accuracy - playerComputed.evasion) * 0.01);
     const enemyCore = state.currentEnemy.core;
+    const enemyUnlockedSkills = getUnlockedEnemySkillsForStage(state.stage);
     if (enemyCore?.type === 'WIND') {
-      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level, Object.keys(SKILL_TREE_DATA));
+      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level, enemyUnlockedSkills);
       hitChance += (enemyCoreStats.effects.hitEvasionBonus || 0);
     }
     hitChance -= playerComputed.modifiers.evasionChanceBonus;
@@ -550,7 +575,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let nextEnemyShield = state.enemyShield;
 
     if (enemyCore) {
-      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level, Object.keys(SKILL_TREE_DATA));
+      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level, enemyUnlockedSkills);
       const effects = enemyCoreStats.effects;
       if (enemyCore.type === 'FIRE' && effects.baseDamageFlat) {
         const strBonus = state.currentEnemy.stats.str * (effects.strRatio || 0);
