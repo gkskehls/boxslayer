@@ -45,9 +45,15 @@ const renderRetroGauge = (current: number, max: number, totalBlocks: number, act
 };
 
 interface LogEntry {
-  id: number;
+  id: string;
   message: React.ReactNode;
 }
+
+let uniquePopupCounter = 0;
+const getUniqueId = (): string => {
+  uniquePopupCounter = (uniquePopupCounter + 1) % 10000000;
+  return `${Date.now()}_${uniquePopupCounter}_${Math.random().toString(36).substring(2, 7)}`;
+};
 
 const getEnemyCoreDisplay = (type: CoreType) => {
   switch (type) {
@@ -97,7 +103,7 @@ const AnimatedBattleScreen: React.FC = () => {
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit' | 'stunned'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
 
-  const [damagePopups, setDamagePopups] = useState<{ id: number, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'taken-core' | 'miss-enemy' | 'miss-player' | 'shield' | 'enemy-shield' | 'leech', coreType?: string }[]>([]);
+  const [damagePopups, setDamagePopups] = useState<{ id: string, val: number, type: 'normal' | 'core' | 'reflect' | 'taken' | 'taken-core' | 'miss-enemy' | 'miss-player' | 'shield' | 'enemy-shield' | 'leech', coreType?: string }[]>([]);
   const [showStats, setShowStats] = useState<boolean>(false);
   const [damageLog, setDamageLog] = useState<LogEntry[]>([]);
   const [battleTime, setBattleTime] = useState(0);
@@ -190,7 +196,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
   const addLog = (message: React.ReactNode) => {
     queueMicrotask(() => {
-      setDamageLog(prev => [{ id: Date.now() + Math.random(), message }, ...prev.slice(0, 49)]);
+      setDamageLog(prev => [{ id: getUniqueId(), message }, ...prev.slice(0, 49)]);
     });
   };
 
@@ -200,28 +206,28 @@ const AnimatedBattleScreen: React.FC = () => {
       const isMiss = (lastEnemyEvadedTime ?? 0) > 0;
 
       if (normal > 0) {
-        const popup = { id: Date.now(), val: normal, type: 'normal' as const };
+        const popup = { id: getUniqueId(), val: normal, type: 'normal' as const };
         queueMicrotask(() => {
           setDamagePopups(prev => [...prev, popup]);
         });
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
       }
       if (core > 0) {
-        const popup = { id: Date.now() + 1, val: core, type: 'core' as const, coreType: useGameStore.getState().equippedCore?.type };
+        const popup = { id: getUniqueId(), val: core, type: 'core' as const, coreType: useGameStore.getState().equippedCore?.type };
         setTimeout(() => {
           setDamagePopups(prev => [...prev, popup]);
           setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
         }, 150);
       }
       if (shieldRecovered > 0) {
-        const popup = { id: Date.now() + 2, val: shieldRecovered, type: 'shield' as const };
+        const popup = { id: getUniqueId(), val: shieldRecovered, type: 'shield' as const };
         setTimeout(() => {
           setDamagePopups(prev => [...prev, popup]);
           setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
         }, 150);
       }
       if (isMiss) {
-        const popup = { id: Date.now() + 3, val: 0, type: 'miss-enemy' as const };
+        const popup = { id: getUniqueId(), val: 0, type: 'miss-enemy' as const };
         queueMicrotask(() => {
           setDamagePopups(prev => [...prev, popup]);
         });
@@ -264,14 +270,14 @@ const AnimatedBattleScreen: React.FC = () => {
     if (lastDamageTaken && (lastDamageTaken.normal > 0 || lastDamageTaken.core > 0)) {
       const { normal, core } = lastDamageTaken;
       if (normal > 0) {
-        const popup = { id: Date.now() + Math.random(), val: normal, type: 'taken' as const };
+        const popup = { id: getUniqueId(), val: normal, type: 'taken' as const };
         queueMicrotask(() => {
           setDamagePopups(prev => [...prev, popup]);
         });
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
       }
       if (core > 0) {
-        const popup = { id: Date.now() + Math.random(), val: core, type: 'taken-core' as const };
+        const popup = { id: getUniqueId(), val: core, type: 'taken-core' as const };
         setTimeout(() => {
           setDamagePopups(prev => [...prev, popup]);
           setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
@@ -298,7 +304,7 @@ const AnimatedBattleScreen: React.FC = () => {
     }
 
     if (lastEnemyShieldRecovered && lastEnemyShieldRecovered > 0) {
-      const popup = { id: Date.now() + Math.random(), val: lastEnemyShieldRecovered, type: 'enemy-shield' as const };
+      const popup = { id: getUniqueId(), val: lastEnemyShieldRecovered, type: 'enemy-shield' as const };
       setTimeout(() => {
         setDamagePopups(prev => [...prev, popup]);
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);
@@ -306,7 +312,7 @@ const AnimatedBattleScreen: React.FC = () => {
     }
 
     if ((lastPlayerEvadedTime ?? 0) > 0) {
-      const popup = { id: Date.now() + Math.random(), val: 0, type: 'miss-player' as const };
+      const popup = { id: getUniqueId(), val: 0, type: 'miss-player' as const };
       setTimeout(() => {
         setDamagePopups(prev => [...prev, popup]);
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 1000);

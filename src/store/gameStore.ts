@@ -264,10 +264,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       stage: startStage,
       maxStage: startStage,
       playerCores: [
-        { id: `core_fire_${Date.now()}`, name: '불의 코어', type: 'FIRE', level: 1 },
-        { id: `core_water_${Date.now()}`, name: '물의 코어', type: 'WATER', level: 1 },
-        { id: `core_wind_${Date.now()}`, name: '바람의 코어', type: 'WIND', level: 1 },
-        { id: `core_elec_${Date.now()}`, name: '번개의 코어', type: 'ELECTRIC', level: 1 }
+        { id: `core_fire_init`, name: '불의 코어', type: 'FIRE', level: 1 },
+        { id: `core_water_init`, name: '물의 코어', type: 'WATER', level: 1 },
+        { id: `core_wind_init`, name: '바람의 코어', type: 'WIND', level: 1 },
+        { id: `core_elec_init`, name: '번개의 코어', type: 'ELECTRIC', level: 1 }
       ],
     });
   },
