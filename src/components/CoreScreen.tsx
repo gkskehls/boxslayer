@@ -18,7 +18,7 @@ const getCoreTypeColor = (type: string) => {
 };
 
 const CoreScreen: React.FC = () => {
-  const { player, playerCores, equippedCore, equipCore, upgradeCore } = useGameStore();
+  const { player, playerCores, equippedCore, equipCore, upgradeCore, unlockedSkills } = useGameStore();
 
   // [수정됨] 화면 진입 시 장착된 코어가 있다면 자동으로 선택된 상태가 되도록 초기값 설정
   const [selectedCore, setSelectedCore] = useState<Core | null>(equippedCore);
@@ -55,28 +55,28 @@ const CoreScreen: React.FC = () => {
       /* [RENEWAL] 게임기 본체 전용 프레임 일체화 마감
          - 각진 모서리, 단단한 border-4 border-black, 모눈종이 격자무늬 라인이 내장된 모니터 공간입니다.
       */
-      <div 
+      <div
           className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-3 text-stone-900 font-mono select-none text-xs shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex-grow"
           style={{
-              backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
-              backgroundSize: '16px 16px',
+            backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
+            backgroundSize: '16px 16px',
           }}
       >
         <div className="w-full text-center border-b-4 border-black pb-2">
-            <h2 className="text-sm font-black text-stone-500 tracking-widest uppercase leading-none">-[ CORE_MATRIX ]-</h2>
-            <div className="text-amber-700 font-black text-xs mt-1.5 font-mono">보유 골드: {player.gold.toLocaleString()} G</div>
+          <h2 className="text-sm font-black text-stone-500 tracking-widest uppercase leading-none">-[ CORE_MATRIX ]-</h2>
+          <div className="text-amber-700 font-black text-xs mt-1.5 font-mono">보유 골드: {player.gold.toLocaleString()} G</div>
         </div>
 
         {/* 장착 슬롯 영역 (하드웨어 소켓 무드로 리폼) */}
         <div className="bg-stone-200 p-2.5 rounded-none border-4 border-black flex items-center gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <h3 className="font-black text-stone-600 text-[11px] whitespace-nowrap uppercase tracking-tighter">SLOT_ON</h3>
-          <div 
+          <div
               className={`flex-1 p-2 rounded-none border-2 border-black h-12 flex items-center justify-center cursor-pointer transition-all
-                ${equippedCore 
-                  ? `${getCoreTypeColor(equippedCore.type)} shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:brightness-105` 
+                ${equippedCore
+                  ? `${getCoreTypeColor(equippedCore.type)} shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:brightness-105`
                   : 'border-dashed border-stone-400 bg-stone-300/40 text-stone-400 font-bold'
-                }`}
-               onClick={() => { if (equippedCore) { setSelectedCore(equippedCore); setIsEquippedSelected(true); } }}
+              }`}
+              onClick={() => { if (equippedCore) { setSelectedCore(equippedCore); setIsEquippedSelected(true); } }}
           >
             {equippedCore ? (
                 <div className="flex items-center gap-2 font-mono">
@@ -98,10 +98,10 @@ const CoreScreen: React.FC = () => {
               return (
                   <div key={`${core.id}-${i}`}
                        className={`p-2 rounded-none border-2 border-black flex flex-col items-center justify-center transition-all select-none
-                        ${isDisabled 
-                          ? 'border-stone-300 bg-stone-300/60 text-stone-400 opacity-40 cursor-not-allowed line-through font-bold' 
-                          : `cursor-pointer ${getCoreTypeColor(core.type)} shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`
-                        }`}
+                        ${isDisabled
+                           ? 'border-stone-300 bg-stone-300/60 text-stone-400 opacity-40 cursor-not-allowed line-through font-bold'
+                           : `cursor-pointer ${getCoreTypeColor(core.type)} shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`
+                       }`}
                        onClick={() => {
                          if (!isDisabled) {
                            setSelectedCore(core);
@@ -124,9 +124,13 @@ const CoreScreen: React.FC = () => {
                 <div className="text-sm font-black uppercase tracking-wider">{displayCore.name}</div>
                 <div className="text-[10px] font-black border border-current px-1 bg-white/30">LEVEL: {displayCore.level}</div>
               </div>
-              <p className="p-2 bg-white/50 border border-black/10 text-[11px] font-bold leading-normal break-keep">
-                {getCoreStats(displayCore.type, displayCore.level).desc}
-              </p>
+              <div className="p-2 bg-white/60 border border-black/10 text-[11px] font-bold leading-normal break-keep whitespace-pre-wrap flex flex-col gap-1.5">
+                <div>{getCoreStats(displayCore.type, displayCore.level, unlockedSkills).desc}</div>
+                <div className="pt-1 border-t border-black/10 text-[9px] text-stone-600 font-mono flex justify-between items-center">
+                  <span>코어 레벨: LV.{displayCore.level}</span>
+                  <span className="text-purple-900 font-black bg-purple-100 border border-purple-300 px-1 py-0.2">✨ 패시브 스킬 보너스 적용중</span>
+                </div>
+              </div>
 
               {/* 장착 전 (인벤토리 선택 상태) */}
               {!isEquippedSelected && !equippedCore && (
