@@ -314,21 +314,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     // 10층 단위(중간보스): HP 3.0배, ATK 1.20배
     // 100층 단위(대보스): HP 5.0배, ATK 1.35배
     const normalHp = Math.floor(50 * Math.pow(1.026, Math.max(0, nextStage - 1)));
-    const normalAtk = Math.floor(5 * Math.pow(1.020, Math.max(0, nextStage - 1)));
+    const normalHpMultiplier = nextStage % 100 === 0 ? 5.0 : (nextStage % 10 === 0 ? 3.0 : (nextStage % 5 === 0 ? 1.2 : 1.0));
 
-    let enemyHp = normalHp;
-    let enemyAtk = normalAtk;
-
-    if (nextStage % 100 === 0) {
-      enemyHp = Math.floor(normalHp * 5.0);
-      enemyAtk = Math.floor(normalAtk * 1.35);
-    } else if (nextStage % 10 === 0) {
-      enemyHp = Math.floor(normalHp * 3.0);
-      enemyAtk = Math.floor(normalAtk * 1.20);
-    } else if (nextStage % 5 === 0) {
-      enemyHp = Math.floor(normalHp * 1.2);
-      enemyAtk = Math.floor(normalAtk * 1.05);
-    }
+    const enemyHp = Math.floor(normalHp * normalHpMultiplier);
 
     const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
     const coreTypeIndex = (nextStage % 7) % 4;
@@ -341,24 +329,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       level: coreLevel,
     };
 
-    const baseStat = 10 + Math.floor(nextStage * 0.3);
-    let str = Math.max(baseStat, Math.floor(enemyAtk / 2));
-    let dex = baseStat;
-    let con = baseStat;
-
-    // 코어 타입별 스탯 분배 순환 및 특화
-    if (coreType === 'FIRE') {
-      str += Math.floor(nextStage * 0.2);
-    } else if (coreType === 'WIND') {
-      dex += Math.floor(nextStage * 0.2);
-    } else if (coreType === 'WATER') {
-      con += Math.floor(nextStage * 0.2);
-    } else if (coreType === 'ELECTRIC') {
-      str += Math.floor(nextStage * 0.1);
-      dex += Math.floor(nextStage * 0.1);
-    }
-
-    const stats = { str, dex, con };
+    // 몬스터 스탯 단일 선형 수식 (1층~200층 및 200층 이후 무한 확장)
+    // 공식: Stat = 3 + Math.floor((stage - 1) * 0.286432)  (또는 Math.floor(((stage - 1) * 57) / 199))
+    // 1층: 각 3 (총합 9) -> 200층: 각 60 (총합 180, 플레이어 예상 스탯과 동일) -> 500층: 각 145 -> 1,000층: 각 289
+    const statVal = 3 + Math.floor(((nextStage - 1) * 57) / 199);
+    const stats = { str: statVal, dex: statVal, con: statVal };
 
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
     let playerInitialShield = 0;
