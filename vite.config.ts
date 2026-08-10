@@ -12,4 +12,9 @@ export default defineConfig({
     // package.json의 버전을 환경 변수로 노출
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(packageJson.version),
   },
+  server: {
+    host: '0.0.0.0',
+    port: 3000,
+    allowedHosts: true,
+  },
 })
