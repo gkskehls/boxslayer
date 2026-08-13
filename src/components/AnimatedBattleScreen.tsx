@@ -55,13 +55,14 @@ const getUniqueId = (): string => {
   return `${Date.now()}_${uniquePopupCounter}_${Math.random().toString(36).substring(2, 7)}`;
 };
 
-const getEnemyCoreDisplay = (type: CoreType) => {
+const getCoreBadgeDisplay = (type?: CoreType) => {
+  if (!type) return null;
   switch (type) {
-    case 'FIRE': return { abbr: 'F', color: 'text-red-500' };
-    case 'WATER': return { abbr: 'W', color: 'text-blue-500' };
-    case 'WIND': return { abbr: 'A', color: 'text-green-500' };
-    case 'ELECTRIC': return { abbr: 'E', color: 'text-yellow-500' };
-    default: return { abbr: '', color: '' };
+    case 'FIRE': return { label: '🔥화염', color: 'bg-red-600 text-white border-red-950' };
+    case 'WATER': return { label: '💧빙결', color: 'bg-blue-600 text-white border-blue-950' };
+    case 'WIND': return { label: '🍃질풍', color: 'bg-green-600 text-white border-green-950' };
+    case 'ELECTRIC': return { label: '⚡뇌전', color: 'bg-yellow-400 text-black border-yellow-800' };
+    default: return null;
   }
 };
 
@@ -382,7 +383,8 @@ const AnimatedBattleScreen: React.FC = () => {
   ];
 
   const remainingTime = 30 - battleTime;
-  const enemyCoreDisplay = currentEnemy?.core ? getEnemyCoreDisplay(currentEnemy.core.type) : null;
+  const playerCoreBadge = getCoreBadgeDisplay(state.equippedCore?.type);
+  const enemyCoreBadge = getCoreBadgeDisplay(currentEnemy?.core?.type);
 
   return (
       <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none flex-grow">
@@ -434,11 +436,17 @@ const AnimatedBattleScreen: React.FC = () => {
               </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2 w-full relative z-10 font-mono p-2 border-4 border-neutral-900 bg-stone-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)]">
+          {/* 체력바 및 코어 정보 (z-30으로 데미지 팝업보다 명확히 위에 레이어링) */}
+          <div className="grid grid-cols-2 gap-2 w-full relative z-30 font-mono p-2 border-4 border-neutral-900 bg-stone-100 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
 
             <div className="flex flex-col items-start select-none w-full min-w-0">
-              <div className="text-[10px] font-black text-neutral-700 flex items-center gap-1 leading-none mb-1 truncate w-full">
+              <div className="text-[10px] font-black text-neutral-700 flex items-center gap-1.5 leading-none mb-1 truncate w-full">
                 <span>PLAYER</span>
+                {playerCoreBadge && (
+                    <span className={`px-1 py-0.5 text-[9px] font-bold border leading-none shrink-0 ${playerCoreBadge.color} shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`}>
+                      {playerCoreBadge.label}
+                    </span>
+                )}
                 {(playerShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(playerShield || 0)}</span>}
                 {isPlayerStunned && <span className="text-yellow-500 text-xs font-bold animate-pulse">STUN</span>}
               </div>
@@ -451,9 +459,11 @@ const AnimatedBattleScreen: React.FC = () => {
             </div>
 
             <div className="flex flex-col items-end select-none w-full min-w-0">
-              <div className="text-[10px] font-black text-neutral-700 leading-none mb-1 truncate w-full text-right flex justify-end items-center gap-1">
-                {enemyCoreDisplay && (
-                    <span className={`font-bold ${enemyCoreDisplay.color}`}>[{enemyCoreDisplay.abbr}]</span>
+              <div className="text-[10px] font-black text-neutral-700 leading-none mb-1 truncate w-full text-right flex justify-end items-center gap-1.5">
+                {enemyCoreBadge && (
+                    <span className={`px-1 py-0.5 text-[9px] font-bold border leading-none shrink-0 ${enemyCoreBadge.color} shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`}>
+                      {enemyCoreBadge.label}
+                    </span>
                 )}
                 <span>ENEMY</span>
                 {(enemyShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(enemyShield || 0)}</span>}
@@ -468,7 +478,7 @@ const AnimatedBattleScreen: React.FC = () => {
 
           </div>
 
-          <div className="flex justify-center items-end gap-16 mt-6 pb-2 z-10 relative">
+          <div className="flex justify-center items-end gap-16 mt-8 pb-2 z-10 relative">
 
             <div className="relative z-20">
               <motion.div
@@ -502,39 +512,36 @@ const AnimatedBattleScreen: React.FC = () => {
                   const isCore = popup.type === 'taken-core';
 
                   let text = `-${popup.val}`;
-                  let colorClass = 'text-red-500 text-lg';
-                  let xOffset: number;
-                  let yOffset: number;
-                  let scaleVal = 1.3;
+                  let colorClass = 'text-red-600 text-xs font-black';
+                  let xOffset: number = -15;
+                  let yOffset: number = -22;
+                  let scaleVal = 1.0;
 
                   if (isMiss) {
                     text = 'MISS';
-                    colorClass = 'text-neutral-400 text-base italic';
+                    colorClass = 'text-stone-500 text-[11px] italic font-bold';
                     xOffset = 0;
-                    yOffset = -50;
+                    yOffset = -18;
                   } else if (isShield) {
                     text = `+${popup.val}`;
-                    colorClass = 'text-green-500 text-lg';
-                    xOffset = 30;
-                    yOffset = -40;
+                    colorClass = 'text-green-600 text-xs font-bold';
+                    xOffset = 15;
+                    yOffset = -18;
                   } else if (isCore) {
-                    colorClass = 'text-purple-500 text-xl';
-                    xOffset = 20;
-                    yOffset = -75;
-                    scaleVal = 1.5;
-                  } else { // 'taken'
-                    xOffset = -20;
-                    yOffset = -50;
+                    colorClass = 'text-purple-600 text-xs font-black';
+                    xOffset = 15;
+                    yOffset = -28;
+                    scaleVal = 1.1;
                   }
 
                   return (
                       <motion.div
                           key={popup.id}
-                          initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
+                          initial={{ opacity: 0, y: 0, scale: 0.6, x: 0 }}
                           animate={{ opacity: 1, y: yOffset, scale: scaleVal, x: xOffset }}
                           exit={{ opacity: 0 }}
-                          transition={{ duration: 0.6, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-51 ${colorClass}`}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] pointer-events-none z-20 ${colorClass}`}
                       >
                         {text}
                       </motion.div>
@@ -574,52 +581,53 @@ const AnimatedBattleScreen: React.FC = () => {
 
               <AnimatePresence>
                 {damagePopups.filter(p => !p.type.startsWith('taken') && p.type !== 'miss-player' && p.type !== 'shield').map((popup) => {
-                  let colorClass = 'text-white text-base';
-                  let scaleVal = 1.2;
+                  let colorClass = 'text-stone-800 text-xs font-black';
+                  let scaleVal = 1.0;
                   let text = `-${popup.val}`;
 
                   let xOffset = 0;
-                  let yOffset = -60;
+                  let yOffset = -22;
 
                   if (popup.type === 'core') {
-                    scaleVal = 1.5;
-                    xOffset = 20;
-                    yOffset = -75;
+                    scaleVal = 1.1;
+                    xOffset = 15;
+                    yOffset = -28;
 
                     if (popup.coreType === 'FIRE') {
-                      colorClass = 'text-red-500 text-xl font-extrabold';
+                      colorClass = 'text-red-600 text-xs font-black';
                     } else if (popup.coreType === 'WIND') {
-                      colorClass = 'text-green-400 text-xl font-extrabold';
+                      colorClass = 'text-green-600 text-xs font-black';
                     } else if (popup.coreType === 'ELECTRIC') {
-                      colorClass = 'text-yellow-400 text-xl font-extrabold';
+                      colorClass = 'text-yellow-600 text-xs font-black';
                     } else {
-                      colorClass = 'text-orange-500 text-xl';
+                      colorClass = 'text-orange-600 text-xs font-black';
                     }
                   } else if (popup.type === 'reflect') {
-                    colorClass = 'text-blue-400 text-lg font-bold';
-                    scaleVal = 1.3;
-                    xOffset = -20;
-                    yOffset = -50;
+                    colorClass = 'text-blue-600 text-xs font-bold';
+                    scaleVal = 1.0;
+                    xOffset = -15;
+                    yOffset = -22;
                   } else if (popup.type === 'miss-enemy') {
-                    colorClass = 'text-neutral-400 text-lg italic';
-                    scaleVal = 1.3;
+                    colorClass = 'text-stone-500 text-[11px] italic font-bold';
+                    scaleVal = 1.0;
                     text = 'MISS';
+                    yOffset = -18;
                   } else if (popup.type === 'leech' || popup.type === 'enemy-shield') {
-                    colorClass = 'text-green-400 text-lg';
-                    scaleVal = 1.3;
+                    colorClass = 'text-green-600 text-xs font-bold';
+                    scaleVal = 1.0;
                     text = `+${popup.val}`;
-                    xOffset = 30;
-                    yOffset = -40;
+                    xOffset = 15;
+                    yOffset = -18;
                   }
 
                   return (
                       <motion.div
                           key={popup.id}
-                          initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
+                          initial={{ opacity: 0, y: 0, scale: 0.6, x: 0 }}
                           animate={{ opacity: 1, y: yOffset, scale: scaleVal, x: xOffset }}
                           exit={{ opacity: 0 }}
-                          transition={{ duration: 0.6, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono font-black whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] z-50 ${colorClass}`}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] pointer-events-none z-20 ${colorClass}`}
                       >
                         {text}
                       </motion.div>
