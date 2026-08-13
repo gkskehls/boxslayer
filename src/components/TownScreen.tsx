@@ -6,11 +6,19 @@ import { useGameStore, calculateReincarnationPoints } from '../store/gameStore';
 // [수정됨] onNavigate prop을 제거했습니다.
 const TownScreen: React.FC = () => {
     // 1. 상태 및 액션 가져오기
-    const { player, stage, canClaimRewards, calculateOfflineRewards, reincarnate, reincarnationPoints } = useGameStore();
+    const { player, stage, canClaimRewards, calculateOfflineRewards, reincarnate, reincarnationPoints, lastOnlineTime } = useGameStore();
     const [rewards, setRewards] = useState<{ gold: number; exp: number; minutes: number; levelsGained: number } | null>(null);
 
-    // 2. 환생 포인트 계산 (오로지 층수 기반)
+    // 2. 환생 포인트 및 오프라인 시간 계산
     const points = calculateReincarnationPoints(stage);
+
+    // eslint-disable-next-line react-hooks/purity
+    const diff = Date.now() - (lastOnlineTime || Date.now());
+    const rawMinutes = Math.floor(diff / 60000);
+    const offlineMinutes = Math.min(rawMinutes, 720);
+    const hours = Math.floor(offlineMinutes / 60);
+    const mins = offlineMinutes % 60;
+    const formattedTime = hours > 0 ? `${hours}시간 ${mins}분` : `${mins}분`;
 
     // 3. 환생 처리 로직
     const handleReincarnate = () => {
@@ -49,16 +57,21 @@ const TownScreen: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 2. [개선됨] 오프라인 보상 알림 가로 배너 (각진 아케이드 경고 피드백 박스 리폼) */}
+                {/* 2. [개선됨] 오프라인 보상 알림 가로 배너 (누적 방치 시간 표시) */}
                 {canClaimRewards() && (
                     <button
                         onClick={() => setRewards(calculateOfflineRewards())}
                         className="w-full py-3 px-4 bg-emerald-100 border-4 border-black rounded-none flex items-center justify-between gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all cursor-pointer animate-pulse text-black"
                     >
-                        <span className="text-xs font-black tracking-tight text-emerald-800 text-left break-keep leading-tight">
-                            📢 오프라인 보상이 대기 중입니다!
-                        </span>
-                        <span className="bg-emerald-500 border-2 border-black text-white text-[10px] font-black px-2 py-0.5 rounded-none shrink-0 tracking-wider shadow-[1px_1px_0px_rgba(0,0,0,1)] uppercase">
+                        <div className="flex flex-col text-left break-keep leading-tight">
+                            <span className="text-xs font-black tracking-tight text-emerald-900">
+                                📢 오프라인 방치 보상 대기 중!
+                            </span>
+                            <span className="text-[11px] font-bold text-emerald-700 font-mono mt-0.5">
+                                ⏱️ 방치 시간: <span className="font-black text-emerald-950">{formattedTime}</span> {rawMinutes > 720 && <span className="text-stone-500 font-normal text-[10px]">(최대 12시간 적용)</span>}
+                            </span>
+                        </div>
+                        <span className="bg-emerald-500 border-2 border-black text-white text-[10px] font-black px-2.5 py-1 rounded-none shrink-0 tracking-wider shadow-[1px_1px_0px_rgba(0,0,0,1)] uppercase">
                             GET
                         </span>
                     </button>
@@ -71,7 +84,11 @@ const TownScreen: React.FC = () => {
                     <div className="bg-stone-200 p-6 rounded-none border-4 border-black text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-sm mx-auto w-full text-black">
                         <h3 className="text-xl font-black text-amber-600 tracking-widest uppercase mb-2">💰 방치 보상 수령 💰</h3>
                         <p className="text-[11px] font-bold text-stone-600 mb-4">
-                            누적 방치 시간: <span className="text-black font-black">{Math.floor(rewards.minutes / 60)}시간 {rewards.minutes % 60}분</span> (최대 12시간)
+                            누적 방치 시간: <span className="text-black font-black">
+                                {Math.floor(rewards.minutes / 60) > 0
+                                    ? `${Math.floor(rewards.minutes / 60)}시간 ${rewards.minutes % 60}분`
+                                    : `${rewards.minutes}분`}
+                            </span> (최대 12시간)
                         </p>
 
                         <div className="bg-stone-100 border-2 border-black p-3 mb-5 font-mono text-xs font-bold space-y-2">
