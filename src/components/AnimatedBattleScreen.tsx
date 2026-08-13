@@ -147,19 +147,18 @@ const AnimatedBattleScreen: React.FC = () => {
 
   useEffect(() => {
     if (gameStatus !== 'BATTLE') return;
-    // 피버 타임: 전투 지루함 방지용 시간 가속(배속 연출) - 데미지/스탯 변동 없이 오직 전투 시뮬레이션 속도만 가속
-    const feverBonus = computed.modifiers.feverMultiplier || 1.0;
-    const timeout1 = setTimeout(() => setTimeMultiplier(1.5 * feverBonus), 5000);
-    const timeout2 = setTimeout(() => setTimeMultiplier(5.0 * feverBonus), 10000);
-    const timeout3 = setTimeout(() => setTimeMultiplier(10.0 * feverBonus), 15000);
-    const timeout4 = setTimeout(() => setTimeMultiplier(50.0 * feverBonus), 20000);
+    // 피버 타임: 기본 전투 지루함 방지용 시간 가속(배속 연출)
+    const timeout1 = setTimeout(() => setTimeMultiplier(1.5), 5000);
+    const timeout2 = setTimeout(() => setTimeMultiplier(5.0), 10000);
+    const timeout3 = setTimeout(() => setTimeMultiplier(10.0), 15000);
+    const timeout4 = setTimeout(() => setTimeMultiplier(50.0), 20000);
     return () => {
       clearTimeout(timeout1);
       clearTimeout(timeout2);
       clearTimeout(timeout3);
       clearTimeout(timeout4);
     };
-  }, [gameStatus, computed.modifiers.feverMultiplier]);
+  }, [gameStatus]);
 
   useEffect(() => {
     if (gameStatus === 'IDLE') {

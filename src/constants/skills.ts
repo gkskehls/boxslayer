@@ -187,17 +187,17 @@ const generateFull500SkillTree = (): Record<string, SkillNode> => {
                     effects.rpBonusMultiplier = 1.5;
                     effects.startStageBonus = 100;
                     effects.offlineRewardMultiplier = 3.0;
-                    effects.feverMultiplier = 5.0;
+                    effects.expMultiplier = 1.5;
                     name = `[Keystone] 차원 주권 (유틸 종결)`;
-                    description = `차원 유틸 완성: 골드 및 RP 수급 +150%, 시작 층수 +100층, 오프라인 보상 +300% 및 피버 속도 5배 가속!`;
+                    description = `차원 유틸 완성: 골드/RP/EXP 수급 +150%, 시작 층수 +100층, 오프라인 보상 +300%!`;
                 } else if (type === 'NOTABLE') {
                     effects.goldMultiplier = Math.round(0.1 * tier * 100) / 100;
                     effects.rpBonusMultiplier = Math.round(0.1 * tier * 100) / 100;
                     effects.startStageBonus = Math.min(80, tier * 3);
                     effects.offlineRewardMultiplier = Math.round(0.15 * tier * 100) / 100;
-                    effects.feverMultiplier = Math.round((1.0 + tier * 0.2) * 10) / 10;
+                    effects.expMultiplier = Math.round(0.1 * tier * 100) / 100;
                     name = `[특화] 차원 마일스톤 T${tier}`;
-                    description = `T${tier} 차원 마일스톤: 골드 +${Math.round(effects.goldMultiplier * 100)}%, RP 수급 +${Math.round(effects.rpBonusMultiplier * 100)}%, 시작 층수 +${effects.startStageBonus}층 및 방치보상 +${Math.round(effects.offlineRewardMultiplier * 100)}%!`;
+                    description = `T${tier} 차원 마일스톤: 골드/RP/EXP +${Math.round(effects.goldMultiplier * 100)}%, 시작 층수 +${effects.startStageBonus}층 및 방치보상 +${Math.round(effects.offlineRewardMultiplier * 100)}%!`;
                 } else {
                     // 일반 노드 (subIndex 1~9): 5가지 핵심 유틸 스탯을 초반부터 후반까지 골고루 교차 배치
                     if (subIndex === 1) {
@@ -221,10 +221,10 @@ const generateFull500SkillTree = (): Record<string, SkillNode> => {
                         name = `차원 안식 [휴식보상 +${Math.round(val * 100)}%]`;
                         description = `오프라인 오토 방치 보상 정산량이 +${Math.round(val * 100)}% 증가합니다.`;
                     } else if (subIndex === 5) {
-                        const val = Math.round((1.0 + tier * 0.08) * 100) / 100;
-                        effects.feverMultiplier = val;
-                        name = `광기의 피버 [피버속도 x${val}]`;
-                        description = `피버 모드 진입 시 전투 시뮬레이션 진행 속도가 x${val} 배속으로 가속됩니다.`;
+                        const val = Math.round((0.02 * tier + 0.01) * 100) / 100;
+                        effects.expMultiplier = val;
+                        name = `지혜의 샘 [EXP +${Math.round(val * 100)}%]`;
+                        description = `전투 및 방치 시 획득하는 경험치량이 +${Math.round(val * 100)}% 증가합니다.`;
                     } else if (subIndex === 6) {
                         const gVal = Math.round((0.02 * tier) * 100) / 100;
                         const eVal = Math.round((0.02 * tier) * 100) / 100;

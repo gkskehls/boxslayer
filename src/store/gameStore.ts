@@ -144,7 +144,6 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], ac
   const modifiers = {
     offlineRewardMultiplier: 0,
     startStageBonus: 0,
-    feverMultiplier: 1.0,
     evasionChanceBonus: 0,
     goldMultiplier: 0,
     expMultiplier: 0,
@@ -172,7 +171,6 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], ac
       // 4) 기타 유틸리티 누적
       if (skill.effects.offlineRewardMultiplier) modifiers.offlineRewardMultiplier += skill.effects.offlineRewardMultiplier;
       if (skill.effects.startStageBonus) modifiers.startStageBonus += skill.effects.startStageBonus;
-      if (skill.effects.feverMultiplier) modifiers.feverMultiplier = Math.max(modifiers.feverMultiplier, skill.effects.feverMultiplier);
       if (skill.effects.evasionChanceBonus) modifiers.evasionChanceBonus += skill.effects.evasionChanceBonus;
       if (skill.effects.goldMultiplier) modifiers.goldMultiplier += skill.effects.goldMultiplier;
       if (skill.effects.expMultiplier) modifiers.expMultiplier += skill.effects.expMultiplier;
