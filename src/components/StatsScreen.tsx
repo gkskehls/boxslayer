@@ -88,6 +88,26 @@ const StatsScreen: React.FC = () => {
                 </div>
             </div>
 
+            {/* [신규] 유틸리티 패시브 현황 (골드, RP, 시작층, 오프라인 보상) */}
+            <div className="bg-amber-100/80 p-3 rounded-none border-2 border-black/80 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] font-mono w-full shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
+                    <span className="text-amber-900 font-bold">💰 골드 보너스</span>
+                    <span className="text-amber-800 font-black">+{Math.round((computed.modifiers.goldMultiplier || 0) * 100)}%</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
+                    <span className="text-purple-900 font-bold">🌀 RP 수급 보너스</span>
+                    <span className="text-purple-800 font-black">+{Math.round((computed.modifiers.rpBonusMultiplier || 0) * 100)}%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-stone-700 font-bold">🚀 시작 층수 보너스</span>
+                    <span className="text-stone-900 font-black">+{computed.modifiers.startStageBonus || 0}층</span>
+                </div>
+                <div className="flex justify-between items-center">
+                    <span className="text-blue-900 font-bold">💤 방치 보상 보너스</span>
+                    <span className="text-blue-800 font-black">+{Math.round((computed.modifiers.offlineRewardMultiplier || 0) * 100)}%</span>
+                </div>
+            </div>
+
             {/* 스탯 투자 버튼 컨테이너 (간격 유지) */}
             <div className="flex flex-col gap-3 w-full">
                 {statsConfig.map(({ key, label, desc }) => {

@@ -145,7 +145,10 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], ac
     offlineRewardMultiplier: 0,
     startStageBonus: 0,
     feverMultiplier: 1.0,
-    evasionChanceBonus: 0
+    evasionChanceBonus: 0,
+    goldMultiplier: 0,
+    expMultiplier: 0,
+    rpBonusMultiplier: 0,
   };
 
   unlockedSkills.forEach(skillId => {
@@ -171,6 +174,9 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], ac
       if (skill.effects.startStageBonus) modifiers.startStageBonus += skill.effects.startStageBonus;
       if (skill.effects.feverMultiplier) modifiers.feverMultiplier = Math.max(modifiers.feverMultiplier, skill.effects.feverMultiplier);
       if (skill.effects.evasionChanceBonus) modifiers.evasionChanceBonus += skill.effects.evasionChanceBonus;
+      if (skill.effects.goldMultiplier) modifiers.goldMultiplier += skill.effects.goldMultiplier;
+      if (skill.effects.expMultiplier) modifiers.expMultiplier += skill.effects.expMultiplier;
+      if (skill.effects.rpBonusMultiplier) modifiers.rpBonusMultiplier += skill.effects.rpBonusMultiplier;
     }
   });
 
@@ -280,9 +286,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
   reincarnate: () => {
     const state = get();
-    const pointsEarned = calculateReincarnationPoints(state.stage);
     const unlockedSkills = state.unlockedSkills;
-    const startStage = 1 + (getComputedStats(initialStats, unlockedSkills).modifiers.startStageBonus || 0);
+    const computed = getComputedStats(initialStats, unlockedSkills);
+    const basePoints = calculateReincarnationPoints(state.stage);
+    const rpMultiplier = 1 + (computed.modifiers.rpBonusMultiplier || 0);
+    const pointsEarned = Math.floor(basePoints * rpMultiplier);
+    const startStage = 1 + (computed.modifiers.startStageBonus || 0);
 
     set({
       ...initialGameState,
@@ -352,8 +361,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       enemyInitialShield = Math.floor(enemyHp * (waterStats.effects.initialShieldMultiplier || 0));
     }
 
-    const goldMult = (state.activeBuffs['buff_gold_2x'] && state.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0;
-    const expMult = (state.activeBuffs['buff_exp_2x'] && state.activeBuffs['buff_exp_2x'] > now) ? 2.0 : 1.0;
+    const skillGoldMult = 1 + (playerComputed.modifiers.goldMultiplier || 0);
+    const skillExpMult = 1 + (playerComputed.modifiers.expMultiplier || 0);
+
+    const goldMult = ((state.activeBuffs['buff_gold_2x'] && state.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0) * skillGoldMult;
+    const expMult = ((state.activeBuffs['buff_exp_2x'] && state.activeBuffs['buff_exp_2x'] > now) ? 2.0 : 1.0) * skillExpMult;
 
     set({
       stage: nextStage,
@@ -727,8 +739,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const bonusMultiplier = 1 + computed.modifiers.offlineRewardMultiplier;
 
     const now = Date.now();
-    const goldMult = (s.activeBuffs['buff_gold_2x'] && s.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0;
-    const expMult = (s.activeBuffs['buff_exp_2x'] && s.activeBuffs['buff_exp_2x'] > now) ? 2.0 : 1.0;
+    const skillGoldMult = 1 + (computed.modifiers.goldMultiplier || 0);
+    const skillExpMult = 1 + (computed.modifiers.expMultiplier || 0);
+
+    const goldMult = ((s.activeBuffs['buff_gold_2x'] && s.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0) * skillGoldMult;
+    const expMult = ((s.activeBuffs['buff_exp_2x'] && s.activeBuffs['buff_exp_2x'] > now) ? 2.0 : 1.0) * skillExpMult;
 
     // 80% 오프라인 효율성 (1분당 약 8마리 처치 기준)
     const baseEnemyExp = Math.floor(20 + (s.stage * 8) + (Math.pow(s.stage, 1.3) * 2));

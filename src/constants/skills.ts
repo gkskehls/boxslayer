@@ -180,33 +180,83 @@ const generateFull500SkillTree = (): Record<string, SkillNode> => {
                     description = `뇌전 권능 완성: 모든 스탯 +30%, 기절 3초 지속 및 처형 피해 +200%!`;
                 }
             } else if (b.key === 'util') {
-                if (tier <= 3) {
-                    effects.offlineRewardMultiplier = 0.05 * i;
-                    name = `차원 탐색 I [휴식보상 +${Math.round(effects.offlineRewardMultiplier * 100)}%]`;
-                    description = `오프라인 오토 보상 정산량이 +${Math.round(effects.offlineRewardMultiplier * 100)}% 증가합니다.`;
-                } else if (tier <= 6) {
-                    effects.startStageBonus = tier * 5;
-                    effects.feverMultiplier = 1.0 + (tier * 0.1);
-                    name = `차원 도약 [시작층 +${effects.startStageBonus}, 피버배율 +${effects.feverMultiplier.toFixed(1)}]`;
-                    description = `환생 후 시작 스테이지와 피버 모드 데미지 배율이 상승합니다.`;
-                } else {
-                    effects.offlineRewardMultiplier = 0.2;
-                    effects.startStageBonus = 10;
-                    name = `차원 왜곡 [오프라인/시작층 강화]`;
-                    description = `파밍 효율성 및 고층 바로가기 수치가 연속 가산됩니다.`;
-                }
-                if (type === 'NOTABLE') {
-                    effects.rpBonusMultiplier = 0.1 * tier;
-                    name = `[특화] RP 수급 증폭 T${tier}`;
-                    description = `환생 시 획득하는 환생 포인트(RP)량이 +${tier * 10}% 증폭됩니다.`;
-                }
+                const subIndex = i % 10 || 10;
+
                 if (type === 'KEYSTONE') {
-                    effects.offlineRewardMultiplier = 2.0;
+                    effects.goldMultiplier = 1.5;
+                    effects.rpBonusMultiplier = 1.5;
                     effects.startStageBonus = 100;
-                    effects.feverMultiplier = 3.0;
-                    effects.rpBonusMultiplier = 1.0;
+                    effects.offlineRewardMultiplier = 3.0;
+                    effects.feverMultiplier = 5.0;
                     name = `[Keystone] 차원 주권 (유틸 종결)`;
-                    description = `유틸 권능 완성: 환생시 100층 시작, RP 수급 2배, 피버 3배 및 오프라인 보상 200% 증폭!`;
+                    description = `차원 유틸 완성: 골드 및 RP 수급 +150%, 시작 층수 +100층, 오프라인 보상 +300% 및 피버 배율 5배 증폭!`;
+                } else if (type === 'NOTABLE') {
+                    effects.goldMultiplier = Math.round(0.1 * tier * 100) / 100;
+                    effects.rpBonusMultiplier = Math.round(0.1 * tier * 100) / 100;
+                    effects.startStageBonus = Math.min(80, tier * 3);
+                    effects.offlineRewardMultiplier = Math.round(0.15 * tier * 100) / 100;
+                    effects.feverMultiplier = Math.round((1.0 + tier * 0.2) * 10) / 10;
+                    name = `[특화] 차원 마일스톤 T${tier}`;
+                    description = `T${tier} 차원 마일스톤: 골드 +${Math.round(effects.goldMultiplier * 100)}%, RP 수급 +${Math.round(effects.rpBonusMultiplier * 100)}%, 시작 층수 +${effects.startStageBonus}층 및 방치보상 +${Math.round(effects.offlineRewardMultiplier * 100)}%!`;
+                } else {
+                    // 일반 노드 (subIndex 1~9): 5가지 핵심 유틸 스탯을 초반부터 후반까지 골고루 교차 배치
+                    if (subIndex === 1) {
+                        const val = Math.round((0.02 * tier + 0.01) * 100) / 100;
+                        effects.goldMultiplier = val;
+                        name = `황금의 연금술 [골드 +${Math.round(val * 100)}%]`;
+                        description = `전투 및 방치 시 획득하는 골드량이 +${Math.round(val * 100)}% 증가합니다.`;
+                    } else if (subIndex === 2) {
+                        const val = Math.round((0.02 * tier + 0.01) * 100) / 100;
+                        effects.rpBonusMultiplier = val;
+                        name = `차원 환생 가속 [RP 수급 +${Math.round(val * 100)}%]`;
+                        description = `환생 시 획득하는 환생 포인트(RP)량이 +${Math.round(val * 100)}% 증폭됩니다.`;
+                    } else if (subIndex === 3) {
+                        const val = Math.max(1, Math.floor(tier * 0.8));
+                        effects.startStageBonus = val;
+                        name = `시공간 도약 [시작층 +${val}]`;
+                        description = `환생 시 시작 스테이지가 +${val}층 증가합니다.`;
+                    } else if (subIndex === 4) {
+                        const val = Math.round((0.04 * tier + 0.02) * 100) / 100;
+                        effects.offlineRewardMultiplier = val;
+                        name = `차원 안식 [휴식보상 +${Math.round(val * 100)}%]`;
+                        description = `오프라인 오토 방치 보상 정산량이 +${Math.round(val * 100)}% 증가합니다.`;
+                    } else if (subIndex === 5) {
+                        const val = Math.round((1.0 + tier * 0.08) * 100) / 100;
+                        effects.feverMultiplier = val;
+                        name = `광기의 피버 [피버배율 x${val}]`;
+                        description = `피버 모드 진입 시 전투 가속 및 데미지 배율이 x${val}로 상승합니다.`;
+                    } else if (subIndex === 6) {
+                        const gVal = Math.round((0.02 * tier) * 100) / 100;
+                        const eVal = Math.round((0.02 * tier) * 100) / 100;
+                        effects.goldMultiplier = gVal;
+                        effects.expMultiplier = eVal;
+                        name = `황금 보물선 [골드 +${Math.round(gVal * 100)}% / EXP +${Math.round(eVal * 100)}%]`;
+                        description = `몬스터 처치 시 획득 골드와 경험치가 함께 +${Math.round(gVal * 100)}% 상승합니다.`;
+                    } else if (subIndex === 7) {
+                        const rpVal = Math.round((0.02 * tier) * 100) / 100;
+                        const stVal = Math.max(1, Math.floor(tier * 0.6));
+                        effects.rpBonusMultiplier = rpVal;
+                        effects.startStageBonus = stVal;
+                        name = `환생의 지혜 [RP +${Math.round(rpVal * 100)}% / 시작층 +${stVal}]`;
+                        description = `환생 RP 보상 수급량과 시작 층수가 동시에 가산됩니다.`;
+                    } else if (subIndex === 8) {
+                        const offVal = Math.round((0.03 * tier) * 100) / 100;
+                        const gVal = Math.round((0.02 * tier) * 100) / 100;
+                        effects.offlineRewardMultiplier = offVal;
+                        effects.goldMultiplier = gVal;
+                        name = `시공간 휴식 [휴식 +${Math.round(offVal * 100)}% / 골드 +${Math.round(gVal * 100)}%]`;
+                        description = `오프라인 보상과 골드 수급 효율이 동시에 강화됩니다.`;
+                    } else {
+                        // subIndex === 9
+                        const gVal = Math.round((0.015 * tier) * 100) / 100;
+                        const rpVal = Math.round((0.015 * tier) * 100) / 100;
+                        const eVal = Math.round((0.015 * tier) * 100) / 100;
+                        effects.goldMultiplier = gVal;
+                        effects.rpBonusMultiplier = rpVal;
+                        effects.expMultiplier = eVal;
+                        name = `차원 만능 수련 [골드/RP/EXP +${Math.round(gVal * 100)}%]`;
+                        description = `모든 주요 유틸리티 재화 수급량이 +${Math.round(gVal * 100)}% 균일 상승합니다.`;
+                    }
                 }
             }
 
