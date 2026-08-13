@@ -11,9 +11,17 @@ export interface CoreStats {
 }
 
 export const calculateReincarnationPoints = (stage: number): number => {
-  // 환생 포인트는 다른 요소(레벨, 코어 등)를 모두 제외하고 오로지 층수(5층당 1 RP)로만 산출됩니다.
-  const stagePoints = Math.floor(stage / 5);
-  return Math.max(0, stagePoints);
+  if (stage < 5) return 0;
+  // 층수 가중치 공식: 오직 층수만 반영하되, 고층 등반 시 기하급수적 RP 보상 부여
+  // (예: 50층 -> 14 RP, 100층 -> 36 RP, 200층 -> 106 RP, 500층 -> 516 RP, 1000층 -> 1,866 RP)
+  const basePoints = Math.floor(stage / 5);
+  const acceleration = 1 + (stage / 120);
+  return Math.floor(basePoints * acceleration);
+};
+
+export const getRequiredExpForLevel = (level: number): number => {
+  // 다항식(Polynomial) 수식 적용: 기존 1.1^level 지수 수식의 고층 레벨업 마비 방지
+  return Math.floor(100 * Math.pow(level, 1.5));
 };
 
 export const getUnlockedEnemySkillsForStage = (stage: number): string[] => {
@@ -358,8 +366,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         stats: stats,
         maxHealth: enemyHp,
         currentHealth: enemyHp,
-        goldReward: Math.floor((10 + nextStage) * (isBoss ? 3 : 1) * goldMult),
-        expReward: Math.floor((20 + (nextStage * 5)) * (isBoss ? 3 : 1) * expMult),
+        goldReward: Math.floor((10 + (nextStage * 2) + (Math.pow(nextStage, 1.35) * 1.5)) * (isBoss ? 3 : 1) * goldMult),
+        expReward: Math.floor((20 + (nextStage * 8) + (Math.pow(nextStage, 1.3) * 2)) * (isBoss ? 3 : 1) * expMult),
         core: enemyCore,
         shield: enemyInitialShield,
       },
@@ -490,7 +498,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       while (newExp >= newNextExp) {
         newExp -= newNextExp;
         newLevel++;
-        newNextExp = Math.floor(newNextExp * 1.1);
+        newNextExp = getRequiredExpForLevel(newLevel);
         statPointsGained += 3;
       }
 
@@ -712,7 +720,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     if (minutes < 1) return { gold: 0, exp: 0 };
 
-    const b = 1 + (s.stage - 1) * 0.1;
     const computed = getComputedStats(s.player.stats, s.unlockedSkills, s.activeBuffs);
     const bonusMultiplier = 1 + computed.modifiers.offlineRewardMultiplier;
 
@@ -720,8 +727,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const goldMult = (s.activeBuffs['buff_gold_2x'] && s.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0;
     const expMult = (s.activeBuffs['buff_exp_2x'] && s.activeBuffs['buff_exp_2x'] > now) ? 2.0 : 1.0;
 
-    const g = Math.floor(10 * b * minutes * bonusMultiplier * goldMult);
-    const e = Math.floor(5 * b * minutes * bonusMultiplier * expMult);
+    const baseEnemyExp = Math.floor(20 + (s.stage * 8) + (Math.pow(s.stage, 1.3) * 2));
+    const baseEnemyGold = Math.floor(10 + (s.stage * 2) + (Math.pow(s.stage, 1.35) * 1.5));
+
+    const g = Math.floor((baseEnemyGold * 10 / 60) * minutes * 60 * bonusMultiplier * goldMult);
+    const e = Math.floor((baseEnemyExp * 10 / 60) * minutes * 60 * bonusMultiplier * expMult);
 
     set({
       player: { ...s.player, gold: s.player.gold + g, experience: s.player.experience + e },
