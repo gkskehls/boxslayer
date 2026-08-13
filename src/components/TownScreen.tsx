@@ -7,7 +7,7 @@ import { useGameStore, calculateReincarnationPoints } from '../store/gameStore';
 const TownScreen: React.FC = () => {
     // 1. 상태 및 액션 가져오기
     const { player, stage, canClaimRewards, calculateOfflineRewards, reincarnate, reincarnationPoints } = useGameStore();
-    const [rewards, setRewards] = useState<{ gold: number; exp: number } | null>(null);
+    const [rewards, setRewards] = useState<{ gold: number; exp: number; minutes: number; levelsGained: number } | null>(null);
 
     // 2. 환생 포인트 계산 (오로지 층수 기반)
     const points = calculateReincarnationPoints(stage);
@@ -65,26 +65,35 @@ const TownScreen: React.FC = () => {
                 )}
             </div>
 
-            {/* 보상 획득 결과 팝업 (기존 로직 및 분기 명세를 유지하면서 8비트 하드 픽셀 창 스타일 마감) */}
+            {/* 보상 획득 결과 팝업 */}
             {rewards && (
                 <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
                     <div className="bg-stone-200 p-6 rounded-none border-4 border-black text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-sm mx-auto w-full text-black">
-                        <h3 className="text-xl font-black text-amber-600 tracking-widest uppercase mb-4">💰 보상 획득! 💰</h3>
+                        <h3 className="text-xl font-black text-amber-600 tracking-widest uppercase mb-2">💰 방치 보상 수령 💰</h3>
+                        <p className="text-[11px] font-bold text-stone-600 mb-4">
+                            누적 방치 시간: <span className="text-black font-black">{Math.floor(rewards.minutes / 60)}시간 {rewards.minutes % 60}분</span> (최대 12시간)
+                        </p>
 
                         <div className="bg-stone-100 border-2 border-black p-3 mb-5 font-mono text-xs font-bold space-y-2">
                             <p className="flex justify-between items-center border-b border-stone-300 pb-1">
                                 <span className="text-stone-500">골드 수령</span>
-                                <span className="text-amber-600 font-black">+{Math.floor(rewards.gold)} G</span>
+                                <span className="text-amber-600 font-black">+{Math.floor(rewards.gold).toLocaleString()} G</span>
                             </p>
-                            <p className="flex justify-between items-center">
+                            <p className="flex justify-between items-center border-b border-stone-300 pb-1">
                                 <span className="text-stone-500">경험치 획득</span>
-                                <span className="text-blue-600 font-black">+{Math.floor(rewards.exp)} EXP</span>
+                                <span className="text-blue-600 font-black">+{Math.floor(rewards.exp).toLocaleString()} EXP</span>
                             </p>
+                            {rewards.levelsGained > 0 && (
+                                <p className="flex justify-between items-center text-purple-700 font-black pt-1">
+                                    <span>레벨 상승!</span>
+                                    <span>+{rewards.levelsGained} LV (스탯 +{rewards.levelsGained * 3})</span>
+                                </p>
+                            )}
                         </div>
 
                         <button
                             onClick={() => setRewards(null)}
-                            className="w-full py-2.5 bg-stone-100 hover:bg-stone-50 text-black text-xs font-black rounded-none border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer uppercase"
+                            className="w-full py-2.5 bg-amber-400 hover:bg-amber-300 text-black text-xs font-black rounded-none border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer uppercase"
                         >
                             확인 [OK]
                         </button>

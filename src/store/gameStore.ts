@@ -114,7 +114,7 @@ interface GameActions {
   equipCore: (coreId: string) => void;
   unequipCore: () => void;
   upgradeCore: (amount?: number) => void;
-  calculateOfflineRewards: () => { gold: number; exp: number };
+  calculateOfflineRewards: () => { gold: number; exp: number; minutes: number; levelsGained: number };
   retryCurrentFloor: () => void;
   spendGold: (amount: number) => void;
   removeCore: (coreId: string) => void;
@@ -716,9 +716,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   calculateOfflineRewards: () => {
     const s = get();
     const diff = Date.now() - s.lastOnlineTime;
-    const minutes = Math.floor(diff / 60000);
+    const rawMinutes = Math.floor(diff / 60000);
 
-    if (minutes < 1) return { gold: 0, exp: 0 };
+    if (rawMinutes < 1) return { gold: 0, exp: 0, minutes: 0, levelsGained: 0 };
+
+    // 오프라인 방치 보상 상한선: 최대 12시간 (720분)
+    const minutes = Math.min(rawMinutes, 720);
 
     const computed = getComputedStats(s.player.stats, s.unlockedSkills, s.activeBuffs);
     const bonusMultiplier = 1 + computed.modifiers.offlineRewardMultiplier;
@@ -727,17 +730,41 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const goldMult = (s.activeBuffs['buff_gold_2x'] && s.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0;
     const expMult = (s.activeBuffs['buff_exp_2x'] && s.activeBuffs['buff_exp_2x'] > now) ? 2.0 : 1.0;
 
+    // 80% 오프라인 효율성 (1분당 약 8마리 처치 기준)
     const baseEnemyExp = Math.floor(20 + (s.stage * 8) + (Math.pow(s.stage, 1.3) * 2));
     const baseEnemyGold = Math.floor(10 + (s.stage * 2) + (Math.pow(s.stage, 1.35) * 1.5));
 
-    const g = Math.floor((baseEnemyGold * 10 / 60) * minutes * 60 * bonusMultiplier * goldMult);
-    const e = Math.floor((baseEnemyExp * 10 / 60) * minutes * 60 * bonusMultiplier * expMult);
+    const g = Math.floor((baseEnemyGold * 8 / 60) * minutes * 60 * bonusMultiplier * goldMult);
+    const e = Math.floor((baseEnemyExp * 8 / 60) * minutes * 60 * bonusMultiplier * expMult);
+
+    // 오프라인 경험치 수령 후 즉시 레벨업 루프 처리
+    let newLevel = s.player.level;
+    let newExp = s.player.experience + e;
+    let newNextExp = s.player.nextLevelExperience || getRequiredExpForLevel(newLevel);
+    let statPointsGained = 0;
+    let levelsGained = 0;
+
+    while (newExp >= newNextExp) {
+      newExp -= newNextExp;
+      newLevel++;
+      levelsGained++;
+      newNextExp = getRequiredExpForLevel(newLevel);
+      statPointsGained += 3;
+    }
 
     set({
-      player: { ...s.player, gold: s.player.gold + g, experience: s.player.experience + e },
+      player: {
+        ...s.player,
+        gold: s.player.gold + g,
+        level: newLevel,
+        experience: newExp,
+        nextLevelExperience: newNextExp,
+        statPoints: s.player.statPoints + statPointsGained,
+      },
       lastOnlineTime: Date.now()
     });
-    return { gold: g, exp: e };
+
+    return { gold: g, exp: e, minutes, levelsGained };
   },
   retryCurrentFloor: () => set((state) => {
     const computed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
