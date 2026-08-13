@@ -6,12 +6,11 @@ import { useGameStore, calculateReincarnationPoints } from '../store/gameStore';
 // [수정됨] onNavigate prop을 제거했습니다.
 const TownScreen: React.FC = () => {
     // 1. 상태 및 액션 가져오기
-    const { player, stage, playerCores, equippedCore, canClaimRewards, calculateOfflineRewards, reincarnate, reincarnationPoints } = useGameStore();
+    const { player, stage, canClaimRewards, calculateOfflineRewards, reincarnate, reincarnationPoints } = useGameStore();
     const [rewards, setRewards] = useState<{ gold: number; exp: number } | null>(null);
 
-    // 2. 환생 포인트 계산
-    const allCores = [...playerCores, ...(equippedCore ? [equippedCore] : [])];
-    const points = calculateReincarnationPoints(stage, player.level, allCores);
+    // 2. 환생 포인트 계산 (오로지 층수 기반)
+    const points = calculateReincarnationPoints(stage);
 
     // 3. 환생 처리 로직
     const handleReincarnate = () => {
@@ -25,7 +24,7 @@ const TownScreen: React.FC = () => {
            - 기존의 어두운 bg-neutral-900 및 곡선형 디자인을 걷어내고 각진 플랫 오락기 무드 적용.
            - 모바일 세로 해상도 규격 max-w-md와 격자 도트 무늬 배경 가동.
         */
-        <div 
+        <div
             className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-4 items-center justify-between text-stone-900 font-mono select-none flex-grow"
             style={{
                 backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
@@ -43,7 +42,7 @@ const TownScreen: React.FC = () => {
                             <span>LV.<span className="text-sm font-black text-blue-600">{player.level}</span></span>
                         </div>
                     </div>
-                    
+
                     <div className="text-right flex flex-col gap-0.5">
                         <span className="text-[10px] font-black text-neutral-500 tracking-wider uppercase leading-none">REBIRTH_PT</span>
                         <span className="text-xs font-black text-purple-700">✨ {reincarnationPoints} PT</span>
@@ -71,20 +70,20 @@ const TownScreen: React.FC = () => {
                 <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
                     <div className="bg-stone-200 p-6 rounded-none border-4 border-black text-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-sm mx-auto w-full text-black">
                         <h3 className="text-xl font-black text-amber-600 tracking-widest uppercase mb-4">💰 보상 획득! 💰</h3>
-                        
+
                         <div className="bg-stone-100 border-2 border-black p-3 mb-5 font-mono text-xs font-bold space-y-2">
                             <p className="flex justify-between items-center border-b border-stone-300 pb-1">
-                                <span className="text-stone-500">골드 수령</span> 
+                                <span className="text-stone-500">골드 수령</span>
                                 <span className="text-amber-600 font-black">+{Math.floor(rewards.gold)} G</span>
                             </p>
                             <p className="flex justify-between items-center">
-                                <span className="text-stone-500">경험치 획득</span> 
+                                <span className="text-stone-500">경험치 획득</span>
                                 <span className="text-blue-600 font-black">+{Math.floor(rewards.exp)} EXP</span>
                             </p>
                         </div>
-                        
-                        <button 
-                            onClick={() => setRewards(null)} 
+
+                        <button
+                            onClick={() => setRewards(null)}
                             className="w-full py-2.5 bg-stone-100 hover:bg-stone-50 text-black text-xs font-black rounded-none border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all cursor-pointer uppercase"
                         >
                             확인 [OK]

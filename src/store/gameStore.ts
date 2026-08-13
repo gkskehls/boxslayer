@@ -10,11 +10,10 @@ export interface CoreStats {
   effects: CoreEffect;
 }
 
-export const calculateReincarnationPoints = (stage: number, level: number, cores: Core[]): number => {
+export const calculateReincarnationPoints = (stage: number): number => {
+  // 환생 포인트는 다른 요소(레벨, 코어 등)를 모두 제외하고 오로지 층수(5층당 1 RP)로만 산출됩니다.
   const stagePoints = Math.floor(stage / 5);
-  const levelPoints = Math.floor(level / 10);
-  const corePoints = Math.floor(cores.reduce((sum, core) => sum + core.level, 0) / 10);
-  return Math.max(0, stagePoints + levelPoints + corePoints);
+  return Math.max(0, stagePoints);
 };
 
 export const getUnlockedEnemySkillsForStage = (stage: number): string[] => {
@@ -273,11 +272,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
   reincarnate: () => {
     const state = get();
-    const pointsEarned = calculateReincarnationPoints(
-        state.stage,
-        state.player.level,
-        [...state.playerCores, ...(state.equippedCore ? [state.equippedCore] : [])]
-    );
+    const pointsEarned = calculateReincarnationPoints(state.stage);
     const unlockedSkills = state.unlockedSkills;
     const startStage = 1 + (getComputedStats(initialStats, unlockedSkills).modifiers.startStageBonus || 0);
 
