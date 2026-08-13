@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useGameStore, calculateReincarnationPoints } from '../store/gameStore';
+import { formatNumber } from '../utils/format';
 
 // [수정됨] 더 이상 마을 화면 내부에서 이동 버튼을 사용하지 않으므로 TownScreenProps 인터페이스를 삭제했습니다.
 
@@ -53,7 +54,7 @@ const TownScreen: React.FC = () => {
 
                     <div className="text-right flex flex-col gap-0.5">
                         <span className="text-[10px] font-black text-neutral-500 tracking-wider uppercase leading-none">REBIRTH_PT</span>
-                        <span className="text-xs font-black text-purple-700">✨ {reincarnationPoints} PT</span>
+                        <span className="text-xs font-black text-purple-700">✨ {formatNumber(reincarnationPoints)} PT</span>
                     </div>
                 </div>
 
@@ -94,11 +95,11 @@ const TownScreen: React.FC = () => {
                         <div className="bg-stone-100 border-2 border-black p-3 mb-5 font-mono text-xs font-bold space-y-2">
                             <p className="flex justify-between items-center border-b border-stone-300 pb-1">
                                 <span className="text-stone-500">골드 수령</span>
-                                <span className="text-amber-600 font-black">+{Math.floor(rewards.gold).toLocaleString()} G</span>
+                                <span className="text-amber-600 font-black">+{formatNumber(Math.floor(rewards.gold))} G</span>
                             </p>
                             <p className="flex justify-between items-center border-b border-stone-300 pb-1">
                                 <span className="text-stone-500">경험치 획득</span>
-                                <span className="text-blue-600 font-black">+{Math.floor(rewards.exp).toLocaleString()} EXP</span>
+                                <span className="text-blue-600 font-black">+{formatNumber(Math.floor(rewards.exp))} EXP</span>
                             </p>
                             {rewards.levelsGained > 0 && (
                                 <p className="flex justify-between items-center text-purple-700 font-black pt-1">
@@ -137,7 +138,7 @@ const TownScreen: React.FC = () => {
                         -[ REBIRTH ALTAR ]-
                     </span>
                     <span className="text-[10px] font-bold text-stone-600 font-mono mt-0.5 break-keep px-4 text-center leading-relaxed">
-                        {points > 0 ? `진행도를 초기화하고 +${points} RP를 축적합니다.` : 'STAGE 5 달성 시 개방됩니다.'}
+                        {points > 0 ? `진행도를 초기화하고 +${formatNumber(points)} RP를 축적합니다.` : 'STAGE 5 달성 시 개방됩니다.'}
                     </span>
                 </button>
             </div>

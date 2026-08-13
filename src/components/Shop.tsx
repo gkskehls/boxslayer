@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { ShopItem } from '../types/game';
 import { SHOP_ITEMS } from '../constants/shopItems';
+import { formatNumber } from '../utils/format';
 
 // 초 단위 시간을 mm:ss 포맷으로 변환
 const formatTime = (seconds: number) => {
@@ -80,7 +81,7 @@ const Shop: React.FC = () => {
 
         <div className="bg-stone-300 p-3 rounded-none border-4 border-black w-full flex justify-between items-center font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sticky top-0 z-10">
           <span className="text-[10px] font-black text-neutral-500 tracking-wider uppercase leading-none">CASH_REGISTER</span>
-          <span className="text-sm font-black text-amber-700">보유 골드: {player.gold.toLocaleString()} G</span>
+          <span className="text-sm font-black text-amber-700">보유 골드: {formatNumber(player.gold)} G</span>
         </div>
 
         <div className="flex flex-col gap-3 w-full mt-1">

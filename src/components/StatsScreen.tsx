@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useGameStore, getComputedStats } from '../store/gameStore';
+import { formatNumber } from '../utils/format';
 
 const StatsScreen: React.FC = () => {
     const { player, distributeStat, resetStats, unlockedSkills, activeBuffs } = useGameStore();
@@ -53,7 +54,7 @@ const StatsScreen: React.FC = () => {
             {/* 단단하고 쫀득한 8비트 아날로그 인디케이터 스타일 래핑 */}
             <div className="bg-stone-300 px-4 py-2.5 rounded-none border-4 border-black w-full flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <span className="text-xs font-black text-stone-700 tracking-tight break-keep leading-tight">보유 스탯 포인트</span>
-                <span className="text-green-700 font-black text-xl font-mono tracking-wide leading-none">{player.statPoints} P</span>
+                <span className="text-green-700 font-black text-xl font-mono tracking-wide leading-none">{formatNumber(player.statPoints)} P</span>
             </div>
 
             {/* 현재 능력치 표시 (폰트 약간 확대: 전체 text-xs, 라벨 text-[11px], leading-tight로 세로폭 유지) */}
@@ -62,11 +63,11 @@ const StatsScreen: React.FC = () => {
             <div className="bg-stone-200/60 p-3 rounded-none border-4 border-black grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono w-full shadow-[inset_2px_2px_0px_rgba(0,0,0,0.05)]">
                 <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
                     <span className="text-stone-500 font-sans font-bold text-[11px] leading-tight">공격력</span>
-                    <span className="text-black font-black leading-tight">{computed.attack.toFixed(0)}</span>
+                    <span className="text-black font-black leading-tight">{formatNumber(computed.attack)}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
                     <span className="text-stone-500 font-sans font-bold text-[11px] leading-tight">방어력</span>
-                    <span className="text-black font-black leading-tight">{computed.defense.toFixed(1)}</span>
+                    <span className="text-black font-black leading-tight">{formatNumber(computed.defense)}</span>
                 </div>
                 {/* [신규] 이제 변하지 않는 고정 고속 상태(2.0/s)를 보여줍니다. */}
                 <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
@@ -75,16 +76,16 @@ const StatsScreen: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
                     <span className="text-stone-500 font-sans font-bold text-[11px] leading-tight">최대체력</span>
-                    <span className="text-black font-black leading-tight">{computed.maxHealth.toFixed(0)}</span>
+                    <span className="text-black font-black leading-tight">{formatNumber(computed.maxHealth)}</span>
                 </div>
                 {/* [수정됨] 명중과 회피 점수를 따로 독립 노출하여 DEX 투자 효율을 직관적으로 확인 가능하게 변경 */}
                 <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
                     <span className="text-stone-500 font-sans font-bold text-[11px] leading-tight">명중력</span>
-                    <span className="text-black font-black leading-tight">{computed.accuracy.toFixed(0)}</span>
+                    <span className="text-black font-black leading-tight">{formatNumber(computed.accuracy)}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
                     <span className="text-stone-500 font-sans font-bold text-[11px] leading-tight">회피력</span>
-                    <span className="text-black font-black leading-tight">{computed.evasion.toFixed(0)}</span>
+                    <span className="text-black font-black leading-tight">{formatNumber(computed.evasion)}</span>
                 </div>
             </div>
 

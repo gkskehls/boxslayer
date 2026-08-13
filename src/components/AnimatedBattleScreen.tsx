@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useGameStore, getComputedStats } from '../store/gameStore';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import type { CoreType } from '../types/game';
+import { formatNumber } from '../utils/format';
 
 const getDynamicStyle = (stats: { str: number; dex: number; con: number }, isPlayer: boolean, baseSize: number = 80) => {
   const { str, dex, con } = stats;
@@ -242,7 +243,7 @@ const AnimatedBattleScreen: React.FC = () => {
             <span>
             <span className="text-blue-500">[S{stage}-{turn}] P: </span>
             <span className="text-yellow-400 italic">회피</span>
-              {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{shieldRecovered})</span>}
+              {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{formatNumber(shieldRecovered)})</span>}
           </span>
         );
       } else if (normal > 0 || core > 0 || shieldRecovered > 0) {
@@ -251,20 +252,20 @@ const AnimatedBattleScreen: React.FC = () => {
           if (lastDamageDealt?.isCombo) {
             damageParts.push(
                 <span key="n" className="text-amber-400 font-bold animate-pulse">
-                ⚡연격({lastDamageDealt.comboHits || 2}히트) {normal}
+                ⚡연격({lastDamageDealt.comboHits || 2}히트) {formatNumber(normal)}
               </span>
             );
           } else {
-            damageParts.push(<span key="n" className="text-blue-400">일반 {normal}</span>);
+            damageParts.push(<span key="n" className="text-blue-400">일반 {formatNumber(normal)}</span>);
           }
         }
-        if (core > 0) damageParts.push(<span key="c" className="text-orange-500">코어 {core}</span>);
+        if (core > 0) damageParts.push(<span key="c" className="text-orange-500">코어 {formatNumber(core)}</span>);
 
         addLog(
             <span>
             <span className="text-blue-500">[S{stage}-{turn}] P: </span>
               {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
-              {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{shieldRecovered})</span>}
+              {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{formatNumber(shieldRecovered)})</span>}
           </span>
         );
       }
@@ -288,12 +289,12 @@ const AnimatedBattleScreen: React.FC = () => {
       }
 
       const damageParts = [];
-      if (normal > 0) damageParts.push(<span key="n" className="text-red-400">일반 {normal}</span>);
-      if (core > 0) damageParts.push(<span key="c" className="text-purple-500">코어 {core}</span>);
+      if (normal > 0) damageParts.push(<span key="n" className="text-red-400">일반 {formatNumber(normal)}</span>);
+      if (core > 0) damageParts.push(<span key="c" className="text-purple-500">코어 {formatNumber(core)}</span>);
 
-      const reflectionText = (lastReflectedDamage ?? 0) > 0 ? <span className="text-cyan-400 ml-1">(반사 {lastReflectedDamage})</span> : '';
-      const leechText = (lastLeechedHealth ?? 0) > 0 ? <span className="text-green-400 ml-1">(흡수 {lastLeechedHealth})</span> : '';
-      const enemyShieldText = (lastEnemyShieldRecovered ?? 0) > 0 ? <span className="text-blue-400 ml-1">(적 쉴드 +{lastEnemyShieldRecovered})</span> : '';
+      const reflectionText = (lastReflectedDamage ?? 0) > 0 ? <span className="text-cyan-400 ml-1">(반사 {formatNumber(lastReflectedDamage || 0)})</span> : '';
+      const leechText = (lastLeechedHealth ?? 0) > 0 ? <span className="text-green-400 ml-1">(흡수 {formatNumber(lastLeechedHealth || 0)})</span> : '';
+      const enemyShieldText = (lastEnemyShieldRecovered ?? 0) > 0 ? <span className="text-blue-400 ml-1">(적 쉴드 +{formatNumber(lastEnemyShieldRecovered || 0)})</span> : '';
 
       addLog(
           <span>
@@ -406,17 +407,21 @@ const AnimatedBattleScreen: React.FC = () => {
 
           <div className="flex justify-between items-center font-mono text-xs font-bold">
             <span className="text-neutral-900">Lv. {player.level}</span>
-            <span className="text-blue-400 tracking-wider flex items-center gap-0.5">
+            <span className="text-blue-600 tracking-wider flex items-center gap-0.5">
               EXP [{renderRetroGauge(player.experience, player.nextLevelExperience, 10, 'text-blue-500')}]
             </span>
-            <span className="text-[10px] text-neutral-500">
-              {Math.floor(player.experience)}/{player.nextLevelExperience}
+            <span className="text-[10px] text-neutral-600 font-bold font-mono">
+              {formatNumber(player.experience)}/{formatNumber(player.nextLevelExperience)}
             </span>
           </div>
         </div>
 
         <div
-            className="bg-stone-100 px-6 pt-2 pb-0 flex flex-col border-4 border-neutral-900 relative overflow-hidden shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)] flex-grow"
+            className={`px-6 pt-2 pb-0 flex flex-col border-4 relative overflow-hidden transition-all duration-300 flex-grow ${
+                timeMultiplier > 1.0
+                    ? 'bg-amber-50/90 border-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5),inset_0_0_12px_rgba(245,158,11,0.3)]'
+                    : 'bg-stone-100 border-neutral-900 shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)]'
+            }`}
             style={{
               backgroundImage: 'linear-gradient(to right, #e7e5e4 2px, transparent 2px), linear-gradient(to bottom, #e7e5e4 2px, transparent 2px)',
               backgroundSize: '16px 16px',
@@ -424,13 +429,14 @@ const AnimatedBattleScreen: React.FC = () => {
         >
 
           {gameStatus === 'BATTLE' && (
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20">
-                <div className={`font-mono text-2xl font-black transition-colors duration-300 ${remainingTime <= 10 ? 'text-red-500 animate-pulse' : 'text-stone-400'}`}>
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-2 z-30 pointer-events-none">
+                <div className={`font-mono text-2xl font-black transition-colors duration-300 ${remainingTime <= 10 ? 'text-red-500 animate-pulse' : 'text-stone-500'}`}>
                   {remainingTime}
                 </div>
                 {timeMultiplier > 1.0 && (
-                    <div className="bg-amber-500 text-black text-[10px] font-black px-1.5 py-0.5 border-2 border-neutral-900 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] animate-pulse">
-                      🔥 FEVER {timeMultiplier}x SPEED
+                    <div className="bg-amber-400 text-black text-xs font-black px-2.5 py-1 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] animate-bounce font-mono tracking-tight flex items-center gap-1.5">
+                      <span className="animate-pulse">🔥</span>
+                      <span>FEVER {timeMultiplier}x SPEED</span>
                     </div>
                 )}
               </div>
@@ -447,14 +453,14 @@ const AnimatedBattleScreen: React.FC = () => {
                       {playerCoreBadge.label}
                     </span>
                 )}
-                {(playerShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(playerShield || 0)}</span>}
+                {(playerShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{formatNumber(playerShield || 0)}</span>}
                 {isPlayerStunned && <span className="text-yellow-500 text-xs font-bold animate-pulse">STUN</span>}
               </div>
               <div className="text-xs font-black flex items-center leading-none text-neutral-400">
                 [{renderRetroGauge(player.currentHealth, computed.maxHealth, 10, 'text-green-600')}]
               </div>
-              <div className="text-[9px] font-black text-neutral-800 mt-1.5 leading-none font-mono tracking-tighter">
-                {Math.max(0, player.currentHealth)}<span className="text-stone-400 mx-0.5">/</span>{computed.maxHealth.toFixed(0)}
+              <div className="text-[10px] font-black text-neutral-900 mt-1.5 leading-none font-mono tracking-tight">
+                {formatNumber(Math.max(0, player.currentHealth))}<span className="text-stone-400 mx-0.5">/</span>{formatNumber(computed.maxHealth)}
               </div>
             </div>
 
@@ -466,13 +472,13 @@ const AnimatedBattleScreen: React.FC = () => {
                     </span>
                 )}
                 <span>ENEMY</span>
-                {(enemyShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{Math.floor(enemyShield || 0)}</span>}
+                {(enemyShield || 0) > 0 && <span className="text-blue-600 text-[9px] font-sans font-bold shrink-0">🛡️+{formatNumber(enemyShield || 0)}</span>}
               </div>
               <div className="text-xs font-black flex items-center leading-none text-neutral-400">
                 [{renderRetroGauge(currentEnemy?.currentHealth || 0, currentEnemy?.maxHealth || 1, 10, 'text-red-600')}]
               </div>
-              <div className="text-[9px] font-black text-neutral-800 mt-1.5 leading-none font-mono tracking-tighter text-right">
-                {Math.max(0, currentEnemy?.currentHealth || 0)}<span className="text-stone-400 mx-0.5">/</span>{currentEnemy?.maxHealth ? currentEnemy.maxHealth.toFixed(0) : 1}
+              <div className="text-[10px] font-black text-neutral-900 mt-1.5 leading-none font-mono tracking-tight text-right">
+                {formatNumber(Math.max(0, currentEnemy?.currentHealth || 0))}<span className="text-stone-400 mx-0.5">/</span>{formatNumber(currentEnemy?.maxHealth || 1)}
               </div>
             </div>
 
@@ -511,37 +517,39 @@ const AnimatedBattleScreen: React.FC = () => {
                   const isShield = popup.type === 'shield';
                   const isCore = popup.type === 'taken-core';
 
-                  let text = `-${popup.val}`;
-                  let colorClass = 'text-red-600 text-xs font-black';
-                  let xOffset: number = -15;
-                  let yOffset: number = -22;
-                  let scaleVal = 1.0;
+                  let text = `-${formatNumber(popup.val)}`;
+                  let colorClass = 'text-rose-600 text-sm md:text-base font-black';
+                  let xOffset: number = -20;
+                  let yOffset: number = -30;
+                  let scaleVal = 1.1;
 
                   if (isMiss) {
                     text = 'MISS';
-                    colorClass = 'text-stone-500 text-[11px] italic font-bold';
+                    colorClass = 'text-stone-400 text-xs italic font-black';
                     xOffset = 0;
-                    yOffset = -18;
+                    yOffset = -25;
+                    scaleVal = 1.0;
                   } else if (isShield) {
-                    text = `+${popup.val}`;
-                    colorClass = 'text-green-600 text-xs font-bold';
-                    xOffset = 15;
-                    yOffset = -18;
+                    text = `+${formatNumber(popup.val)}`;
+                    colorClass = 'text-cyan-500 text-sm font-black';
+                    xOffset = 20;
+                    yOffset = -25;
+                    scaleVal = 1.0;
                   } else if (isCore) {
-                    colorClass = 'text-purple-600 text-xs font-black';
-                    xOffset = 15;
-                    yOffset = -28;
-                    scaleVal = 1.1;
+                    colorClass = 'text-purple-600 text-base md:text-lg font-black';
+                    xOffset = 20;
+                    yOffset = -35;
+                    scaleVal = 1.25;
                   }
 
                   return (
                       <motion.div
                           key={popup.id}
-                          initial={{ opacity: 0, y: 0, scale: 0.6, x: 0 }}
+                          initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
                           animate={{ opacity: 1, y: yOffset, scale: scaleVal, x: xOffset }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.5, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] pointer-events-none z-20 ${colorClass}`}
+                          exit={{ opacity: 0, y: yOffset - 15 }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_2px_1px_rgba(0,0,0,1)] pointer-events-none z-20 ${colorClass}`}
                       >
                         {text}
                       </motion.div>
@@ -581,53 +589,53 @@ const AnimatedBattleScreen: React.FC = () => {
 
               <AnimatePresence>
                 {damagePopups.filter(p => !p.type.startsWith('taken') && p.type !== 'miss-player' && p.type !== 'shield').map((popup) => {
-                  let colorClass = 'text-stone-800 text-xs font-black';
-                  let scaleVal = 1.0;
-                  let text = `-${popup.val}`;
+                  let colorClass = 'text-amber-300 text-sm md:text-base font-black';
+                  let scaleVal = 1.1;
+                  let text = `-${formatNumber(popup.val)}`;
 
                   let xOffset = 0;
-                  let yOffset = -22;
+                  let yOffset = -30;
 
                   if (popup.type === 'core') {
-                    scaleVal = 1.1;
-                    xOffset = 15;
-                    yOffset = -28;
+                    scaleVal = 1.25;
+                    xOffset = 20;
+                    yOffset = -38;
 
                     if (popup.coreType === 'FIRE') {
-                      colorClass = 'text-red-600 text-xs font-black';
+                      colorClass = 'text-red-500 text-base md:text-lg font-black';
                     } else if (popup.coreType === 'WIND') {
-                      colorClass = 'text-green-600 text-xs font-black';
+                      colorClass = 'text-green-400 text-base md:text-lg font-black';
                     } else if (popup.coreType === 'ELECTRIC') {
-                      colorClass = 'text-yellow-600 text-xs font-black';
+                      colorClass = 'text-yellow-300 text-base md:text-lg font-black';
                     } else {
-                      colorClass = 'text-orange-600 text-xs font-black';
+                      colorClass = 'text-orange-400 text-base md:text-lg font-black';
                     }
                   } else if (popup.type === 'reflect') {
-                    colorClass = 'text-blue-600 text-xs font-bold';
+                    colorClass = 'text-cyan-400 text-sm font-black';
                     scaleVal = 1.0;
-                    xOffset = -15;
-                    yOffset = -22;
+                    xOffset = -20;
+                    yOffset = -28;
                   } else if (popup.type === 'miss-enemy') {
-                    colorClass = 'text-stone-500 text-[11px] italic font-bold';
+                    colorClass = 'text-stone-300 text-xs italic font-black';
                     scaleVal = 1.0;
                     text = 'MISS';
-                    yOffset = -18;
+                    yOffset = -22;
                   } else if (popup.type === 'leech' || popup.type === 'enemy-shield') {
-                    colorClass = 'text-green-600 text-xs font-bold';
+                    colorClass = 'text-emerald-400 text-sm font-black';
                     scaleVal = 1.0;
-                    text = `+${popup.val}`;
-                    xOffset = 15;
-                    yOffset = -18;
+                    text = `+${formatNumber(popup.val)}`;
+                    xOffset = 20;
+                    yOffset = -25;
                   }
 
                   return (
                       <motion.div
                           key={popup.id}
-                          initial={{ opacity: 0, y: 0, scale: 0.6, x: 0 }}
+                          initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
                           animate={{ opacity: 1, y: yOffset, scale: scaleVal, x: xOffset }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.5, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)] pointer-events-none z-20 ${colorClass}`}
+                          exit={{ opacity: 0, y: yOffset - 15 }}
+                          transition={{ duration: 0.6, ease: "easeOut" }}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_2px_1px_rgba(0,0,0,1)] pointer-events-none z-20 ${colorClass}`}
                       >
                         {text}
                       </motion.div>

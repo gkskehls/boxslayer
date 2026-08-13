@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { SKILL_TREE_DATA } from '../constants/skills';
 import type { SkillNode, CoreType } from '../types/game';
+import { formatNumber } from '../utils/format';
 
 // // [신규] PoE(Path of Exile) 스타일 클러스터링(Cluster Orbit Ring) 배치 엔진
 interface ClusterInfo {
@@ -310,7 +311,7 @@ const SkillTreeScreen: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-neutral-500 uppercase">RP_POOL:</span>
-                    <span className="text-sm font-mono font-black text-purple-700">{reincarnationPoints} RP</span>
+                    <span className="text-sm font-mono font-black text-purple-700">{formatNumber(reincarnationPoints)} RP</span>
                 </div>
             </div>
 
@@ -632,7 +633,7 @@ const SkillTreeScreen: React.FC = () => {
 
                     <div className="flex items-center justify-between pt-1.5 border-t border-dashed border-black/20 w-full">
                         <div className="text-[11px] font-black font-mono">
-                            REQ: <span className={reincarnationPoints >= selectedNode.cost ? 'text-green-700' : 'text-red-600'}>{selectedNode.cost} RP</span>
+                            REQ: <span className={reincarnationPoints >= selectedNode.cost ? 'text-green-700' : 'text-red-600'}>{formatNumber(selectedNode.cost)} RP</span>
                         </div>
 
                         {unlockedSkills.includes(selectedNode.id) ? (

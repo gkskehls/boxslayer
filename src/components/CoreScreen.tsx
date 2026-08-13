@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useGameStore, getCoreStats } from '../store/gameStore';
 import type { Core } from '../types/game';
+import { formatNumber } from '../utils/format';
 
 /* [RENEWAL] 레트로 아케이드 섀시에 맞춘 속성별 고유 픽셀 보더 & 틴트 컬러 맵
    - 현대식 어두운 반투명 색상을 배제하고, 클래식 도트 게임 특유의 직관적이고 산뜻한 하드 틴트로 전환합니다.
@@ -30,7 +31,7 @@ const CoreScreen: React.FC = () => {
     if (!displayCore) return "0";
     let cost = 0;
     for (let i = 0; i < amount; i++) cost += 100 * (displayCore.level + i);
-    return cost.toLocaleString();
+    return formatNumber(cost);
   };
 
   // [신규] 이차방정식 근의 공식을 활용하여 현재 골드로 가능한 최대 강화 횟수(MAX) 계산
@@ -64,7 +65,7 @@ const CoreScreen: React.FC = () => {
       >
         <div className="w-full text-center border-b-4 border-black pb-2">
           <h2 className="text-sm font-black text-stone-500 tracking-widest uppercase leading-none">-[ CORE_MATRIX ]-</h2>
-          <div className="text-amber-700 font-black text-xs mt-1.5 font-mono">보유 골드: {player.gold.toLocaleString()} G</div>
+          <div className="text-amber-700 font-black text-xs mt-1.5 font-mono">보유 골드: {formatNumber(player.gold)} G</div>
         </div>
 
         {/* 장착 슬롯 영역 (하드웨어 소켓 무드로 리폼) */}
