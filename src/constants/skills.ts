@@ -189,7 +189,7 @@ const generateFull500SkillTree = (): Record<string, SkillNode> => {
                     effects.offlineRewardMultiplier = 3.0;
                     effects.feverMultiplier = 5.0;
                     name = `[Keystone] 차원 주권 (유틸 종결)`;
-                    description = `차원 유틸 완성: 골드 및 RP 수급 +150%, 시작 층수 +100층, 오프라인 보상 +300% 및 피버 배율 5배 증폭!`;
+                    description = `차원 유틸 완성: 골드 및 RP 수급 +150%, 시작 층수 +100층, 오프라인 보상 +300% 및 피버 속도 5배 가속!`;
                 } else if (type === 'NOTABLE') {
                     effects.goldMultiplier = Math.round(0.1 * tier * 100) / 100;
                     effects.rpBonusMultiplier = Math.round(0.1 * tier * 100) / 100;
@@ -223,8 +223,8 @@ const generateFull500SkillTree = (): Record<string, SkillNode> => {
                     } else if (subIndex === 5) {
                         const val = Math.round((1.0 + tier * 0.08) * 100) / 100;
                         effects.feverMultiplier = val;
-                        name = `광기의 피버 [피버배율 x${val}]`;
-                        description = `피버 모드 진입 시 전투 가속 및 데미지 배율이 x${val}로 상승합니다.`;
+                        name = `광기의 피버 [피버속도 x${val}]`;
+                        description = `피버 모드 진입 시 전투 시뮬레이션 진행 속도가 x${val} 배속으로 가속됩니다.`;
                     } else if (subIndex === 6) {
                         const gVal = Math.round((0.02 * tier) * 100) / 100;
                         const eVal = Math.round((0.02 * tier) * 100) / 100;
