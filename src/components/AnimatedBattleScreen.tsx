@@ -556,7 +556,7 @@ const AnimatedBattleScreen: React.FC = () => {
           {/* ----------------------------------------------------------------- */}
           {/* [리뉴얼 1] 통합 체력바 & 스탯 HUD (Player / Enemy Status Window) */}
           {/* ----------------------------------------------------------------- */}
-          <div className="grid grid-cols-2 gap-3 w-full relative z-30 font-mono p-2.5 border-4 border-black bg-stone-900 text-stone-100 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full relative z-30 font-mono p-2 sm:p-2.5 border-4 border-black bg-stone-900 text-stone-100 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
 
             {/* 플레이어 HUD */}
             <div className="flex flex-col items-start select-none w-full min-w-0">
@@ -578,14 +578,14 @@ const AnimatedBattleScreen: React.FC = () => {
                   isEnemy={false}
               />
 
-              {/* 체력 / 보호막 수치 */}
-              <div className="flex items-center justify-between w-full mt-1.5 leading-none">
+              {/* 체력 / 보호막 수치 (한 줄 고정, 이모지 제거) */}
+              <div className="flex items-center justify-between w-full mt-1.5 leading-none gap-1 whitespace-nowrap overflow-hidden">
               <span className="text-[10px] font-black font-mono text-stone-200">
-                {formatNumber(Math.max(0, player.currentHealth))} <span className="text-stone-500">/</span> {formatNumber(computed.maxHealth)}
+                {formatNumber(Math.max(0, player.currentHealth))}<span className="text-stone-500 mx-0.5">/</span>{formatNumber(computed.maxHealth)}
               </span>
                 {(playerShield || 0) > 0 && (
-                    <span className="text-cyan-400 text-[10px] font-black font-mono">
-                  🛡️+{formatNumber(playerShield || 0)}
+                    <span className="text-cyan-400 text-[10px] font-black font-mono shrink-0">
+                  +{formatNumber(playerShield || 0)}
                 </span>
                 )}
               </div>
@@ -610,15 +610,15 @@ const AnimatedBattleScreen: React.FC = () => {
                   isEnemy={true}
               />
 
-              {/* 체력 / 보호막 수치 */}
-              <div className="flex items-center justify-between w-full mt-1.5 leading-none">
-                {(enemyShield || 0) > 0 && (
-                    <span className="text-cyan-400 text-[10px] font-black font-mono">
-                  🛡️+{formatNumber(enemyShield || 0)}
+              {/* 체력 / 보호막 수치 (한 줄 고정, 이모지 제거) */}
+              <div className="flex items-center justify-between w-full mt-1.5 leading-none gap-1 whitespace-nowrap overflow-hidden">
+                {(enemyShield || 0) > 0 ? (
+                    <span className="text-cyan-400 text-[10px] font-black font-mono shrink-0">
+                  +{formatNumber(enemyShield || 0)}
                 </span>
-                )}
+                ) : <span />}
                 <span className="text-[10px] font-black font-mono text-stone-200 ml-auto">
-                {formatNumber(Math.max(0, currentEnemy?.currentHealth || 0))} <span className="text-stone-500">/</span> {formatNumber(currentEnemy?.maxHealth || 1)}
+                {formatNumber(Math.max(0, currentEnemy?.currentHealth || 0))}<span className="text-stone-500 mx-0.5">/</span>{formatNumber(currentEnemy?.maxHealth || 1)}
               </span>
               </div>
             </div>
@@ -672,7 +672,7 @@ const AnimatedBattleScreen: React.FC = () => {
                     colorClass = 'text-stone-300 italic font-black text-xs md:text-sm';
                     xArc = -10;
                   } else if (isShield) {
-                    text = `🛡️ +${formatNumber(popup.val)}`;
+                    text = `+${formatNumber(popup.val)}`;
                     colorClass = 'text-cyan-300 font-black text-sm md:text-base';
                     xArc = 20;
                   } else if (isCore) {
