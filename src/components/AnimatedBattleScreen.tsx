@@ -628,7 +628,7 @@ const AnimatedBattleScreen: React.FC = () => {
           {/* ----------------------------------------------------------------- */}
           {/* 캐릭터 캔버스 및 데미지 팝업 레인 */}
           {/* ----------------------------------------------------------------- */}
-          <div className="flex justify-center items-end gap-16 mt-8 pb-3 z-10 relative">
+          <div className="flex justify-center items-end gap-16 mt-10 pb-3 z-10 relative">
 
             {/* 플레이어 캐릭터 & 피격/쉴드 팝업 */}
             <div className="relative z-20">
@@ -656,7 +656,7 @@ const AnimatedBattleScreen: React.FC = () => {
                 </div>
               </motion.div>
 
-              {/* 플레이어 쪽 피격/보호막/회피 팝업 */}
+              {/* 플레이어 쪽 피격/보호막/회피 팝업 (체력바 아래 여백으로 측면 대각선 산출) */}
               <AnimatePresence>
                 {damagePopups.filter(p => p.type.startsWith('taken') || p.type === 'miss-player' || p.type === 'shield').map((popup) => {
                   const isMiss = popup.type === 'miss-player';
@@ -665,19 +665,19 @@ const AnimatedBattleScreen: React.FC = () => {
 
                   let text = `-${formatNumber(popup.val)}`;
                   let colorClass = 'text-rose-500 font-black text-base md:text-lg';
-                  let xArc = -25;
+                  let xArc = -30;
 
                   if (isMiss) {
                     text = 'MISS';
                     colorClass = 'text-stone-300 italic font-black text-xs md:text-sm';
-                    xArc = -10;
+                    xArc = -15;
                   } else if (isShield) {
                     text = `+${formatNumber(popup.val)}`;
                     colorClass = 'text-cyan-300 font-black text-sm md:text-base';
-                    xArc = 20;
+                    xArc = 25;
                   } else if (isCore) {
                     colorClass = 'text-purple-400 font-black text-lg md:text-xl';
-                    xArc = 25;
+                    xArc = -35;
                   }
 
                   return (
@@ -686,13 +686,13 @@ const AnimatedBattleScreen: React.FC = () => {
                           initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
                           animate={{
                             opacity: [0, 1, 1, 0],
-                            y: [-5, -45, -60],
+                            y: [-2, -18, -30],
                             x: [0, xArc * 0.7, xArc],
                             scale: [0.6, 1.25, 1.0],
                           }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.75, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono whitespace-nowrap drop-shadow-[0_2px_0px_rgba(0,0,0,1)] pointer-events-none z-40 ${colorClass}`}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] pointer-events-none z-50 ${colorClass}`}
                       >
                         {text}
                       </motion.div>
@@ -731,21 +731,21 @@ const AnimatedBattleScreen: React.FC = () => {
                   <div className="w-[80px] h-[80px] flex items-center justify-center text-neutral-600 italic font-mono">...</div>
               )}
 
-              {/* 적 쪽 타격/연격/속성/회피 팝업 */}
+              {/* 적 쪽 타격/연격/속성/회피 팝업 (체력바 아래 여백으로 측면 대각선 산출) */}
               <AnimatePresence>
                 {damagePopups.filter(p => !p.type.startsWith('taken') && p.type !== 'miss-player' && p.type !== 'shield').map((popup) => {
                   let colorClass = 'text-amber-300 font-black text-base md:text-lg';
                   let text = `-${formatNumber(popup.val)}`;
-                  let xArc = 25;
+                  let xArc = 35;
 
                   if (popup.isCombo) {
                     text = `⚡COMBO ${popup.comboHits || 2}x! -${formatNumber(popup.val)}`;
                     colorClass = 'text-amber-300 font-black text-base md:text-xl';
-                    xArc = 30;
+                    xArc = 40;
                   }
 
                   if (popup.type === 'core') {
-                    xArc = 30;
+                    xArc = 40;
 
                     if (popup.coreType === 'FIRE') {
                       colorClass = 'text-red-500 font-black text-lg md:text-2xl';
@@ -763,15 +763,15 @@ const AnimatedBattleScreen: React.FC = () => {
                   } else if (popup.type === 'reflect') {
                     colorClass = 'text-cyan-300 font-black text-sm md:text-base';
                     text = `🌀 -${formatNumber(popup.val)}`;
-                    xArc = -20;
+                    xArc = -25;
                   } else if (popup.type === 'miss-enemy') {
                     colorClass = 'text-stone-300 italic font-black text-xs md:text-sm';
                     text = 'MISS';
-                    xArc = 10;
+                    xArc = 15;
                   } else if (popup.type === 'leech' || popup.type === 'enemy-shield') {
                     colorClass = 'text-emerald-400 font-black text-sm md:text-base';
                     text = `+${formatNumber(popup.val)}`;
-                    xArc = 20;
+                    xArc = 25;
                   }
 
                   return (
@@ -780,13 +780,13 @@ const AnimatedBattleScreen: React.FC = () => {
                           initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
                           animate={{
                             opacity: [0, 1, 1, 0],
-                            y: [-5, -45, -60],
+                            y: [-2, -18, -30],
                             x: [0, xArc * 0.7, xArc],
                             scale: [0.6, 1.3, 1.0],
                           }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.75, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-4 font-mono whitespace-nowrap drop-shadow-[0_2px_0px_rgba(0,0,0,1)] pointer-events-none z-40 ${colorClass}`}
+                          className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] pointer-events-none z-50 ${colorClass}`}
                       >
                         {text}
                       </motion.div>
