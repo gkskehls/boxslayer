@@ -1,6 +1,6 @@
 // src/components/AnimatedBattleScreen.tsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useGameStore, getComputedStats } from '../store/gameStore';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import type { CoreType } from '../types/game';
@@ -150,6 +150,11 @@ const AnimatedBattleScreen: React.FC = () => {
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit' | 'stunned'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
 
+  const lastPlayerAnimTimeRef = useRef(0);
+  const lastEnemyAnimTimeRef = useRef(0);
+  const lastPlayerPopupTimeRef = useRef(0);
+  const lastEnemyPopupTimeRef = useRef(0);
+
   const [damagePopups, setDamagePopups] = useState<DamagePopup[]>([]);
   const [showStats, setShowStats] = useState<boolean>(false);
   const [damageLog, setDamageLog] = useState<LogEntry[]>([]);
@@ -245,20 +250,45 @@ const AnimatedBattleScreen: React.FC = () => {
 
     if (gameStatus === 'BATTLE' && currentEnemyId) {
       playerAttackTimer = window.setInterval(() => {
-        setPlayerAnim('attack');
-        setTimeout(() => setEnemyAnim('hit'), 100);
-        setTimeout(() => setPlayerAnim('idle'), 250);
-        setTimeout(() => setEnemyAnim('idle'), 400);
+        // 실제 게임 데미지/상태는 10x, 50x 속도로 정확하게 연산
         attackEnemy();
+
+        // [시각 연출 최적화] 캐릭터 박치기 모션 속도를 5초 피버 단계별로 쾌적하게 조절
+        // 1.0x: ~900ms | 1.5x: ~700ms | 5.0x: ~500ms | 10.0x: ~350ms | 50.0x: ~240ms
+        const now = Date.now();
+        const visualInterval = timeMultiplier >= 50 ? 240 : timeMultiplier >= 10 ? 350 : timeMultiplier >= 5 ? 500 : timeMultiplier >= 1.5 ? 700 : 900;
+
+        if (now - lastPlayerAnimTimeRef.current >= visualInterval) {
+          lastPlayerAnimTimeRef.current = now;
+          setPlayerAnim('attack');
+          const hitDelay = Math.min(80, Math.floor(visualInterval * 0.35));
+          const resetDelay = Math.min(180, Math.floor(visualInterval * 0.75));
+          setTimeout(() => setEnemyAnim('hit'), hitDelay);
+          setTimeout(() => {
+            setPlayerAnim(p => p === 'attack' ? 'idle' : p);
+            setEnemyAnim(e => e === 'hit' ? 'idle' : e);
+          }, resetDelay);
+        }
       }, 1000 / (computed.attackSpeed * timeMultiplier));
 
       enemyAttackTimer = window.setInterval(() => {
-        setEnemyAnim('attack');
-        setTimeout(() => setPlayerAnim('hit'), 100);
-        setTimeout(() => setEnemyAnim('idle'), 250);
-        setTimeout(() => setPlayerAnim('idle'), 400);
         attackPlayer();
         setTurn(t => t + 1);
+
+        const now = Date.now();
+        const visualInterval = timeMultiplier >= 50 ? 240 : timeMultiplier >= 10 ? 350 : timeMultiplier >= 5 ? 500 : timeMultiplier >= 1.5 ? 700 : 900;
+
+        if (now - lastEnemyAnimTimeRef.current >= visualInterval) {
+          lastEnemyAnimTimeRef.current = now;
+          setEnemyAnim('attack');
+          const hitDelay = Math.min(80, Math.floor(visualInterval * 0.35));
+          const resetDelay = Math.min(180, Math.floor(visualInterval * 0.75));
+          setTimeout(() => setPlayerAnim('hit'), hitDelay);
+          setTimeout(() => {
+            setEnemyAnim(e => e === 'attack' ? 'idle' : e);
+            setPlayerAnim(p => p === 'hit' ? 'idle' : p);
+          }, resetDelay);
+        }
       }, 1000 / (enemyAttackSpeed * timeMultiplier));
     }
 
@@ -275,26 +305,25 @@ const AnimatedBattleScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    // 피버 배속에 따른 팝업 유지시간 조절 (화면 덮임 및 프레임 드랍 방지)
-    const popupDuration = timeMultiplier >= 50 ? 400 : timeMultiplier >= 10 ? 500 : timeMultiplier >= 5 ? 650 : 850;
+    // 피버 배속별 시각적 데미지 팝업 유지 시간 및 최소 간격 설정
+    const popupDuration = timeMultiplier >= 50 ? 450 : timeMultiplier >= 10 ? 550 : timeMultiplier >= 5 ? 700 : 850;
+    const popupMinInterval = timeMultiplier >= 50 ? 220 : timeMultiplier >= 10 ? 320 : timeMultiplier >= 5 ? 450 : 600;
 
     if (lastDamageDealt || (lastEnemyEvadedTime ?? 0) > 0) {
       const { normal = 0, core = 0, shieldRecovered = 0 } = lastDamageDealt || { normal: 0, core: 0, shieldRecovered: 0 };
       const isMiss = (lastEnemyEvadedTime ?? 0) > 0;
+      const now = Date.now();
 
-      // 배속별 일반 데미지 팝업 샘플링 확률 (10x 이상은 연격/코어 위주 샘플링)
+      // 배속별 일반 데미지 팝업 간격 필터링 (연격/코어는 최우선 표출)
       let shouldShowNormal = normal > 0;
       if (normal > 0 && !lastDamageDealt?.isCombo) {
-        if (timeMultiplier >= 50) {
-          shouldShowNormal = Math.random() < 0.15; // 50배속: 일반 팝업 15%만 표출
-        } else if (timeMultiplier >= 10) {
-          shouldShowNormal = Math.random() < 0.3;  // 10배속: 30% 표출
-        } else if (timeMultiplier >= 5) {
-          shouldShowNormal = Math.random() < 0.5;  // 5배속: 50% 표출
+        if (now - lastPlayerPopupTimeRef.current < popupMinInterval) {
+          shouldShowNormal = false;
         }
       }
 
       if (shouldShowNormal) {
+        lastPlayerPopupTimeRef.current = now;
         const popup: DamagePopup = {
           id: getUniqueId(),
           val: normal,
@@ -303,7 +332,7 @@ const AnimatedBattleScreen: React.FC = () => {
           comboHits: lastDamageDealt?.comboHits,
         };
         queueMicrotask(() => {
-          setDamagePopups(prev => [...prev.slice(-6), popup]); // 최대 7개까지만 유지
+          setDamagePopups(prev => [...prev.slice(-6), popup]);
         });
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
       }
@@ -369,7 +398,17 @@ const AnimatedBattleScreen: React.FC = () => {
 
     if (lastDamageTaken && (lastDamageTaken.normal > 0 || lastDamageTaken.core > 0)) {
       const { normal, core } = lastDamageTaken;
+      const now = Date.now();
+
+      let shouldShowTaken = normal > 0;
       if (normal > 0) {
+        if (now - lastEnemyPopupTimeRef.current < popupMinInterval) {
+          shouldShowTaken = false;
+        }
+      }
+
+      if (shouldShowTaken) {
+        lastEnemyPopupTimeRef.current = now;
         const popup: DamagePopup = { id: getUniqueId(), val: normal, type: 'taken' };
         queueMicrotask(() => {
           setDamagePopups(prev => [...prev.slice(-6), popup]);
