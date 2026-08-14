@@ -275,11 +275,26 @@ const AnimatedBattleScreen: React.FC = () => {
   };
 
   useEffect(() => {
+    // 피버 배속에 따른 팝업 유지시간 조절 (화면 덮임 및 프레임 드랍 방지)
+    const popupDuration = timeMultiplier >= 50 ? 400 : timeMultiplier >= 10 ? 500 : timeMultiplier >= 5 ? 650 : 850;
+
     if (lastDamageDealt || (lastEnemyEvadedTime ?? 0) > 0) {
       const { normal = 0, core = 0, shieldRecovered = 0 } = lastDamageDealt || { normal: 0, core: 0, shieldRecovered: 0 };
       const isMiss = (lastEnemyEvadedTime ?? 0) > 0;
 
-      if (normal > 0) {
+      // 배속별 일반 데미지 팝업 샘플링 확률 (10x 이상은 연격/코어 위주 샘플링)
+      let shouldShowNormal = normal > 0;
+      if (normal > 0 && !lastDamageDealt?.isCombo) {
+        if (timeMultiplier >= 50) {
+          shouldShowNormal = Math.random() < 0.15; // 50배속: 일반 팝업 15%만 표출
+        } else if (timeMultiplier >= 10) {
+          shouldShowNormal = Math.random() < 0.3;  // 10배속: 30% 표출
+        } else if (timeMultiplier >= 5) {
+          shouldShowNormal = Math.random() < 0.5;  // 5배속: 50% 표출
+        }
+      }
+
+      if (shouldShowNormal) {
         const popup: DamagePopup = {
           id: getUniqueId(),
           val: normal,
@@ -288,9 +303,9 @@ const AnimatedBattleScreen: React.FC = () => {
           comboHits: lastDamageDealt?.comboHits,
         };
         queueMicrotask(() => {
-          setDamagePopups(prev => [...prev, popup]);
+          setDamagePopups(prev => [...prev.slice(-6), popup]); // 최대 7개까지만 유지
         });
-        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 900);
+        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
       }
       if (core > 0) {
         const popup: DamagePopup = {
@@ -300,23 +315,23 @@ const AnimatedBattleScreen: React.FC = () => {
           coreType: useGameStore.getState().equippedCore?.type,
         };
         setTimeout(() => {
-          setDamagePopups(prev => [...prev, popup]);
-          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 900);
-        }, 120);
+          setDamagePopups(prev => [...prev.slice(-6), popup]);
+          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
+        }, 80);
       }
       if (shieldRecovered > 0) {
         const popup: DamagePopup = { id: getUniqueId(), val: shieldRecovered, type: 'shield' };
         setTimeout(() => {
-          setDamagePopups(prev => [...prev, popup]);
-          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 900);
-        }, 120);
+          setDamagePopups(prev => [...prev.slice(-6), popup]);
+          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
+        }, 80);
       }
       if (isMiss) {
         const popup: DamagePopup = { id: getUniqueId(), val: 0, type: 'miss-enemy' };
         queueMicrotask(() => {
-          setDamagePopups(prev => [...prev, popup]);
+          setDamagePopups(prev => [...prev.slice(-6), popup]);
         });
-        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 900);
+        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
       }
 
       if (isMiss) {
@@ -357,16 +372,16 @@ const AnimatedBattleScreen: React.FC = () => {
       if (normal > 0) {
         const popup: DamagePopup = { id: getUniqueId(), val: normal, type: 'taken' };
         queueMicrotask(() => {
-          setDamagePopups(prev => [...prev, popup]);
+          setDamagePopups(prev => [...prev.slice(-6), popup]);
         });
-        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 900);
+        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
       }
       if (core > 0) {
         const popup: DamagePopup = { id: getUniqueId(), val: core, type: 'taken-core' };
         setTimeout(() => {
-          setDamagePopups(prev => [...prev, popup]);
-          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 900);
-        }, 120);
+          setDamagePopups(prev => [...prev.slice(-6), popup]);
+          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
+        }, 80);
       }
 
       const damageParts = [];
@@ -391,17 +406,17 @@ const AnimatedBattleScreen: React.FC = () => {
     if (lastEnemyShieldRecovered && lastEnemyShieldRecovered > 0) {
       const popup: DamagePopup = { id: getUniqueId(), val: lastEnemyShieldRecovered, type: 'enemy-shield' };
       setTimeout(() => {
-        setDamagePopups(prev => [...prev, popup]);
-        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 900);
-      }, 150);
+        setDamagePopups(prev => [...prev.slice(-6), popup]);
+        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
+      }, 100);
     }
 
     if ((lastPlayerEvadedTime ?? 0) > 0) {
       const popup: DamagePopup = { id: getUniqueId(), val: 0, type: 'miss-player' };
       setTimeout(() => {
-        setDamagePopups(prev => [...prev, popup]);
-        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), 900);
-      }, 120);
+        setDamagePopups(prev => [...prev.slice(-6), popup]);
+        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
+      }, 80);
       addLog(
           <span>
           <span className="text-red-500">[S{stage}-{turn}] E: </span>
@@ -410,7 +425,7 @@ const AnimatedBattleScreen: React.FC = () => {
       );
     }
 
-  }, [lastDamageDealt, lastDamageTaken, lastReflectedDamage, lastLeechedHealth, lastEnemyShieldRecovered, lastEnemyEvadedTime, lastPlayerEvadedTime, stage, turn]);
+  }, [lastDamageDealt, lastDamageTaken, lastReflectedDamage, lastLeechedHealth, lastEnemyShieldRecovered, lastEnemyEvadedTime, lastPlayerEvadedTime, stage, turn, timeMultiplier]);
 
   useEffect(() => {
     if (gameStatus === 'VICTORY') {
