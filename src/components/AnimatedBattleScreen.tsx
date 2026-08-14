@@ -253,16 +253,16 @@ const AnimatedBattleScreen: React.FC = () => {
         // 실제 게임 데미지/상태는 10x, 50x 속도로 정확하게 연산
         attackEnemy();
 
-        // [시각 연출 최적화] 캐릭터 박치기 모션 속도를 5초 피버 단계별로 쾌적하게 조절
-        // 1.0x: ~900ms | 1.5x: ~700ms | 5.0x: ~500ms | 10.0x: ~350ms | 50.0x: ~240ms
+        // [시각 연출 최적화] 캐릭터 박치기 모션 속도를 5초 피버 단계별로 가독성 있게 조절
+        // 5초마다 약 1번 내외 더 치는 느낌으로 쾌적하게 조절 (1.0x: ~1000ms, 1.5x: ~830ms, 5.0x: ~660ms, 10.0x: ~520ms, 50.0x: ~420ms)
         const now = Date.now();
-        const visualInterval = timeMultiplier >= 50 ? 240 : timeMultiplier >= 10 ? 350 : timeMultiplier >= 5 ? 500 : timeMultiplier >= 1.5 ? 700 : 900;
+        const visualInterval = timeMultiplier >= 50 ? 420 : timeMultiplier >= 10 ? 520 : timeMultiplier >= 5 ? 660 : timeMultiplier >= 1.5 ? 830 : 1000;
 
         if (now - lastPlayerAnimTimeRef.current >= visualInterval) {
           lastPlayerAnimTimeRef.current = now;
           setPlayerAnim('attack');
-          const hitDelay = Math.min(80, Math.floor(visualInterval * 0.35));
-          const resetDelay = Math.min(180, Math.floor(visualInterval * 0.75));
+          const hitDelay = Math.min(100, Math.floor(visualInterval * 0.35));
+          const resetDelay = Math.min(220, Math.floor(visualInterval * 0.75));
           setTimeout(() => setEnemyAnim('hit'), hitDelay);
           setTimeout(() => {
             setPlayerAnim(p => p === 'attack' ? 'idle' : p);
@@ -276,13 +276,13 @@ const AnimatedBattleScreen: React.FC = () => {
         setTurn(t => t + 1);
 
         const now = Date.now();
-        const visualInterval = timeMultiplier >= 50 ? 240 : timeMultiplier >= 10 ? 350 : timeMultiplier >= 5 ? 500 : timeMultiplier >= 1.5 ? 700 : 900;
+        const visualInterval = timeMultiplier >= 50 ? 420 : timeMultiplier >= 10 ? 520 : timeMultiplier >= 5 ? 660 : timeMultiplier >= 1.5 ? 830 : 1000;
 
         if (now - lastEnemyAnimTimeRef.current >= visualInterval) {
           lastEnemyAnimTimeRef.current = now;
           setEnemyAnim('attack');
-          const hitDelay = Math.min(80, Math.floor(visualInterval * 0.35));
-          const resetDelay = Math.min(180, Math.floor(visualInterval * 0.75));
+          const hitDelay = Math.min(100, Math.floor(visualInterval * 0.35));
+          const resetDelay = Math.min(220, Math.floor(visualInterval * 0.75));
           setTimeout(() => setPlayerAnim('hit'), hitDelay);
           setTimeout(() => {
             setEnemyAnim(e => e === 'attack' ? 'idle' : e);
@@ -305,9 +305,9 @@ const AnimatedBattleScreen: React.FC = () => {
   };
 
   useEffect(() => {
-    // 피버 배속별 시각적 데미지 팝업 유지 시간 및 최소 간격 설정
-    const popupDuration = timeMultiplier >= 50 ? 450 : timeMultiplier >= 10 ? 550 : timeMultiplier >= 5 ? 700 : 850;
-    const popupMinInterval = timeMultiplier >= 50 ? 220 : timeMultiplier >= 10 ? 320 : timeMultiplier >= 5 ? 450 : 600;
+    // 피버 배속별 시각적 데미지 팝업 유지 시간 및 최소 간격 설정 (가독성 최우선)
+    const popupDuration = timeMultiplier >= 50 ? 600 : timeMultiplier >= 10 ? 680 : timeMultiplier >= 5 ? 750 : 850;
+    const popupMinInterval = timeMultiplier >= 50 ? 380 : timeMultiplier >= 10 ? 480 : timeMultiplier >= 5 ? 600 : 750;
 
     if (lastDamageDealt || (lastEnemyEvadedTime ?? 0) > 0) {
       const { normal = 0, core = 0, shieldRecovered = 0 } = lastDamageDealt || { normal: 0, core: 0, shieldRecovered: 0 };
