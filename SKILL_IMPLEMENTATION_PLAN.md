@@ -16,7 +16,7 @@
 
 ### 1단계. 데이터 모델링 및 타입 정의
 * **무엇부터 수정할까?**: `src/types/game.ts`
-* **무엇을 사용하고 바꿀까?**: 
+* **무엇을 사용하고 바꿀까?**:
   * `Stats` 및 `SkillEffects` 인터페이스 확장.
 * **어떻게 반영할까?**:
   * **백분율 스탯**을 소화할 수 있도록 `SkillEffects`에 % 필드들을 신설합니다.
@@ -49,7 +49,7 @@
   * 기존의 스탯 합산 로직을 **[고정치 합산 ➡️ 백분율 곱연산]** 순서의 2단계 연산 파이프라인으로 전환합니다.
 * **어떻게 반영할까?**:
   * 스킬 노드가 활성화될 때마다 고정 스탯 보너스와 백분율 보너스를 각각 누적 수집한 뒤 아래 공식으로 연산합니다.
-  $$\text{최종 스탯} = (\text{순수 기본 스탯} + \text{스킬 고정 합산}) \times (1 + \text{스킬 백분율 합산})$$
+    $$\text{최종 스탯} = (\text{순수 기본 스탯} + \text{스킬 고정 합산}) \times (1 + \text{스킬 백분율 합산})$$
   ```typescript
   // gameStore.ts 의 getComputedStats 리팩토링 설계
   export const getComputedStats = (stats: Stats, unlockedSkills: string[], activeBuffs: Record<string, number> = {}) => {

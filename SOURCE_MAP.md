@@ -8,14 +8,13 @@
 
 ## 2. 화면 컴포넌트 (Components)
 - `App.tsx`: 메인 라우팅 및 레이아웃
-- `components/AnimatedBattleScreen.tsx`: 전투 시뮬레이션 및 결과 화면
+- `components/AnimatedBattleScreen.tsx`: 전투 시뮬레이션, 레트로 픽셀 HP/쉴드 HUD 및 결과 화면
 - `components/StatsScreen.tsx`: 스탯 분배 및 외형 변화 UI
 - `components/CoreScreen.tsx`: 코어 관리 및 강화 UI
 - `components/TownScreen.tsx`: 마을 허브 화면
 - `components/Shop.tsx`: 재화 사용 상점
 - `components/NavigationBar.tsx`: 전역 내비게이션 바
 - `components/SkillTreeScreen.tsx`: 스킬 트리 UI 및 자동 배치 엔진
-- `components/BattleScreen..del`: [삭제 예정] 이전 버전의 전투 화면
 
 ## 3. 타입 정의 (Types)
 - `types/game.ts`: 게임 내 주요 인터페이스 (GameState, Player, Core, SkillNode 등 정의)

@@ -108,7 +108,7 @@
 * **주요 작업:**
   * [x] `GameState`에 `reincarnationPoints: number` 및 `acquiredNodes: string[]` (활성화된 노드 ID 리스트) 필드 추가.
   * [x] `reincarnate()` 액션 구현:
-    * [x] 스테이지/레벨/코어 레벨에 따른 환생 포인트 계산.
+    * [x] 오직 진행 층수(Stage)에만 기반한 지수형 환생 포인트(RP) 보상 산출 엔진 적용.
     * [x] 플레이어 상태(스테이지, 레벨, 스탯, 골드, 코어 레벨) 초기화.
     * [x] `reincarnationPoints` 누적 및 `acquiredNodes` 유지.
   * [x] `SkillTree` 데이터 정의:
@@ -120,12 +120,18 @@
   * [x] `getComputedStats` 고도화:
     * [x] 현재 활성화된 `acquiredNodes`를 기반으로 보너스 수치를 실시간 합산하여 실제 플레이어 스탯에 적용.
 
-### [x] 3.4. 오프라인 보상 시스템 구현 (완료)
-* **목표:** 접속하지 않은 시간 동안 재화를 획득하도록 하는 오프라인 보상 시스템 구현.
+### [x] 3.4. 오프라인 보상 시스템 및 전투 UI/UX 통합 리뉴얼 (완료)
+* **목표:** 접속하지 않은 시간 동안 재화를 획득하는 오프라인 보상 시스템 및 전투 화면 연출/HUD 통합 리뉴얼.
 * **주요 작업:**
   * [x] `GameState`에 `lastOnlineTime: number` 추가.
   * [x] `calculateOfflineRewards()` 액션을 통한 시간당 골드/경험치 산출 로직 적용.
   * [x] 접속 시 오프라인 보상 정산 UI 안내.
+  * [x] **전투 화면 HUD & 연출 리뉴얼**:
+    * [x] 레트로 아케이드 픽셀 HP 바 & 쉴드(Cyan) 덧띠 오버레이 (`RetroHpBar`) 통합.
+    * [x] Player / Enemy Status Window (속성 코어 뱃지, 현재/최대 HP, 쉴드 실시간 표출) 가독성 극대화.
+    * [x] 피버 타임 배속 단계(1.5x / 5.0x / 10.0x / 50.0x)별 시각 모션 타이머(visualInterval) 및 데미지 팝업 간격/유지시간(popupDuration) 가독성 최적화.
+    * [x] 연격/코어 속성 데미지 팝업 및 전투 로그 정돈.
+
 
 ## Phase 4: PvP 시스템 및 게임 확장 (추후 확장)
 
