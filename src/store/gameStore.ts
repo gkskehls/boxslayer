@@ -113,6 +113,7 @@ interface GameActions {
   acquireCore: (core: Core) => void;
   equipCore: (coreId: string) => void;
   unequipCore: () => void;
+  selectCore: (coreType: CoreType) => void;
   upgradeCore: (amount?: number) => void;
   calculateOfflineRewards: () => { gold: number; exp: number; minutes: number; levelsGained: number };
   retryCurrentFloor: () => void;
@@ -297,12 +298,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       unlockedSkills,
       stage: startStage,
       maxStage: startStage,
-      playerCores: [
-        { id: `core_fire_init`, name: '불의 코어', type: 'FIRE', level: 1 },
-        { id: `core_water_init`, name: '물의 코어', type: 'WATER', level: 1 },
-        { id: `core_wind_init`, name: '바람의 코어', type: 'WIND', level: 1 },
-        { id: `core_elec_init`, name: '번개의 코어', type: 'ELECTRIC', level: 1 }
-      ],
+      playerCores: [],
+      equippedCore: null,
     });
   },
 
@@ -706,6 +703,28 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
   levelUp: () => set((state) => ({ player: { ...state.player, level: state.player.level + 1, statPoints: state.player.statPoints + 3 } })),
   resetGame: () => set(getInitialStoreState()),
+  selectCore: (coreType: CoreType) => set((state) => {
+    if (state.equippedCore) {
+      alert("이번 회차에서는 이미 코어를 선택했습니다. 코어 변경은 환생 후에만 가능합니다.");
+      return {};
+    }
+    const CORE_NAMES: Record<CoreType, string> = {
+      FIRE: '불의 코어',
+      WATER: '물의 코어',
+      WIND: '바람의 코어',
+      ELECTRIC: '번개의 코어',
+    };
+    const newCore: Core = {
+      id: `core_${coreType.toLowerCase()}`,
+      name: CORE_NAMES[coreType] || `${coreType} 코어`,
+      type: coreType,
+      level: 1,
+    };
+    return {
+      equippedCore: newCore,
+      playerCores: [newCore],
+    };
+  }),
   acquireCore: (core) => set((state) => ({ playerCores: [...state.playerCores, { ...core, id: `${core.id}_${Date.now()}` }] })),
   equipCore: (coreId) => set((state) => {
     if (state.equippedCore) {

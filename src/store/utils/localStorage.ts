@@ -14,9 +14,9 @@ export const loadStateFromLocalStorage = (): GameState | null => {
         if (parsedState && parsedState.player && parsedState.player.stats) {
             // Ensure currentHealth doesn't exceed maxHealth if stats changed
             parsedState.player.currentHealth = Math.min(parsedState.player.currentHealth, parsedState.player.stats.maxHealth);
-            // Initialize playerCores and equippedCores if they don't exist in loaded state
+            // Initialize playerCores and equippedCore if they don't exist in loaded state
             parsedState.playerCores = parsedState.playerCores || [];
-            parsedState.equippedCores = parsedState.equippedCores || [null, null, null]; // 3 slots for example
+            parsedState.equippedCore = parsedState.equippedCore || null;
             // Initialize lastOnlineTime if it doesn't exist
             parsedState.lastOnlineTime = parsedState.lastOnlineTime || Date.now();
 

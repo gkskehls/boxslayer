@@ -33,10 +33,10 @@ export interface Enemy extends Entity {
   shield?: number;
 }
 
-export type CoreType = 'FIRE' | 'WATER' | 'WIND' | 'ELECTRIC' | 'EARTH';
+export type CoreType = 'FIRE' | 'WATER' | 'WIND' | 'ELECTRIC';
 
 export interface Core {
-  id: string;
+  id?: string;
   name: string;
   type: CoreType;
   level: number;
