@@ -6,26 +6,38 @@ import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import type { CoreType } from '../types/game';
 import { formatNumber } from '../utils/format';
 
-const getDynamicStyle = (stats: { str: number; dex: number; con: number }, isPlayer: boolean, baseSize: number = 80) => {
+// [박스 외형 스타일] 크기는 80px 고정, 스탯 비율로 색조 결정, 상대와의 총 스탯 차이로 명암(밝기 25%~75%) 산출
+const getDynamicBoxStyle = (
+    stats: { str: number; dex: number; con: number },
+    opponentTotalStats: number,
+    baseSize: number = 80
+) => {
   const { str, dex, con } = stats;
-  const S = (str || 0) + (dex || 0) + (con || 0) || 1;
+  const myTotalStats = (str || 0) + (dex || 0) + (con || 0) || 1;
+  const oppTotalStats = Math.max(1, opponentTotalStats || 1);
 
-  const r = Math.floor((str / S) * 255);
-  const g = Math.floor((dex / S) * 255);
-  const b = Math.floor((con / S) * 255);
+  // 1) 고유 색조 RGB 비율 (STR: 빨강, DEX: 초록, CON: 파랑)
+  const normR = (str || 0) / myTotalStats;
+  const normG = (dex || 0) / myTotalStats;
+  const normB = (con || 0) / myTotalStats;
 
-  let size = baseSize;
+  // 2) 상대와의 스탯 총합 비율에 따른 명암(밝기) 계수 산출 (25% ~ 75% 안전 가독 범위)
+  // ratio = 1.0 (동등) -> lightness = 50%
+  // ratio > 1.0 (우세) -> 최대 75%까지 밝아짐
+  // ratio < 1.0 (열세) -> 최소 25%까지 어두워짐
+  const diffRatio = (myTotalStats - oppTotalStats) / Math.max(myTotalStats, oppTotalStats);
+  const lightness = Math.min(0.75, Math.max(0.25, 0.50 + diffRatio * 0.25));
 
-  if (!isPlayer) {
-    const averageEnemyS = 100;
-    const ratio = S / averageEnemyS;
-    size = Math.max(64, Math.min(96, baseSize * Math.sqrt(ratio)));
-  }
+  // 기본 색상을 명도에 맞춰 스케일링 (2 * lightness 배수 적용)
+  const lightnessFactor = lightness * 2;
+  const r = Math.min(255, Math.max(0, Math.floor(normR * 255 * lightnessFactor)));
+  const g = Math.min(255, Math.max(0, Math.floor(normG * 255 * lightnessFactor)));
+  const b = Math.min(255, Math.max(0, Math.floor(normB * 255 * lightnessFactor)));
 
   return {
     backgroundColor: `rgb(${r}, ${g}, ${b})`,
-    width: `${size}px`,
-    height: `${size}px`,
+    width: `${baseSize}px`,
+    height: `${baseSize}px`,
     borderRadius: '0px',
   };
 };
@@ -147,6 +159,9 @@ const AnimatedBattleScreen: React.FC = () => {
   const currentEnemyId = currentEnemy?.id;
   const enemyComputed = currentEnemy ? getComputedStats(currentEnemy.stats) : null;
   const enemyAttackSpeed = enemyComputed?.attackSpeed ?? 1;
+
+  const playerTotalStats = (computed.finalStr || player.stats.str) + (computed.finalDex || player.stats.dex) + (computed.finalCon || player.stats.con);
+  const enemyTotalStats = currentEnemy ? (currentEnemy.stats.str + currentEnemy.stats.dex + currentEnemy.stats.con) : 1;
 
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit' | 'stunned'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
@@ -709,7 +724,15 @@ const AnimatedBattleScreen: React.FC = () => {
                   variants={playerVariants}
                   animate={playerAnim}
                   className="flex items-center justify-center border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-20 overflow-hidden"
-                  style={getDynamicStyle(player.stats, true, 80)}
+                  style={getDynamicBoxStyle(
+                      {
+                        str: computed.finalStr || player.stats.str,
+                        dex: computed.finalDex || player.stats.dex,
+                        con: computed.finalCon || player.stats.con,
+                      },
+                      enemyTotalStats,
+                      80
+                  )}
               >
                 <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-950 font-mono select-none">
                   <div className="flex justify-between w-full px-2 mb-1.5">
@@ -781,7 +804,7 @@ const AnimatedBattleScreen: React.FC = () => {
                       variants={enemyVariants}
                       animate={enemyAnim}
                       className="flex items-center justify-center border-4 border-neutral-950 bg-stone-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden"
-                      style={getDynamicStyle(currentEnemy.stats, false, 80)}
+                      style={getDynamicBoxStyle(currentEnemy.stats, playerTotalStats, 80)}
                   >
                     <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-900 font-mono select-none">
                       <div className="flex justify-between w-full px-2 mb-1 text-xs font-black leading-none">
