@@ -1,6 +1,6 @@
 // src/types/game.ts
 
-export type EnemyType = 'NORMAL' | 'ELITE' | 'BOSS';
+export type EnemyType = 'NORMAL';
 
 export interface Stats {
   str: number;
@@ -49,6 +49,8 @@ export interface DamageDetails {
   core: number;
   isCombo?: boolean;
   comboHits?: number;
+  isOneShotLeap?: boolean;
+  leapedStages?: number;
 }
 
 export interface GameState {

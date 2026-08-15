@@ -87,16 +87,6 @@ export const SHOP_ITEMS: ShopItem[] = [
     duration: 600, // 10분
     requiredSkillId: null
   },
-  {
-    id: "buff_boss_tracker",
-    name: "보스 추적기",
-    description: "20분 동안 일반 몬스터를 건너뛰고 보스만 상대합니다.",
-    type: "TIMED_BUFF",
-    cost: 80000,
-    effect: { target: "bossTracking", value: 1 }, // 1 = 활성화
-    duration: 1200, // 20분
-    requiredSkillId: null
-  },
 
   // --- 3. 코어 스킬 조건부 특수 버프 ---
   {

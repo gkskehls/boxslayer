@@ -82,10 +82,11 @@ interface LogEntry {
 interface DamagePopup {
   id: string;
   val: number;
-  type: 'normal' | 'core' | 'reflect' | 'taken' | 'taken-core' | 'miss-enemy' | 'miss-player' | 'shield' | 'enemy-shield' | 'leech';
+  type: 'normal' | 'core' | 'reflect' | 'taken' | 'taken-core' | 'miss-enemy' | 'miss-player' | 'shield' | 'enemy-shield' | 'leech' | 'one-shot-leap';
   coreType?: string;
   isCombo?: boolean;
   comboHits?: number;
+  leapedStages?: number;
 }
 
 let uniquePopupCounter = 0;
@@ -363,6 +364,19 @@ const AnimatedBattleScreen: React.FC = () => {
         setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
       }
 
+      if (lastDamageDealt?.isOneShotLeap) {
+        const popup: DamagePopup = {
+          id: getUniqueId(),
+          val: 0,
+          type: 'one-shot-leap',
+          leapedStages: lastDamageDealt.leapedStages || 3,
+        };
+        setTimeout(() => {
+          setDamagePopups(prev => [...prev.slice(-6), popup]);
+          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration + 200);
+        }, 120);
+      }
+
       if (isMiss) {
         addLog(
             <span>
@@ -391,6 +405,11 @@ const AnimatedBattleScreen: React.FC = () => {
             <span className="text-blue-500">[S{stage}-{turn}] P: </span>
               {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
               {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{formatNumber(shieldRecovered)})</span>}
+              {lastDamageDealt?.isOneShotLeap && (
+                  <span className="text-cyan-300 font-black ml-1 animate-pulse">
+                  🚀 원샷 도약(+{lastDamageDealt.leapedStages || 3}층)!
+                </span>
+              )}
           </span>
         );
       }
@@ -822,6 +841,10 @@ const AnimatedBattleScreen: React.FC = () => {
                     colorClass = 'text-stone-300 italic font-black text-xs md:text-sm';
                     text = 'MISS';
                     xArc = 15;
+                  } else if (popup.type === 'one-shot-leap') {
+                    colorClass = 'text-cyan-300 font-black text-lg md:text-2xl animate-bounce';
+                    text = `🚀 ONE-SHOT +${popup.leapedStages || 3}F!`;
+                    xArc = 0;
                   } else if (popup.type === 'leech' || popup.type === 'enemy-shield') {
                     colorClass = 'text-emerald-400 font-black text-sm md:text-base';
                     text = `+${formatNumber(popup.val)}`;

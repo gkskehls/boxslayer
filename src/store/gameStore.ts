@@ -306,24 +306,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   spawnEnemy: () => {
     const state = get();
     const now = Date.now();
-    const isBossTrackerActive = state.activeBuffs['buff_boss_tracker'] && state.activeBuffs['buff_boss_tracker'] > now;
+    const nextStage = state.stage;
 
-    let nextStage = state.stage;
-    if (isBossTrackerActive && nextStage % 5 !== 0) {
-      nextStage = nextStage + (5 - (nextStage % 5));
-    }
-    const isBoss = nextStage % 5 === 0;
-
-    // 기획 스펙 19.1 몬스터 스탯 지수 스케일링 & 보스 단계별 배율
-    // 일반 몬스터 HP: 50 * (1.026 ^ (stage - 1)) (50층까지 노스탯으로도 무난히 진행 가능)
-    // 일반 몬스터 ATK: 5 * (1.020 ^ (stage - 1))
-    // 5층 단위(미니보스): HP 1.2배, ATK 1.05배
-    // 10층 단위(중간보스): HP 3.0배, ATK 1.20배
-    // 100층 단위(대보스): HP 5.0배, ATK 1.35배
-    const normalHp = Math.floor(50 * Math.pow(1.026, Math.max(0, nextStage - 1)));
-    const normalHpMultiplier = nextStage % 100 === 0 ? 5.0 : (nextStage % 10 === 0 ? 3.0 : (nextStage % 5 === 0 ? 1.2 : 1.0));
-
-    const enemyHp = Math.floor(normalHp * normalHpMultiplier);
+    // 기획 스펙 19.1 몬스터 스탯 지수 스케일링 (보스 인위적 배율 제거, 단일 연속 성장)
+    // 몬스터 HP: 50 * (1.026 ^ (stage - 1)) (50층까지 노스탯으로도 무난히 진행 가능)
+    // 몬스터 ATK: 5 * (1.020 ^ (stage - 1))
+    const enemyHp = Math.max(10, Math.floor(50 * Math.pow(1.026, Math.max(0, nextStage - 1))));
 
     const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
     const coreTypeIndex = (nextStage % 7) % 4;
@@ -367,14 +355,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       maxStage: Math.max(state.maxStage, nextStage),
       currentEnemy: {
         id: `enemy-${nextStage}`,
-        name: isBoss ? `BOSS ${nextStage}` : `BOX ${nextStage}`,
+        name: `BOX ${nextStage}`,
         level: nextStage,
-        type: isBoss ? 'BOSS' : 'NORMAL',
+        type: 'NORMAL',
         stats: stats,
         maxHealth: enemyHp,
         currentHealth: enemyHp,
-        goldReward: Math.floor((10 + (nextStage * 2) + (Math.pow(nextStage, 1.35) * 1.5)) * (isBoss ? 3 : 1) * goldMult),
-        expReward: Math.floor((20 + (nextStage * 8) + (Math.pow(nextStage, 1.3) * 2)) * (isBoss ? 3 : 1) * expMult),
+        goldReward: Math.floor((10 + (nextStage * 2) + (Math.pow(nextStage, 1.35) * 1.5)) * goldMult),
+        expReward: Math.floor((20 + (nextStage * 8) + (Math.pow(nextStage, 1.3) * 2)) * expMult),
         core: enemyCore,
         shield: enemyInitialShield,
       },
@@ -495,9 +483,16 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const newEnemyHealth = Math.max(0, state.currentEnemy.currentHealth - actualHealthDamage);
 
     if (newEnemyHealth <= 0) {
+      // 1타 처치(원킬) 판정: 적이 풀 체력인 상태에서 1번의 타격으로 즉시 파괴된 경우
+      const isOneShot = state.currentEnemy.currentHealth === state.currentEnemy.maxHealth;
+      const leapedStages = isOneShot ? 3 : 1; // 원샷 시 +3층 도약
+
       const { expReward, goldReward } = state.currentEnemy;
-      let newExp = state.player.experience + expReward;
-      const goldGained = goldReward;
+      const totalExpReward = expReward * leapedStages;
+      const totalGoldReward = goldReward * leapedStages;
+
+      let newExp = state.player.experience + totalExpReward;
+      const goldGained = totalGoldReward;
       let newLevel = state.player.level;
       let newNextExp = state.player.nextLevelExperience;
       let statPointsGained = 0;
@@ -508,6 +503,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         newNextExp = getRequiredExpForLevel(newLevel);
         statPointsGained += 3;
       }
+
+      const nextStageNumber = state.stage + leapedStages;
 
       return {
         currentEnemy: { ...state.currentEnemy, currentHealth: 0 },
@@ -520,10 +517,18 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           gold: state.player.gold + goldGained,
           currentHealth: Math.floor(playerComputed.maxHealth)
         },
-        stage: state.stage + 1,
-        maxStage: Math.max(state.maxStage, state.stage + 1),
+        stage: nextStageNumber,
+        maxStage: Math.max(state.maxStage, nextStageNumber),
         gameStatus: 'VICTORY',
-        lastDamageDealt: { normal: normalDamage, core: coreDamage, shieldRecovered, isCombo, comboHits },
+        lastDamageDealt: {
+          normal: normalDamage,
+          core: coreDamage,
+          shieldRecovered,
+          isCombo,
+          comboHits,
+          isOneShotLeap: isOneShot,
+          leapedStages
+        },
         playerShield: nextPlayerShield,
         enemyShield: 0,
         windHitCount: currentWindHits,
