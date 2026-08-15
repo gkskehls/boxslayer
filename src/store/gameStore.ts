@@ -308,11 +308,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const now = Date.now();
     const nextStage = state.stage;
 
-    // 기획 스펙 19.1 몬스터 스탯 지수 스케일링 (보스 인위적 배율 제거, 단일 연속 성장)
-    // 몬스터 HP: 50 * (1.026 ^ (stage - 1)) (50층까지 노스탯으로도 무난히 진행 가능)
-    // 몬스터 ATK: 5 * (1.020 ^ (stage - 1))
-    const enemyHp = Math.max(10, Math.floor(50 * Math.pow(1.026, Math.max(0, nextStage - 1))));
-
     const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
     const coreTypeIndex = (nextStage % 7) % 4;
     const coreType = coreTypes[coreTypeIndex];
@@ -324,11 +319,15 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       level: coreLevel,
     };
 
-    // 몬스터 스탯 단일 선형 수식 (1층~200층 및 200층 이후 무한 확장)
-    // 공식: Stat = 3 + Math.floor((stage - 1) * 0.286432)  (또는 Math.floor(((stage - 1) * 57) / 199))
-    // 1층: 각 3 (총합 9) -> 200층: 각 60 (총합 180, 플레이어 예상 스탯과 동일) -> 500층: 각 145 -> 1,000층: 각 289
-    const statVal = 3 + Math.floor(((nextStage - 1) * 57) / 199);
+    // 몬스터 기본 스탯 (STR/DEX/CON 균등): 플레이어와 동일한 정밀 스탯 기반 연산
+    // 1층: 각 10 (체력 150) -> 100층: 각 356 -> 481층: 각 1,690 -> 1,000층: 각 3,506
+    const statVal = 10 + Math.floor((nextStage - 1) * 3.5);
     const stats = { str: statVal, dex: statVal, con: statVal };
+
+    // 구간별 해금 스킬트리 반영
+    const unlockedEnemySkills = getUnlockedEnemySkillsForStage(nextStage);
+    const enemyComputed = getComputedStats(stats, unlockedEnemySkills);
+    const enemyHp = enemyComputed.maxHealth;
 
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
     let playerInitialShield = 0;
@@ -339,7 +338,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     let enemyInitialShield = 0;
     if (enemyCore.type === 'WATER') {
-      const unlockedEnemySkills = getUnlockedEnemySkillsForStage(nextStage);
       const waterStats = getCoreStats('WATER', enemyCore.level, unlockedEnemySkills);
       enemyInitialShield = Math.floor(enemyHp * (waterStats.effects.initialShieldMultiplier || 0));
     }
@@ -384,8 +382,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const now = Date.now();
     if (now < state.playerStunEndTime) return state;
 
+    const unlockedEnemySkills = getUnlockedEnemySkillsForStage(state.stage);
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
-    const enemyComputed = getComputedStats(state.currentEnemy.stats);
+    const enemyComputed = getComputedStats(state.currentEnemy.stats, unlockedEnemySkills);
 
     let hitChance = 0.95 + ((playerComputed.accuracy - enemyComputed.evasion) * 0.01);
     if (state.equippedCore?.type === 'WIND') {
@@ -558,12 +557,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const now = Date.now();
     if (now < state.enemyStunEndTime) return state;
 
-    const enemyComputed = getComputedStats(state.currentEnemy.stats);
+    const enemyUnlockedSkills = getUnlockedEnemySkillsForStage(state.stage);
+    const enemyComputed = getComputedStats(state.currentEnemy.stats, enemyUnlockedSkills);
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
 
     let hitChance = 0.95 + ((enemyComputed.accuracy - playerComputed.evasion) * 0.01);
     const enemyCore = state.currentEnemy.core;
-    const enemyUnlockedSkills = getUnlockedEnemySkillsForStage(state.stage);
     if (enemyCore?.type === 'WIND') {
       const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level, enemyUnlockedSkills);
       hitChance += (enemyCoreStats.effects.hitEvasionBonus || 0);

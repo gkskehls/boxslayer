@@ -1,7 +1,7 @@
 // src/components/AnimatedBattleScreen.tsx
 
 import React, { useEffect, useState, useRef } from 'react';
-import { useGameStore, getComputedStats } from '../store/gameStore';
+import { useGameStore, getComputedStats, getUnlockedEnemySkillsForStage } from '../store/gameStore';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import type { CoreType } from '../types/game';
 import { formatNumber } from '../utils/format';
@@ -157,11 +157,14 @@ const AnimatedBattleScreen: React.FC = () => {
 
   const computed = getComputedStats(player.stats, useGameStore.getState().unlockedSkills);
   const currentEnemyId = currentEnemy?.id;
-  const enemyComputed = currentEnemy ? getComputedStats(currentEnemy.stats) : null;
+  const unlockedEnemySkills = getUnlockedEnemySkillsForStage(stage);
+  const enemyComputed = currentEnemy ? getComputedStats(currentEnemy.stats, unlockedEnemySkills) : null;
   const enemyAttackSpeed = enemyComputed?.attackSpeed ?? 1;
 
   const playerTotalStats = (computed.finalStr || player.stats.str) + (computed.finalDex || player.stats.dex) + (computed.finalCon || player.stats.con);
-  const enemyTotalStats = currentEnemy ? (currentEnemy.stats.str + currentEnemy.stats.dex + currentEnemy.stats.con) : 1;
+  const enemyTotalStats = enemyComputed
+      ? (enemyComputed.finalStr + enemyComputed.finalDex + enemyComputed.finalCon)
+      : (currentEnemy ? (currentEnemy.stats.str + currentEnemy.stats.dex + currentEnemy.stats.con) : 1);
 
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit' | 'stunned'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
@@ -531,17 +534,23 @@ const AnimatedBattleScreen: React.FC = () => {
     {
       label: '힘 (STR)',
       pValue: computed.skillBonusStats.str > 0 ? `${player.stats.str} (+${computed.skillBonusStats.str})` : player.stats.str,
-      eValue: currentEnemy?.stats.str
+      eValue: enemyComputed && enemyComputed.skillBonusStats.str > 0
+          ? `${currentEnemy?.stats.str} (+${enemyComputed.skillBonusStats.str})`
+          : currentEnemy?.stats.str
     },
     {
       label: '민첩 (DEX)',
       pValue: computed.skillBonusStats.dex > 0 ? `${player.stats.dex} (+${computed.skillBonusStats.dex})` : player.stats.dex,
-      eValue: currentEnemy?.stats.dex
+      eValue: enemyComputed && enemyComputed.skillBonusStats.dex > 0
+          ? `${currentEnemy?.stats.dex} (+${enemyComputed.skillBonusStats.dex})`
+          : currentEnemy?.stats.dex
     },
     {
       label: '체력 (CON)',
       pValue: computed.skillBonusStats.con > 0 ? `${player.stats.con} (+${computed.skillBonusStats.con})` : player.stats.con,
-      eValue: currentEnemy?.stats.con
+      eValue: enemyComputed && enemyComputed.skillBonusStats.con > 0
+          ? `${currentEnemy?.stats.con} (+${enemyComputed.skillBonusStats.con})`
+          : currentEnemy?.stats.con
     },
     { label: '공격력', pValue: formatNumber(computed.attack), eValue: enemyComputed ? formatNumber(enemyComputed.attack) : undefined },
     { label: '방어력', pValue: formatNumber(computed.defense), eValue: enemyComputed ? formatNumber(enemyComputed.defense) : undefined },
