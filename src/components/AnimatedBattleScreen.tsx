@@ -118,7 +118,11 @@ const getCoreBadgeDisplay = (type?: CoreType) => {
   }
 };
 
-const AnimatedBattleScreen: React.FC = () => {
+interface AnimatedBattleScreenProps {
+  onNavigateToStats?: () => void;
+}
+
+const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateToStats }) => {
   const state = useGameStore();
   const {
     player,
@@ -139,6 +143,9 @@ const AnimatedBattleScreen: React.FC = () => {
     playerStunEndTime,
     coreFragments,
     boxFragments,
+    rebirthUpgrades,
+    unlockedSkills,
+    activeBuffs,
     claimOfflineRewards,
     spawnEnemy,
     attackEnemy,
@@ -171,7 +178,7 @@ const AnimatedBattleScreen: React.FC = () => {
     return () => clearInterval(interval);
   }, [playerStunEndTime]);
 
-  const computed = getComputedStats(player.stats, useGameStore.getState().unlockedSkills);
+  const computed = getComputedStats(player.stats, unlockedSkills, activeBuffs, rebirthUpgrades);
   const currentEnemyId = currentEnemy?.id;
   const enemyComputed = currentEnemy ? getComputedStats(currentEnemy.stats) : null;
   const enemyAttackSpeed = enemyComputed?.attackSpeed ?? 1;
@@ -629,7 +636,21 @@ const AnimatedBattleScreen: React.FC = () => {
           </div>
 
           <div className="flex justify-between items-center font-mono text-xs font-bold pt-1 border-t border-stone-300/80">
-            <span className="text-neutral-900">Lv. {player.level}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-neutral-900">Lv. {player.level}</span>
+              {player.statPoints > 0 && onNavigateToStats && (
+                <button
+                  type="button"
+                  onClick={onNavigateToStats}
+                  className="bg-amber-400 hover:bg-amber-300 text-black text-[10px] font-black px-2 py-0.5 border border-black animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer flex items-center gap-1 leading-none"
+                >
+                  <span>⚡ 스탯 분배</span>
+                  <span className="bg-red-600 text-white text-[9px] px-1 py-0.2 rounded-full font-bold">
+                    +{player.statPoints}P
+                  </span>
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-2">
             <span className="text-blue-600 tracking-wider text-[11px]">
               EXP

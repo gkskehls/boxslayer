@@ -5,9 +5,9 @@ import { useGameStore, getComputedStats } from '../store/gameStore';
 import { formatNumber } from '../utils/format';
 
 const StatsScreen: React.FC = () => {
-    const { player, distributeStat, resetStats, unlockedSkills, activeBuffs } = useGameStore();
+    const { player, distributeStat, resetStats, unlockedSkills, activeBuffs, rebirthUpgrades } = useGameStore();
 
-    const computed = getComputedStats(player.stats, unlockedSkills, activeBuffs);
+    const computed = getComputedStats(player.stats, unlockedSkills, activeBuffs, rebirthUpgrades);
 
     const handleReset = () => {
         if (window.confirm("정말 스탯을 초기화하고 포인트를 반환받으시겠습니까?")) {
@@ -16,17 +16,12 @@ const StatsScreen: React.FC = () => {
     };
 
     const statsConfig = [
-        { key: 'str', label: '힘 (STR)', desc: '공격력 +2' },
-        // [수정됨] 공속 고정 기믹 도입에 따라 DEX의 역할을 명중률 및 회피율 증가로 명시
-        { key: 'dex', label: '민첩 (DEX)', desc: '명중률 및 회피율 증가' },
-        { key: 'con', label: '체력 (CON)', desc: '체력 +2 / 방어 +0.2' }, // 체력 증가량 수정 및 방어력 명시
+        { key: 'str', label: '힘 (STR)', desc: '공격력 +2 (최종 STR * 2)' },
+        { key: 'dex', label: '민첩 (DEX)', desc: '명중력 및 회피율 증가 (최종 DEX)' },
+        { key: 'con', label: '체력 (CON)', desc: '최대 체력 +5 / 방어력 +0.2' },
     ] as const;
 
     return (
-        /* [RENEWAL] 레트로 아케이드 하드웨어 스타일 스탯 스크린 섀시
-           - 기존의 둥근 모서리(rounded-xl)와 다크 다크모드(bg-neutral-900)를 완전히 탈피.
-           - 오락기 프레임 통일을 위한 각진 바디, 선명한 border-4 border-black, 거대한 하드 블랙 그림자 주입.
-        */
         <div
             className="max-w-md mx-auto bg-stone-100 p-4 rounded-none border-4 border-black w-full flex flex-col gap-4 text-stone-900 font-mono select-none flex-grow"
             style={{
@@ -35,81 +30,61 @@ const StatsScreen: React.FC = () => {
             }}
         >
 
-            {/* 상단 헤더 영역 (폰트 약간 확대: text-xs -> text-sm, text-[9px] -> text-[10px]) */}
+            {/* 상단 헤더 영역 */}
             <div className="flex justify-between items-center border-b-4 border-black pb-2 w-full">
-                <h3 className="text-sm font-black text-stone-500 tracking-widest uppercase leading-tight">
-                    -[ STATS_UPGRADE ]-
-                </h3>
+                <div>
+                    <h3 className="text-sm font-black text-stone-500 tracking-widest uppercase leading-tight">
+                        -[ STATS_UPGRADE ]-
+                    </h3>
+                    <span className="text-[10px] font-bold text-stone-500">Lv. {player.level} 캐릭터 성장 보드</span>
+                </div>
                 <button
                     type="button"
                     onClick={handleReset}
-                    /* 초기화 버튼 픽셀화: 붉은색 레트로 보더 기믹 탑재 */
                     className="bg-stone-200 border-2 border-red-600 hover:bg-red-50 text-red-600 px-2.5 py-1 rounded-none text-[10px] font-black tracking-wider transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer break-keep"
                 >
-                    RESET
+                    스탯 초기화
                 </button>
             </div>
 
-            {/* 잔여 포인트 알림 배너 (폰트 약간 확대: text-[11px] -> text-xs, text-base -> text-lg) */}
-            {/* 단단하고 쫀득한 8비트 아날로그 인디케이터 스타일 래핑 */}
-            <div className="bg-stone-300 px-4 py-2.5 rounded-none border-4 border-black w-full flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <span className="text-xs font-black text-stone-700 tracking-tight break-keep leading-tight">보유 스탯 포인트</span>
-                <span className="text-green-700 font-black text-xl font-mono tracking-wide leading-none">{formatNumber(player.statPoints)} P</span>
+            {/* 잔여 포인트 알림 배너 */}
+            <div className="bg-stone-300 px-4 py-3 rounded-none border-4 border-black w-full flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <div>
+                    <span className="text-xs font-black text-stone-700 block leading-tight">사용 가능한 스탯 포인트</span>
+                    <span className="text-[10px] text-stone-500 font-bold">레벨업 시 획득 (+3P)</span>
+                </div>
+                <span className="text-emerald-700 font-black text-2xl font-mono tracking-wide leading-none">{formatNumber(player.statPoints)} P</span>
             </div>
 
-            {/* 현재 능력치 표시 (폰트 약간 확대: 전체 text-xs, 라벨 text-[11px], leading-tight로 세로폭 유지) */}
-            {/* [신규] 공속 고정 반영 및 명중력/회피력을 분리 표시하기 위해 md:grid-cols-5를 md:grid-cols-6으로 확장했습니다. */}
-            {/* 리뉴얼: 조밀하게 딱딱 끊어지는 아날로그 픽셀 모니터 내부 수치판 재현 */}
-            <div className="bg-stone-200/60 p-3 rounded-none border-4 border-black grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono w-full shadow-[inset_2px_2px_0px_rgba(0,0,0,0.05)]">
+            {/* 현재 종합 전투 능력치 표시 */}
+            <div className="bg-stone-200/80 p-3 rounded-none border-4 border-black grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono w-full shadow-[inset_2px_2px_0px_rgba(0,0,0,0.05)]">
                 <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
-                    <span className="text-stone-500 font-sans font-bold text-[11px] leading-tight">공격력</span>
-                    <span className="text-black font-black leading-tight">{formatNumber(computed.attack)}</span>
+                    <span className="text-stone-600 font-sans font-bold text-[11px] leading-tight">공격력</span>
+                    <span className="text-red-700 font-black leading-tight">{formatNumber(computed.attack)}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
-                    <span className="text-stone-500 font-sans font-bold text-[11px] leading-tight">방어력</span>
-                    <span className="text-black font-black leading-tight">{formatNumber(computed.defense)}</span>
+                    <span className="text-stone-600 font-sans font-bold text-[11px] leading-tight">방어력</span>
+                    <span className="text-blue-700 font-black leading-tight">{formatNumber(computed.defense)}</span>
                 </div>
-                {/* [신규] 이제 변하지 않는 고정 고속 상태(2.0/s)를 보여줍니다. */}
                 <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
-                    <span className="text-stone-500 font-sans font-bold text-[11px] leading-tight">공격속도</span>
+                    <span className="text-stone-600 font-sans font-bold text-[11px] leading-tight">최대체력</span>
+                    <span className="text-green-700 font-black leading-tight">{formatNumber(computed.maxHealth)}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
+                    <span className="text-stone-600 font-sans font-bold text-[11px] leading-tight">공격속도</span>
                     <span className="text-black font-black leading-tight">{computed.attackSpeed.toFixed(1)}/s</span>
                 </div>
-                <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
-                    <span className="text-stone-500 font-sans font-bold text-[11px] leading-tight">최대체력</span>
-                    <span className="text-black font-black leading-tight">{formatNumber(computed.maxHealth)}</span>
-                </div>
-                {/* [수정됨] 명중과 회피 점수를 따로 독립 노출하여 DEX 투자 효율을 직관적으로 확인 가능하게 변경 */}
-                <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
-                    <span className="text-stone-500 font-sans font-bold text-[11px] leading-tight">명중력</span>
+                <div className="flex justify-between items-center">
+                    <span className="text-stone-600 font-sans font-bold text-[11px] leading-tight">명중력</span>
                     <span className="text-black font-black leading-tight">{formatNumber(computed.accuracy)}</span>
                 </div>
-                <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
-                    <span className="text-stone-500 font-sans font-bold text-[11px] leading-tight">회피력</span>
+                <div className="flex justify-between items-center">
+                    <span className="text-stone-600 font-sans font-bold text-[11px] leading-tight">회피력</span>
                     <span className="text-black font-black leading-tight">{formatNumber(computed.evasion)}</span>
                 </div>
             </div>
 
-            {/* [신규] 유틸리티 패시브 현황 (골드, RP, 시작층, 오프라인 보상) */}
-            <div className="bg-amber-100/80 p-3 rounded-none border-2 border-black/80 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] font-mono w-full shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
-                    <span className="text-amber-900 font-bold">💰 골드 보너스</span>
-                    <span className="text-amber-800 font-black">+{Math.round((computed.modifiers.goldMultiplier || 0) * 100)}%</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
-                    <span className="text-purple-900 font-bold">🌀 RP 수급 보너스</span>
-                    <span className="text-purple-800 font-black">+{Math.round((computed.modifiers.rpBonusMultiplier || 0) * 100)}%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-stone-700 font-bold">🚀 시작 층수 보너스</span>
-                    <span className="text-stone-900 font-black">+{computed.modifiers.startStageBonus || 0}층</span>
-                </div>
-                <div className="flex justify-between items-center">
-                    <span className="text-blue-900 font-bold">💤 방치 보상 보너스</span>
-                    <span className="text-blue-800 font-black">+{Math.round((computed.modifiers.offlineRewardMultiplier || 0) * 100)}%</span>
-                </div>
-            </div>
-
-            {/* 스탯 투자 버튼 컨테이너 (간격 유지) */}
+            {/* 스탯 투자 버튼 컨테이너 */}
             <div className="flex flex-col gap-3 w-full">
                 {statsConfig.map(({ key, label, desc }) => {
                     const baseVal = player.stats[key];
@@ -121,17 +96,17 @@ const StatsScreen: React.FC = () => {
                             <div className="flex justify-between items-center w-full">
                                 <span className="text-xs font-black text-black tracking-wide leading-none">{label}</span>
                                 <div className="flex items-center gap-1.5 font-mono">
-                                    <span className="text-sm font-black text-blue-700 leading-none" title="투자 스탯">{baseVal}</span>
+                                    <span className="text-sm font-black text-blue-700 leading-none" title="순수 레벨업 투자 스탯">
+                                        기본 {baseVal}
+                                    </span>
                                     {bonusVal > 0 && (
-                                        <span className="text-xs font-black text-emerald-800 bg-emerald-200 border border-emerald-600 px-1 py-0.5 leading-none" title="스킬 트리에 의한 스탯 보너스">
-                                            +{bonusVal}
+                                        <span className="text-xs font-black text-purple-800 bg-purple-200 border border-purple-600 px-1 py-0.5 leading-none" title="환생 강화로 증가된 보너스">
+                                            +🌟환생 {bonusVal}
                                         </span>
                                     )}
-                                    {bonusVal > 0 && (
-                                        <span className="text-xs font-black text-stone-600 leading-none" title="최종 적용 스탯">
-                                            (= {finalVal})
-                                        </span>
-                                    )}
+                                    <span className="text-xs font-black text-emerald-700 bg-emerald-100 border border-emerald-500 px-1.5 py-0.5 leading-none" title="최종 적용 스탯">
+                                        총합 {finalVal}
+                                    </span>
                                 </div>
                             </div>
                             <p className="text-[10px] font-bold text-stone-500 break-keep leading-tight mt-0.5">{desc}</p>
@@ -143,7 +118,7 @@ const StatsScreen: React.FC = () => {
                                         onClick={() => distributeStat(key, amount)}
                                         className={`flex-1 py-1.5 rounded-none font-black text-xs transition-all break-keep border-2 border-black leading-none uppercase
                                           ${player.statPoints >= amount
-                                            ? 'bg-stone-100 hover:bg-stone-50 text-green-700 border-b-[4px] shadow-[1px_1px_0px_rgba(255,255,255,0.6)_inset] active:border-b-2 active:translate-y-[2px] cursor-pointer'
+                                            ? 'bg-amber-300 hover:bg-amber-200 text-black border-b-[4px] shadow-[1px_1px_0px_rgba(255,255,255,0.6)_inset] active:border-b-2 active:translate-y-[2px] cursor-pointer'
                                             : 'bg-stone-300 border-stone-400 text-stone-400 cursor-not-allowed opacity-30 shadow-none'
                                         }`}
                                     >
