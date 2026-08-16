@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useGameStore, calculateReincarnationPoints, getComputedStats } from '../store/gameStore';
 import { formatNumber } from '../utils/format';
-import { REBIRTH_UPGRADES_CONFIG, calculateRebirthUpgradeCost } from '../data/rebirthConfig';
+import { REBIRTH_UPGRADES_CONFIG, calculateRebirthUpgradeCost, calculateTotalSpentRP } from '../data/rebirthConfig';
 
 const RebirthScreen: React.FC = () => {
   const {
@@ -11,6 +11,7 @@ const RebirthScreen: React.FC = () => {
     reincarnationPoints,
     rebirthUpgrades,
     upgradeRebirthStat,
+    resetRebirthUpgrades,
     reincarnate,
     player,
     unlockedSkills,
@@ -22,6 +23,7 @@ const RebirthScreen: React.FC = () => {
 
   const potentialPoints = calculateReincarnationPoints(stage);
   const computed = getComputedStats(player.stats, unlockedSkills, activeBuffs, rebirthUpgrades);
+  const totalSpentRP = calculateTotalSpentRP(rebirthUpgrades);
 
   const handleReincarnate = () => {
     if (potentialPoints <= 0) {
@@ -30,6 +32,16 @@ const RebirthScreen: React.FC = () => {
     }
     if (window.confirm(`정말로 환생하시겠습니까?\n\n[보존되는 재화]\n• 🌟 환생 포인트(RP) 및 환생 스탯/유틸 레벨\n• 💎 코어 조각 및 코어 연구 레벨\n• 📦 박스 조각\n\n[초기화되는 항목]\n• 🪙 골드 및 현재 층수(1층 복귀)\n• 레벨, 경험치, 기본 스탯 포인트\n\n획득 예정: +${formatNumber(potentialPoints)} RP`)) {
       reincarnate();
+    }
+  };
+
+  const handleResetRebirth = () => {
+    if (totalSpentRP <= 0) {
+      alert("투자된 환생 포인트가 없습니다.");
+      return;
+    }
+    if (window.confirm(`환생 스탯 및 유틸리티 강화에 투자된 환생 포인트를 초기화하시겠습니까?\n\n투자된 모든 포인트 (🌟 ${formatNumber(totalSpentRP)} RP)가 100% 전액 환급됩니다.`)) {
+      resetRebirthUpgrades();
     }
   };
 
@@ -50,9 +62,21 @@ const RebirthScreen: React.FC = () => {
             <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest block">REBIRTH_SANCTUARY</span>
             <span className="text-xs font-black text-black">현재 최고 도달: STG.{stage}</span>
           </div>
-          <div className="text-right">
-            <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest block">보유 환생 포인트</span>
-            <span className="text-sm font-black text-purple-700">🌟 {formatNumber(reincarnationPoints)} RP</span>
+          <div className="text-right flex items-center gap-2">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest block">보유 환생 포인트</span>
+              <span className="text-sm font-black text-purple-700">🌟 {formatNumber(reincarnationPoints)} RP</span>
+            </div>
+            {totalSpentRP > 0 && (
+              <button
+                type="button"
+                onClick={handleResetRebirth}
+                title={`투자된 ${formatNumber(totalSpentRP)} RP 100% 환급`}
+                className="bg-stone-100 hover:bg-red-50 text-red-600 border-2 border-red-600 px-2 py-1 text-[10px] font-black tracking-tight shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer leading-tight whitespace-nowrap"
+              >
+                🔄 RP 초기화
+              </button>
+            )}
           </div>
         </div>
 

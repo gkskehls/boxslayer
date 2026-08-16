@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import type { CoreType } from '../types/game';
 import { formatNumber } from '../utils/format';
-import { CORE_ABILITIES_CONFIG, calculateCoreAbilityCost } from '../data/rebirthConfig';
+import { CORE_ABILITIES_CONFIG, calculateCoreAbilityCost, calculateTotalSpentCoreFragments } from '../data/rebirthConfig';
 
 const CORE_INFO_MAP: Record<
   CoreType,
@@ -67,6 +67,7 @@ const CoreScreen: React.FC = () => {
     selectCore,
     upgradeCore,
     upgradeCoreAbility,
+    resetCoreAbilities,
     coreAbilities,
     coreFragments,
     player,
@@ -79,6 +80,17 @@ const CoreScreen: React.FC = () => {
   const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
   const currentInfo = CORE_INFO_MAP[selectedType];
   const isSelectedEquipped = equippedCore?.type === selectedType;
+  const totalSpentCoreFragments = calculateTotalSpentCoreFragments(coreAbilities);
+
+  const handleResetCoreAbilities = () => {
+    if (totalSpentCoreFragments <= 0) {
+      alert("투자된 코어 조각이 없습니다.");
+      return;
+    }
+    if (window.confirm(`코어 특화 연구에 투자된 모든 코어 조각을 초기화하시겠습니까?\n\n투자된 코어 조각 (💎 ${formatNumber(totalSpentCoreFragments)})이 100% 전액 환급됩니다.`)) {
+      resetCoreAbilities();
+    }
+  };
 
   // 골드 강화 비용 계산
   const getGoldUpgradeCost = (currentLvl: number, count: number) => {
@@ -255,7 +267,19 @@ const CoreScreen: React.FC = () => {
               <span className="text-xs font-black text-cyan-900 block">💎 코어별 독립 특화 연구</span>
               <span className="text-[10px] text-cyan-700">각 코어 장착 시 발동되는 고유 메커니즘을 영구 연구합니다. (환생 시 유지)</span>
             </div>
-            <span className="text-xs font-black text-cyan-800">💎 {formatNumber(coreFragments)}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black text-cyan-800">💎 {formatNumber(coreFragments)}</span>
+              {totalSpentCoreFragments > 0 && (
+                <button
+                  type="button"
+                  onClick={handleResetCoreAbilities}
+                  title={`투자된 ${formatNumber(totalSpentCoreFragments)}개 100% 환급`}
+                  className="bg-stone-100 hover:bg-red-50 text-red-600 border-2 border-red-600 px-1.5 py-0.5 text-[9px] font-black tracking-tight shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer leading-tight whitespace-nowrap"
+                >
+                  🔄 초기화
+                </button>
+              )}
+            </div>
           </div>
 
           {/* 코어별 연구 카테고리 선택 탭 */}

@@ -18,7 +18,9 @@ import {
   REBIRTH_UPGRADES_CONFIG,
   CORE_ABILITIES_CONFIG,
   calculateRebirthUpgradeCost,
-  calculateCoreAbilityCost
+  calculateCoreAbilityCost,
+  calculateTotalSpentRP,
+  calculateTotalSpentCoreFragments,
 } from '../data/rebirthConfig';
 
 export interface CoreStats {
@@ -89,7 +91,9 @@ interface GameActions {
   buyShopItem: (item: ShopItem) => void;
   setDefeat: (reason: DefeatReason) => void;
   upgradeRebirthStat: (statKey: keyof RebirthUpgrades, count?: number) => void;
+  resetRebirthUpgrades: () => void;
   upgradeCoreAbility: (abilityKey: keyof CoreAbilityLevels) => void;
+  resetCoreAbilities: () => void;
 }
 
 const initialStats: Stats = { str: 10, dex: 10, con: 10 };
@@ -314,6 +318,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     };
   }),
 
+  resetRebirthUpgrades: () => set((state) => {
+    const totalRefund = calculateTotalSpentRP(state.rebirthUpgrades);
+    return {
+      reincarnationPoints: state.reincarnationPoints + totalRefund,
+      rebirthUpgrades: { ...defaultRebirthUpgrades },
+    };
+  }),
+
   upgradeCoreAbility: (abilityKey) => set((state) => {
     const config = CORE_ABILITIES_CONFIG.find(c => c.id === abilityKey);
     if (!config) return state;
@@ -336,6 +348,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         ...state.coreAbilities,
         [abilityKey]: currentLvl + 1,
       }
+    };
+  }),
+
+  resetCoreAbilities: () => set((state) => {
+    const totalRefund = calculateTotalSpentCoreFragments(state.coreAbilities);
+    return {
+      coreFragments: state.coreFragments + totalRefund,
+      coreAbilities: { ...defaultCoreAbilities },
     };
   }),
 

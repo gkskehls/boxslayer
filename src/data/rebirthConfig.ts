@@ -407,3 +407,27 @@ export const CORE_ABILITIES_CONFIG: CoreAbilityConfig[] = [
 export const calculateCoreAbilityCost = (config: CoreAbilityConfig, currentLevel: number): number => {
   return Math.floor(config.baseCost * Math.pow(config.costMultiplier, currentLevel));
 };
+
+export const calculateTotalSpentRP = (rebirthUpgrades?: Partial<RebirthUpgrades>): number => {
+  if (!rebirthUpgrades) return 0;
+  let total = 0;
+  for (const config of REBIRTH_UPGRADES_CONFIG) {
+    const lvl = rebirthUpgrades[config.id] || 0;
+    if (lvl > 0) {
+      total += calculateRebirthUpgradeCost(config, 0, lvl);
+    }
+  }
+  return total;
+};
+
+export const calculateTotalSpentCoreFragments = (coreAbilities?: Partial<CoreAbilityLevels>): number => {
+  if (!coreAbilities) return 0;
+  let total = 0;
+  for (const config of CORE_ABILITIES_CONFIG) {
+    const lvl = coreAbilities[config.id] || 0;
+    for (let i = 0; i < lvl; i++) {
+      total += calculateCoreAbilityCost(config, i);
+    }
+  }
+  return total;
+};
