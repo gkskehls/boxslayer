@@ -161,10 +161,12 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     }
     return null;
   });
+  const [showOfflineModal, setShowOfflineModal] = useState(false);
 
   const handleClaimBannerRewards = () => {
     claimOfflineRewards();
     setOfflineBanner(null);
+    setShowOfflineModal(false);
   };
 
   const [isPlayerStunned, setIsPlayerStunned] = useState(false);
@@ -595,71 +597,123 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
   return (
       <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none flex-grow">
 
-        {/* 🎁 상단 오프라인 보상 슬라이드 배너 (1분 이상 방치 시 부드럽게 등장) */}
-        {offlineBanner && (
-          <div className="bg-emerald-100 border-4 border-black p-2.5 flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-bounce">
-            <div className="flex flex-col text-left">
-              <span className="text-[10px] font-black text-emerald-800 uppercase">🎁 오프라인 방치 보상 ({offlineBanner.minutes}분 누적)</span>
-              <span className="text-xs font-black text-black">
-                🪙 +{formatNumber(offlineBanner.gold)} 골드 / 📚 +{formatNumber(offlineBanner.exp)} EXP
-              </span>
+        {/* 🎁 오프라인 방치 보상 상세 팝업 모달 */}
+        {showOfflineModal && offlineBanner && (
+          <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4 font-mono">
+            <div className="bg-stone-200 border-4 border-black p-4 w-full max-w-xs shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-3 text-stone-900 animate-scale-in">
+              <div className="bg-emerald-600 text-white p-2 border-2 border-black text-center font-black text-sm tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                🎁 오프라인 방치 보상
+              </div>
+              <div className="bg-stone-100 p-3 border-2 border-black flex flex-col gap-2 text-xs">
+                <div className="flex justify-between items-center text-stone-600 border-b border-stone-300 pb-1.5">
+                  <span className="font-bold">누적 방치 시간</span>
+                  <span className="font-black text-stone-900 bg-stone-200 px-1.5 py-0.5 border border-stone-400">
+                    {offlineBanner.minutes}분
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-amber-700 font-bold">🪙 획득 골드</span>
+                  <span className="font-black text-stone-900">+{formatNumber(offlineBanner.gold)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-blue-700 font-bold">📚 획득 경험치</span>
+                  <span className="font-black text-stone-900">+{formatNumber(offlineBanner.exp)} EXP</span>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleClaimBannerRewards}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
+                >
+                  보상 모두 수령
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowOfflineModal(false)}
+                  className="px-3 py-2.5 bg-stone-300 hover:bg-stone-400 text-stone-900 text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
+                >
+                  닫기
+                </button>
+              </div>
             </div>
-            <button
-              onClick={handleClaimBannerRewards}
-              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
-            >
-              수령하기
-            </button>
           </div>
         )}
 
-        {/* 헤더: 스테이지 정보, 레벨/EXP 및 상단 핵심 재화 바 */}
-        <div className="bg-stone-100 p-2.5 rounded-none border-4 border-neutral-900 flex flex-col gap-1.5 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-yellow-600 leading-none flex items-center gap-2 font-mono">
-              STAGE {stage}
+        {/* ================= 통합 상단 HUD (스테이지, 레벨/EXP, 재화 바, 퀵 액션) ================= */}
+        <div className="bg-stone-100 p-2.5 rounded-none border-4 border-neutral-900 flex flex-col gap-2 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-mono">
+          
+          {/* [1행] 스테이지 & 레벨 / EXP (한 줄 고정) */}
+          <div className="flex justify-between items-center whitespace-nowrap gap-2">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-xs font-black bg-neutral-950 text-yellow-400 px-2 py-0.5 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] tracking-wider">
+                STAGE {stage}
+              </span>
               {(maxStage || 1) > stage && (
-                  <span className="text-red-500 text-sm">({maxStage})</span>
+                <span className="text-[10px] text-stone-500 font-bold">
+                  (최고 {maxStage})
+                </span>
               )}
-            </h2>
-            <div className="flex items-center gap-1.5 flex-wrap justify-end">
-              <span className="text-xs font-black text-yellow-700 bg-amber-100 px-1.5 py-0.5 border border-black">
-                🪙 {formatNumber(player.gold)}
-              </span>
-              <span className="text-xs font-black text-cyan-700 bg-cyan-100 px-1.5 py-0.5 border border-black">
-                💎 {formatNumber(coreFragments)}
-              </span>
-              <span className="text-xs font-black text-amber-900 bg-amber-200/80 px-1.5 py-0.5 border border-black">
-                📦 {formatNumber(boxFragments || 0)}
-              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-xs font-bold shrink-0">
+              <span className="text-neutral-900 font-black">Lv.{player.level}</span>
+              <span className="text-stone-400 text-[10px]">|</span>
+              <div className="flex items-center gap-1">
+                <span className="text-blue-600 text-[10px] font-black">EXP</span>
+                <span className="text-[10px] text-neutral-800 font-bold">
+                  {formatNumber(player.experience)}/{formatNumber(player.nextLevelExperience)}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-between items-center font-mono text-xs font-bold pt-1 border-t border-stone-300/80">
-            <div className="flex items-center gap-1.5">
-              <span className="text-neutral-900">Lv. {player.level}</span>
+          {/* [2행] 정돈된 3분할 재화 표시 바 (한 줄 균등 분할) */}
+          <div className="grid grid-cols-3 gap-1.5 w-full text-xs">
+            <div className="bg-stone-200 border-2 border-stone-400 px-1.5 py-1 flex items-center justify-center gap-1 shadow-[inset_1px_1px_0px_rgba(0,0,0,0.08)] truncate">
+              <span className="text-xs shrink-0">🪙</span>
+              <span className="text-stone-900 text-[11px] font-black truncate">{formatNumber(player.gold)}</span>
+            </div>
+            <div className="bg-stone-200 border-2 border-stone-400 px-1.5 py-1 flex items-center justify-center gap-1 shadow-[inset_1px_1px_0px_rgba(0,0,0,0.08)] truncate">
+              <span className="text-xs shrink-0">💎</span>
+              <span className="text-stone-900 text-[11px] font-black truncate">{formatNumber(coreFragments)}</span>
+            </div>
+            <div className="bg-stone-200 border-2 border-stone-400 px-1.5 py-1 flex items-center justify-center gap-1 shadow-[inset_1px_1px_0px_rgba(0,0,0,0.08)] truncate">
+              <span className="text-xs shrink-0">📦</span>
+              <span className="text-stone-900 text-[11px] font-black truncate">{formatNumber(boxFragments || 0)}</span>
+            </div>
+          </div>
+
+          {/* [3행] 스탯 분배 및 오프라인 방치 보상 퀵 액션 영역 */}
+          {(player.statPoints > 0 || offlineBanner) && (
+            <div className="flex items-center gap-1.5 pt-1.5 border-t border-stone-300">
               {player.statPoints > 0 && onNavigateToStats && (
                 <button
                   type="button"
                   onClick={onNavigateToStats}
-                  className="bg-amber-400 hover:bg-amber-300 text-black text-[10px] font-black px-2 py-0.5 border border-black animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer flex items-center gap-1 leading-none"
+                  className="flex-1 bg-amber-400 hover:bg-amber-300 text-black text-[11px] font-black py-1.5 px-2 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer flex items-center justify-center gap-1 leading-none tracking-tight animate-pulse"
                 >
                   <span>⚡ 스탯 분배</span>
-                  <span className="bg-red-600 text-white text-[9px] px-1 py-0.2 rounded-full font-bold">
+                  <span className="bg-red-600 text-white text-[9px] px-1 py-0.5 rounded font-bold">
                     +{player.statPoints}P
                   </span>
                 </button>
               )}
+              {offlineBanner && (
+                <button
+                  type="button"
+                  onClick={() => setShowOfflineModal(true)}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black py-1.5 px-2 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer flex items-center justify-center gap-1 leading-none tracking-tight"
+                >
+                  <span>🎁 방치 보상</span>
+                  <span className="bg-emerald-900 text-emerald-100 text-[9px] px-1 py-0.5 rounded font-bold">
+                    +{offlineBanner.minutes}분
+                  </span>
+                </button>
+              )}
             </div>
-            <div className="flex items-center gap-2">
-            <span className="text-blue-600 tracking-wider text-[11px]">
-              EXP
-            </span>
-              <span className="text-[10px] text-neutral-800 font-black font-mono">
-              {formatNumber(player.experience)} / {formatNumber(player.nextLevelExperience)}
-            </span>
-            </div>
-          </div>
+          )}
+
         </div>
 
         {/* 메인 전투 무대 (전투 구역 + 피버 아우라) */}

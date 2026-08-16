@@ -8,6 +8,7 @@ import { REBIRTH_UPGRADES_CONFIG, calculateRebirthUpgradeCost, calculateTotalSpe
 const RebirthScreen: React.FC = () => {
   const {
     stage,
+    maxStage,
     reincarnationPoints,
     rebirthUpgrades,
     upgradeRebirthStat,
@@ -30,7 +31,7 @@ const RebirthScreen: React.FC = () => {
       alert("환생 포인트를 획득하려면 최소 5층 이상 도달해야 합니다.");
       return;
     }
-    if (window.confirm(`정말로 환생하시겠습니까?\n\n[보존되는 재화]\n• 🌟 환생 포인트(RP) 및 환생 스탯/유틸 레벨\n• 💎 코어 조각 및 코어 연구 레벨\n• 📦 박스 조각\n\n[초기화되는 항목]\n• 🪙 골드 및 현재 층수(1층 복귀)\n• 레벨, 경험치, 기본 스탯 포인트\n\n획득 예정: +${formatNumber(potentialPoints)} RP`)) {
+    if (window.confirm(`정말로 환생하시겠습니까?\n\n[보존되는 재화]\n• 환생 포인트(RP) 및 환생 스탯/유틸 레벨\n• 코어 조각 및 코어 연구 레벨\n• 박스 조각\n\n[초기화되는 항목]\n• 골드 및 현재 층수(1층 복귀)\n• 레벨, 경험치, 기본 스탯 포인트\n\n획득 예정: +${formatNumber(potentialPoints)} RP`)) {
       reincarnate();
     }
   };
@@ -40,7 +41,7 @@ const RebirthScreen: React.FC = () => {
       alert("투자된 환생 포인트가 없습니다.");
       return;
     }
-    if (window.confirm(`환생 스탯 및 유틸리티 강화에 투자된 환생 포인트를 초기화하시겠습니까?\n\n투자된 모든 포인트 (🌟 ${formatNumber(totalSpentRP)} RP)가 100% 전액 환급됩니다.`)) {
+    if (window.confirm(`환생 스탯 및 유틸리티 강화에 투자된 환생 포인트를 초기화하시겠습니까?\n\n투자된 모든 포인트 (${formatNumber(totalSpentRP)} RP)가 100% 전액 환급됩니다.`)) {
       resetRebirthUpgrades();
     }
   };
@@ -49,63 +50,70 @@ const RebirthScreen: React.FC = () => {
 
   return (
     <div
-      className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-4 text-stone-900 font-mono select-none flex-grow"
+      className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-3 font-mono text-xs text-stone-900 select-none shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex-grow"
       style={{
         backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
         backgroundSize: '16px 16px',
       }}
     >
-      {/* 1. 상단 환생 실행 배너 */}
-      <div className="bg-stone-200 p-3 rounded-none border-4 border-black w-full flex flex-col gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      {/* 최상단 타이틀 & RP 초기화 버튼 영역 (스탯창과 동일한 구조) */}
+      <div className="flex justify-between items-center border-b-4 border-black pb-2 w-full">
+        <div>
+          <h2 className="text-sm font-black text-stone-500 tracking-widest uppercase leading-tight">
+            -[ REBIRTH ]-
+          </h2>
+          <span className="text-[10px] font-bold text-stone-500">영구 성장 및 환생 성소</span>
+        </div>
+        <button
+          type="button"
+          onClick={handleResetRebirth}
+          title={totalSpentRP > 0 ? `투자된 ${formatNumber(totalSpentRP)} RP 100% 환급` : "환생 포인트 초기화"}
+          className="bg-stone-200 border-2 border-red-600 hover:bg-red-50 text-red-600 px-2.5 py-1 rounded-none text-[10px] font-black tracking-wider transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer break-keep"
+        >
+          RP 초기화
+        </button>
+      </div>
+
+      {/* 1. 상단 환생 캐시 레지스터 & 한 줄 환생 실행 바 */}
+      <div className="bg-stone-300 p-3 rounded-none border-4 border-black w-full flex flex-col gap-2 font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
         <div className="flex justify-between items-center">
           <div>
-            <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest block">REBIRTH_SANCTUARY</span>
-            <span className="text-xs font-black text-black">현재 최고 도달: STG.{stage}</span>
+            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-wider block leading-tight">RECORD</span>
+            <span className="text-xs font-black text-stone-900">전체 최고 기록: STG.{maxStage || stage}</span>
           </div>
-          <div className="text-right flex items-center gap-2">
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black text-stone-500 uppercase tracking-widest block">보유 환생 포인트</span>
-              <span className="text-sm font-black text-purple-700">🌟 {formatNumber(reincarnationPoints)} RP</span>
-            </div>
-            {totalSpentRP > 0 && (
-              <button
-                type="button"
-                onClick={handleResetRebirth}
-                title={`투자된 ${formatNumber(totalSpentRP)} RP 100% 환급`}
-                className="bg-stone-100 hover:bg-red-50 text-red-600 border-2 border-red-600 px-2 py-1 text-[10px] font-black tracking-tight shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer leading-tight whitespace-nowrap"
-              >
-                🔄 RP 초기화
-              </button>
-            )}
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-wider block leading-tight">보유 환생 포인트</span>
+            <span className="text-sm font-black text-purple-700 font-mono leading-tight">{formatNumber(reincarnationPoints)} RP</span>
           </div>
         </div>
 
-        {/* 환생 실행 버튼 */}
-        <div className="flex gap-2 items-center pt-1 border-t-2 border-stone-300">
-          <div className="flex-1 text-left">
-            <span className="text-[11px] font-bold text-stone-600 block leading-tight">환생 시 획득 가능:</span>
-            <span className="text-xs font-black text-purple-600">+{formatNumber(potentialPoints)} RP</span>
-          </div>
+        {/* 한 줄 환생 실행 라인 */}
+        <div className="flex justify-between items-center bg-stone-100 p-2.5 border-2 border-stone-400 font-mono">
+          <span className="text-xs font-black text-purple-700">
+            환생 시 획득: +{formatNumber(potentialPoints)} RP
+          </span>
           <button
+            type="button"
             onClick={handleReincarnate}
             disabled={potentialPoints <= 0}
-            className={`px-4 py-2 text-xs font-black rounded-none border-2 border-black transition-all font-mono tracking-widest uppercase cursor-pointer ${
+            className={`px-3 py-1.5 rounded-none border-2 border-black font-black text-xs transition-all whitespace-nowrap leading-none tracking-wider uppercase ${
               potentialPoints > 0
-                ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none'
-                : 'bg-stone-300 text-stone-500 cursor-not-allowed border-stone-400'
+                ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer'
+                : 'bg-stone-300 border-stone-400 text-stone-400 opacity-40 shadow-none cursor-not-allowed'
             }`}
           >
-            환생 실행 (REBIRTH)
+            환생
           </button>
         </div>
       </div>
 
-      {/* 2. 환생 스탯 강화 카테고리 탭 (기본 스탯 / 유틸리티) & 구매 배수 선택 */}
+      {/* 2. 환생 스탯 강화 카테고리 탭 & 구매 배수 선택 */}
       <div className="flex justify-between items-center gap-1">
         <div className="flex gap-1 flex-1">
           {(['STAT', 'UTILITY'] as const).map(cat => (
             <button
               key={cat}
+              type="button"
               onClick={() => setActiveCategory(cat)}
               className={`flex-1 py-1.5 text-[11px] font-black border-2 border-black transition-all cursor-pointer uppercase ${
                 activeCategory === cat
@@ -113,7 +121,7 @@ const RebirthScreen: React.FC = () => {
                   : 'bg-stone-200 text-stone-700 hover:bg-stone-300 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none'
               }`}
             >
-              {cat === 'STAT' ? '스탯 강화 (STR/DEX/CON)' : '유틸리티'}
+              {cat === 'STAT' ? '스탯 강화' : '유틸리티'}
             </button>
           ))}
         </div>
@@ -123,6 +131,7 @@ const RebirthScreen: React.FC = () => {
           {([1, 10, 100] as const).map(mult => (
             <button
               key={mult}
+              type="button"
               onClick={() => setPurchaseMultiplier(mult)}
               className={`px-1.5 py-0.5 text-[10px] font-black border border-black transition-all cursor-pointer ${
                 purchaseMultiplier === mult
@@ -137,23 +146,23 @@ const RebirthScreen: React.FC = () => {
       </div>
 
       {/* 실시간 적용 스탯 미니 모니터 */}
-      <div className="bg-stone-200/90 p-2.5 rounded-none border-2 border-black grid grid-cols-3 gap-2 text-center text-xs font-mono shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-        <div className="bg-white/80 p-1 border border-black/30">
+      <div className="bg-stone-200 p-2.5 rounded-none border-4 border-black grid grid-cols-3 gap-2 text-center text-xs font-mono shadow-[inset_2px_2px_0px_rgba(0,0,0,0.05)]">
+        <div className="bg-white p-1.5 border-2 border-stone-400">
           <span className="text-[10px] text-stone-500 font-bold block">공격력 (ATK)</span>
           <span className="text-red-700 font-black text-xs">{formatNumber(computed.attack)}</span>
         </div>
-        <div className="bg-white/80 p-1 border border-black/30">
+        <div className="bg-white p-1.5 border-2 border-stone-400">
           <span className="text-[10px] text-stone-500 font-bold block">방어력 (DEF)</span>
           <span className="text-blue-700 font-black text-xs">{formatNumber(computed.defense)}</span>
         </div>
-        <div className="bg-white/80 p-1 border border-black/30">
+        <div className="bg-white p-1.5 border-2 border-stone-400">
           <span className="text-[10px] text-stone-500 font-bold block">최대체력 (HP)</span>
           <span className="text-green-700 font-black text-xs">{formatNumber(computed.maxHealth)}</span>
         </div>
       </div>
 
-      {/* 3. 업그레이드 항목 목록 (스탯창 형태의 무한 성장 보드) */}
-      <div className="flex flex-col gap-2">
+      {/* 3. 업그레이드 항목 목록 (상점 및 스탯창과 일치된 카드 스타일) */}
+      <div className="flex flex-col gap-3 w-full">
         {filteredConfigs.map(config => {
           const currentLevel = rebirthUpgrades ? (rebirthUpgrades[config.id] || 0) : 0;
           const cost = calculateRebirthUpgradeCost(config, currentLevel, purchaseMultiplier);
@@ -164,56 +173,39 @@ const RebirthScreen: React.FC = () => {
           return (
             <div
               key={config.id}
-              className="bg-stone-50 p-2.5 rounded-none border-2 border-black flex justify-between items-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+              className="flex items-center justify-between p-3 rounded-none border-4 border-stone-800 bg-white gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
             >
               {/* 좌측 정보 */}
-              <div className="flex items-start gap-2 max-w-[65%]">
-                <span className="text-xl p-1 bg-stone-200 border border-black">{config.icon}</span>
-                <div className="flex flex-col text-left">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-black text-black">{config.name}</span>
-                    <span className="text-[10px] font-bold text-stone-500">Lv.{currentLevel}</span>
-                  </div>
-                  <span className="text-[10px] text-stone-600 leading-tight mt-0.5">{config.desc}</span>
-                  <span className="text-[10px] font-black text-blue-700 mt-0.5">
-                    현재 적용: +{config.isPercent ? `${currentValue.toFixed(1)}%` : formatNumber(currentValue)}
-                  </span>
+              <div className="text-left flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm shrink-0">{config.icon}</span>
+                  <h3 className="text-xs font-black text-black leading-none truncate">
+                    {config.name}
+                    <span className="text-[10px] font-bold text-stone-500 ml-1.5">Lv.{currentLevel}</span>
+                  </h3>
                 </div>
+                <p className="text-[10px] font-bold text-stone-500 mt-1 leading-tight">{config.desc}</p>
+                <p className="text-[11px] font-black mt-1 text-purple-700 font-mono tracking-tighter">
+                  적용: +{config.isPercent ? `${currentValue.toFixed(1)}%` : formatNumber(currentValue)}
+                </p>
               </div>
 
               {/* 우측 강화 버튼 */}
-              <div className="flex flex-col items-end gap-1">
-                <button
-                  onClick={() => upgradeRebirthStat(config.id, purchaseMultiplier)}
-                  disabled={!canAfford}
-                  className={`px-3 py-1.5 rounded-none border-2 border-black text-xs font-black transition-all flex flex-col items-center justify-center min-w-[75px] cursor-pointer ${
-                    canAfford
-                      ? 'bg-amber-400 hover:bg-amber-300 text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none'
-                      : 'bg-stone-300 text-stone-400 border-stone-400 cursor-not-allowed shadow-none'
-                  }`}
-                >
-                  {isMax ? (
-                    <span>MAX</span>
-                  ) : (
-                    <>
-                      <span>+{purchaseMultiplier} UP</span>
-                      <span className="text-[9px] font-bold text-stone-900 leading-none">
-                        🌟 {formatNumber(cost)}
-                      </span>
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => upgradeRebirthStat(config.id, purchaseMultiplier)}
+                disabled={!canAfford}
+                className={`px-3 py-2 rounded-none border-2 border-black font-black text-xs transition-all whitespace-nowrap leading-none uppercase tracking-wider ${
+                  canAfford
+                    ? 'bg-stone-100 hover:bg-stone-50 text-purple-700 border-b-[4px] shadow-[1px_1px_0px_rgba(255,255,255,0.6)_inset] active:border-b-2 active:translate-y-[2px] cursor-pointer'
+                    : 'bg-stone-300 border-stone-400 text-stone-400 opacity-40 shadow-none cursor-not-allowed'
+                }`}
+              >
+                {isMax ? 'MAX' : `+${purchaseMultiplier} UP (${cost.toLocaleString()} RP)`}
+              </button>
             </div>
           );
         })}
-      </div>
-
-      {/* 4. 하단 요약 인포 바 */}
-      <div className="bg-stone-200 p-2 border-2 border-black flex justify-between items-center text-[10px] font-bold text-stone-700">
-        <span>최종 공격력: <b className="text-red-700">{formatNumber(computed.attack)}</b></span>
-        <span>최종 방어력: <b className="text-blue-700">{formatNumber(computed.defense)}</b></span>
-        <span>최대 체력: <b className="text-green-700">{formatNumber(computed.maxHealth)}</b></span>
       </div>
     </div>
   );

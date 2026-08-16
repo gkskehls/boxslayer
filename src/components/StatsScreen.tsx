@@ -95,18 +95,19 @@ const StatsScreen: React.FC = () => {
                         <div key={key} className="bg-stone-200 p-3 rounded-none border-4 border-black flex flex-col gap-1.5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full">
                             <div className="flex justify-between items-center w-full">
                                 <span className="text-xs font-black text-black tracking-wide leading-none">{label}</span>
-                                <div className="flex items-center gap-1.5 font-mono">
-                                    <span className="text-sm font-black text-blue-700 leading-none" title="순수 레벨업 투자 스탯">
-                                        기본 {baseVal}
+                                <div className="flex items-baseline gap-1.5 font-mono">
+                                    <span className="text-sm font-black text-stone-900 leading-none">
+                                        {finalVal}
                                     </span>
-                                    {bonusVal > 0 && (
-                                        <span className="text-xs font-black text-purple-800 bg-purple-200 border border-purple-600 px-1 py-0.5 leading-none" title="환생 강화로 증가된 보너스">
-                                            +🌟환생 {bonusVal}
+                                    {bonusVal > 0 ? (
+                                        <span className="text-xs font-semibold text-stone-500 leading-none">
+                                            ({baseVal} <span className="text-purple-700 font-bold">+{bonusVal}</span>)
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs font-normal text-stone-400 leading-none">
+                                            ({baseVal})
                                         </span>
                                     )}
-                                    <span className="text-xs font-black text-emerald-700 bg-emerald-100 border border-emerald-500 px-1.5 py-0.5 leading-none" title="최종 적용 스탯">
-                                        총합 {finalVal}
-                                    </span>
                                 </div>
                             </div>
                             <p className="text-[10px] font-bold text-stone-500 break-keep leading-tight mt-0.5">{desc}</p>
