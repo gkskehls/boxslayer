@@ -38,13 +38,12 @@
     * **200층 ~ 499층**: 1차 코어 스킬 해금 (3티어 이하 노터블 효과 발동).
     * **500층 ~ 999층**: 2차 코어 스킬 해금 (6티어 이하 노터블 효과 발동).
     * **1,000층 이상**: 3차 코어 스킬 전면 해금 (모든 노터블 및 종결 스킬 적용).
-* 적 몬스터 기본 HP, ATK 및 균등 스탯 스케일링 공식:
-    * $\text{일반 HP} = 50 \times (1.026^{\text{stage}-1})$
-    * $\text{일반 ATK} = 5 \times (1.020^{\text{stage}-1})$
-    * $\text{일반 스탯 (STR/DEX/CON 균등)} = 3 + \lfloor (\text{stage}-1) \times \frac{57}{199} \rfloor$ (단일 수식 무한 확장: 1층 각 3[총합 9] $\rightarrow$ 200층 각 60[총합 180] $\rightarrow$ 500층 각 145[총합 435] $\rightarrow$ 1,000층 각 289[총합 867])
-    * **5층 단위 미니 보스**: HP 1.2배 / ATK 1.05배
-    * **10층 단위 중간 보스**: HP 3.0배 / ATK 1.20배
-    * **100층 단위 대보스**: HP 5.0배 / ATK 1.35배
+* 적 몬스터 기본 HP, ATK 및 균등 스탯 스케일링 공식 (플레이어와 완벽히 동일한 순수 스탯 기반 `getComputedStats` 연산):
+    * $\text{일반 기본 스탯 (STR/DEX/CON 균등)} = 3 + \lfloor 0.09 \times (\text{stage}-1)^{1.5} \rfloor$
+    * $\text{최종 체력(HP)} = 100 + (\text{CON} \times 5)$
+    * $\text{공격력(ATK)} = 20 + (\text{STR} \times 2)$
+    * $\text{방어력(DEF)} = 5 + (\text{CON} \times 0.2)$
+    * $\text{명중/회피} = \text{DEX}$
 
 ---
 

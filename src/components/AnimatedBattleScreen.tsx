@@ -8,9 +8,9 @@ import { formatNumber } from '../utils/format';
 
 // [박스 외형 스타일] 크기는 80px 고정, 스탯 비율로 색조 결정, 상대와의 총 스탯 차이로 명암(밝기 25%~75%) 산출
 const getDynamicBoxStyle = (
-    stats: { str: number; dex: number; con: number },
-    opponentTotalStats: number,
-    baseSize: number = 80
+  stats: { str: number; dex: number; con: number },
+  opponentTotalStats: number,
+  baseSize: number = 80
 ) => {
   const { str, dex, con } = stats;
   const myTotalStats = (str || 0) + (dex || 0) + (con || 0) || 1;
@@ -137,12 +137,28 @@ const AnimatedBattleScreen: React.FC = () => {
     lastEnemyEvadedTime,
     lastPlayerEvadedTime,
     playerStunEndTime,
+    coreFragments,
+    boxFragments,
+    claimOfflineRewards,
     spawnEnemy,
     attackEnemy,
     attackPlayer,
     retryCurrentFloor,
     setDefeat,
   } = state;
+
+  const [offlineBanner, setOfflineBanner] = useState<{ gold: number; exp: number; minutes: number } | null>(() => {
+    const rewards = state.calculateOfflineRewards();
+    if (rewards && rewards.minutes >= 1 && (rewards.gold > 0 || rewards.exp > 0)) {
+      return rewards;
+    }
+    return null;
+  });
+
+  const handleClaimBannerRewards = () => {
+    claimOfflineRewards();
+    setOfflineBanner(null);
+  };
 
   const [isPlayerStunned, setIsPlayerStunned] = useState(false);
 
@@ -162,8 +178,8 @@ const AnimatedBattleScreen: React.FC = () => {
 
   const playerTotalStats = (computed.finalStr || player.stats.str) + (computed.finalDex || player.stats.dex) + (computed.finalCon || player.stats.con);
   const enemyTotalStats = enemyComputed
-      ? (enemyComputed.finalStr + enemyComputed.finalDex + enemyComputed.finalCon)
-      : (currentEnemy ? (currentEnemy.stats.str + currentEnemy.stats.dex + currentEnemy.stats.con) : 1);
+    ? (enemyComputed.finalStr + enemyComputed.finalDex + enemyComputed.finalCon)
+    : (currentEnemy ? (currentEnemy.stats.str + currentEnemy.stats.dex + currentEnemy.stats.con) : 1);
 
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit' | 'stunned'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
@@ -423,7 +439,7 @@ const AnimatedBattleScreen: React.FC = () => {
               {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
               {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{formatNumber(shieldRecovered)})</span>}
               {lastDamageDealt?.isOneShotLeap && (
-                  <span className="text-cyan-300 font-black ml-1 animate-pulse">
+                <span className="text-cyan-300 font-black ml-1 animate-pulse">
                   🚀 원샷 도약(+{lastDamageDealt.leapedStages || 3}층)!
                 </span>
               )}
@@ -572,7 +588,25 @@ const AnimatedBattleScreen: React.FC = () => {
   return (
       <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none flex-grow">
 
-        {/* 헤더: 스테이지 정보 및 레벨/EXP 정보 */}
+        {/* 🎁 상단 오프라인 보상 슬라이드 배너 (1분 이상 방치 시 부드럽게 등장) */}
+        {offlineBanner && (
+          <div className="bg-emerald-100 border-4 border-black p-2.5 flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-bounce">
+            <div className="flex flex-col text-left">
+              <span className="text-[10px] font-black text-emerald-800 uppercase">🎁 오프라인 방치 보상 ({offlineBanner.minutes}분 누적)</span>
+              <span className="text-xs font-black text-black">
+                🪙 +{formatNumber(offlineBanner.gold)} 골드 / 📚 +{formatNumber(offlineBanner.exp)} EXP
+              </span>
+            </div>
+            <button
+              onClick={handleClaimBannerRewards}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
+            >
+              수령하기
+            </button>
+          </div>
+        )}
+
+        {/* 헤더: 스테이지 정보, 레벨/EXP 및 상단 핵심 재화 바 */}
         <div className="bg-stone-100 p-2.5 rounded-none border-4 border-neutral-900 flex flex-col gap-1.5 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold text-yellow-600 leading-none flex items-center gap-2 font-mono">
@@ -581,11 +615,17 @@ const AnimatedBattleScreen: React.FC = () => {
                   <span className="text-red-500 text-sm">({maxStage})</span>
               )}
             </h2>
-            {player.statPoints > 0 && (
-                <span className="bg-green-950 text-green-400 px-2 py-0.5 rounded-none text-[10px] font-bold border-2 border-green-600 animate-pulse">
-              잔여 스탯: {formatNumber(player.statPoints)}
-            </span>
-            )}
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              <span className="text-xs font-black text-yellow-700 bg-amber-100 px-1.5 py-0.5 border border-black">
+                🪙 {formatNumber(player.gold)}
+              </span>
+              <span className="text-xs font-black text-cyan-700 bg-cyan-100 px-1.5 py-0.5 border border-black">
+                💎 {formatNumber(coreFragments)}
+              </span>
+              <span className="text-xs font-black text-amber-900 bg-amber-200/80 px-1.5 py-0.5 border border-black">
+                📦 {formatNumber(boxFragments || 0)}
+              </span>
+            </div>
           </div>
 
           <div className="flex justify-between items-center font-mono text-xs font-bold pt-1 border-t border-stone-300/80">
@@ -727,13 +767,13 @@ const AnimatedBattleScreen: React.FC = () => {
                   animate={playerAnim}
                   className="flex items-center justify-center border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-20 overflow-hidden"
                   style={getDynamicBoxStyle(
-                      {
-                        str: computed.finalStr || player.stats.str,
-                        dex: computed.finalDex || player.stats.dex,
-                        con: computed.finalCon || player.stats.con,
-                      },
-                      enemyTotalStats,
-                      80
+                    {
+                      str: computed.finalStr || player.stats.str,
+                      dex: computed.finalDex || player.stats.dex,
+                      con: computed.finalCon || player.stats.con,
+                    },
+                    enemyTotalStats,
+                    80
                   )}
               >
                 <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-950 font-mono select-none">

@@ -1,9 +1,25 @@
 // src/store/gameStore.ts
 
 import { create } from 'zustand';
-import type { GameState, Player, Stats, Core, ShopItem, DefeatReason, CoreType, CoreEffect } from '../types/game';
+import type {
+  GameState,
+  Player,
+  Stats,
+  Core,
+  ShopItem,
+  DefeatReason,
+  CoreType,
+  CoreEffect,
+  RebirthUpgrades,
+  CoreAbilityLevels
+} from '../types/game';
 import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage';
-import { SKILL_TREE_DATA } from '../constants/skills';
+import {
+  REBIRTH_UPGRADES_CONFIG,
+  CORE_ABILITIES_CONFIG,
+  calculateRebirthUpgradeCost,
+  calculateCoreAbilityCost
+} from '../data/rebirthConfig';
 
 export interface CoreStats {
   desc: string;
@@ -12,43 +28,17 @@ export interface CoreStats {
 
 export const calculateReincarnationPoints = (stage: number): number => {
   if (stage < 5) return 0;
-  // 층수 가중치 공식: 오직 층수만 반영하되, 고층 등반 시 기하급수적 RP 보상 부여
-  // (예: 50층 -> 14 RP, 100층 -> 36 RP, 200층 -> 106 RP, 500층 -> 516 RP, 1000층 -> 1,866 RP)
   const basePoints = Math.floor(stage / 5);
   const acceleration = 1 + (stage / 120);
   return Math.floor(basePoints * acceleration);
 };
 
 export const getRequiredExpForLevel = (level: number): number => {
-  // 다항식(Polynomial) 수식 적용: 기존 1.1^level 지수 수식의 고층 레벨업 마비 방지
   return Math.floor(100 * Math.pow(level, 1.5));
 };
 
-export const getUnlockedEnemySkillsForStage = (stage: number): string[] => {
-  if (stage < 200) {
-    return []; // 0~199층: 0단계 (미해금 - 스킬 없음)
-  }
-  const allSkills = Object.keys(SKILL_TREE_DATA);
-  if (stage >= 1000) {
-    return allSkills; // 1,000층 이상: 3차 스킬까지 전체 해금
-  } else if (stage >= 500) {
-    return allSkills.filter(id => {
-      const match = id.match(/_node_(\d+)/);
-      if (!match) return true;
-      const nodeNum = parseInt(match[1], 10);
-      return nodeNum <= 60; // 500~999층: 2차 스킬까지 해금
-    });
-  } else {
-    return allSkills.filter(id => {
-      const match = id.match(/_node_(\d+)/);
-      if (!match) return true;
-      const nodeNum = parseInt(match[1], 10);
-      return nodeNum <= 30; // 200~499층: 1차 스킬 해금
-    });
-  }
-};
-
-export const getCoreStats = (type: CoreType, level: number, unlockedSkills: string[] = []): CoreStats => {
+export const getCoreStats = (type: CoreType, level: number, _unlockedSkills?: string[]): CoreStats => {
+  void _unlockedSkills;
   const coreLevel = level > 0 ? level : 1;
   const finalEffects: CoreEffect = {};
 
@@ -59,44 +49,16 @@ export const getCoreStats = (type: CoreType, level: number, unlockedSkills: stri
     case 'ELECTRIC': finalEffects.baseDamageFlat = 1 + (coreLevel * 0.2); break;
   }
 
-  unlockedSkills.forEach(skillId => {
-    const skill = SKILL_TREE_DATA[skillId];
-    const coreEffect = skill?.effects?.coreEffects?.[type];
-    if (coreEffect) {
-      Object.keys(coreEffect).forEach(key => {
-        const effectKey = key as keyof CoreEffect;
-        const value = coreEffect[effectKey] || 0;
-        if (effectKey === 'baseDamageMultiplier' || effectKey === 'initialShieldMultiplier') {
-          finalEffects[effectKey] = (finalEffects[effectKey] || 1) * value;
-        } else {
-          finalEffects[effectKey] = (finalEffects[effectKey] || 0) + value;
-        }
-      });
-    }
-  });
-
-  if (finalEffects.strRatio) finalEffects.strRatio += (coreLevel * 0.001);
-  if (finalEffects.shieldPerHitRatio) finalEffects.shieldPerHitRatio += (coreLevel * 0.0001);
-  if (finalEffects.reflectRatio) finalEffects.reflectRatio += (coreLevel * 0.001);
-  if (finalEffects.hitEvasionBonus) finalEffects.hitEvasionBonus += (coreLevel * 0.0002);
-
-  let description = '효과 없음';
+  let description = '';
   if (type === 'FIRE') {
     description = `기본 화염 피해: +${finalEffects.baseDamageFlat?.toFixed(1) || 0}`;
-    if (finalEffects.strRatio) description += `\n힘 계수: +${(finalEffects.strRatio * 100).toFixed(0)}%`;
-    if (finalEffects.baseDamageMultiplier && finalEffects.baseDamageMultiplier > 1) description += `\n피해 증폭: ${finalEffects.baseDamageMultiplier.toFixed(1)}배`;
+    if (finalEffects.strRatio) description += `\nSTR 계수: +${(finalEffects.strRatio * 100).toFixed(0)}%`;
   } else if (type === 'WATER') {
-    description = `시작 쉴드: +${((finalEffects.initialShieldMultiplier || 0) * 100).toFixed(0)}%`;
-    if (finalEffects.shieldPerHitRatio) description += `\n타격 시 쉴드 회복: +${(finalEffects.shieldPerHitRatio * 100).toFixed(2)}%`;
-    if (finalEffects.reflectRatio) description += `\n피해 반사: +${(finalEffects.reflectRatio * 100).toFixed(0)}%`;
+    description = `시작 쉴드: 최대 체력의 +${((finalEffects.initialShieldMultiplier || 0) * 100).toFixed(0)}%`;
   } else if (type === 'WIND') {
     description = `명중/회피 보너스: +${((finalEffects.hitEvasionBonus || 0) * 100).toFixed(1)}%`;
-    if (finalEffects.comboThreshold) description += `\n${finalEffects.comboThreshold}회마다 연격`;
-    if (finalEffects.evasionThreshold) description += `\n${finalEffects.evasionThreshold}회마다 확정 회피`;
   } else if (type === 'ELECTRIC') {
     description = `기본 번개 피해: +${finalEffects.baseDamageFlat?.toFixed(1) || 0}`;
-    if (finalEffects.stunThreshold) description += `\n${finalEffects.stunThreshold}회마다 ${finalEffects.stunDuration || 0}초 기절`;
-    if (finalEffects.executeDamageMultiplier) description += `\n기절한 적에게 ${finalEffects.executeDamageMultiplier * 100}% 추가 피해`;
   }
 
   return { desc: description, effects: finalEffects };
@@ -116,6 +78,7 @@ interface GameActions {
   selectCore: (coreType: CoreType) => void;
   upgradeCore: (amount?: number) => void;
   calculateOfflineRewards: () => { gold: number; exp: number; minutes: number; levelsGained: number };
+  claimOfflineRewards: () => { gold: number; exp: number; minutes: number; levelsGained: number };
   retryCurrentFloor: () => void;
   spendGold: (amount: number) => void;
   removeCore: (coreId: string) => void;
@@ -125,65 +88,95 @@ interface GameActions {
   resetSkills: () => void;
   buyShopItem: (item: ShopItem) => void;
   setDefeat: (reason: DefeatReason) => void;
+  upgradeRebirthStat: (statKey: keyof RebirthUpgrades, count?: number) => void;
+  upgradeCoreAbility: (abilityKey: keyof CoreAbilityLevels) => void;
 }
 
 const initialStats: Stats = { str: 10, dex: 10, con: 10 };
 
-export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], activeBuffs: Record<string, number> = {}) => {
-  let baseStr = stats.str;
-  let baseDex = stats.dex;
-  let baseCon = stats.con;
+const defaultRebirthUpgrades: RebirthUpgrades = {
+  flatStr: 0,
+  flatDex: 0,
+  flatCon: 0,
+  percentStr: 0,
+  percentDex: 0,
+  percentCon: 0,
+  flatAttack: 0,
+  percentAttack: 0,
+  flatDefense: 0,
+  percentDefense: 0,
+  flatHp: 0,
+  percentHp: 0,
+  goldGainPercent: 0,
+  expGainPercent: 0,
+  coreFragmentDropRatePercent: 0,
+  oneShotLeapBonus: 0,
+};
 
-  let percentStr = 0;
-  let percentDex = 0;
-  let percentCon = 0;
+const defaultCoreAbilities: CoreAbilityLevels = {
+  // WATER
+  water_initial_shield: 0,
+  water_shield_on_hit: 0,
+  water_thorns_reflect: 0,
+  water_life_steal: 0,
+  water_shield_burst: 0,
+  // FIRE
+  fire_flat_damage: 0,
+  fire_str_ratio: 0,
+  fire_burn_dot: 0,
+  fire_damage_multiplier: 0,
+  fire_supernova: 0,
+  // WIND
+  wind_hit_evasion: 0,
+  wind_multi_hit_chance: 0,
+  wind_multi_hit_damage: 0,
+  wind_combo_burst: 0,
+  wind_absolute_evasion: 0,
+  // ELECTRIC
+  electric_flat_damage: 0,
+  electric_stun_chance: 0,
+  electric_stun_duration: 0,
+  electric_execution_damage: 0,
+  electric_chain_overload: 0,
+};
 
-  let comboChance = 0;
-  let comboMultiplier = 1.5; // 기본 연격 데미지 배율은 1.5배 (150%)에서 시작
-  let comboHitsAdded = 0;
+export const getComputedStats = (
+  stats: Stats,
+  _unlockedSkills?: string[],
+  activeBuffs: Record<string, number> = {},
+  rebirthUpgrades: RebirthUpgrades = defaultRebirthUpgrades
+) => {
+  void _unlockedSkills;
+  const rUpg = rebirthUpgrades || defaultRebirthUpgrades;
+
+  const baseStr = stats.str + (rUpg.flatStr || 0);
+  const baseDex = stats.dex + (rUpg.flatDex || 0);
+  const baseCon = stats.con + (rUpg.flatCon || 0);
+
+  const percentStr = (rUpg.percentStr || 0) * 0.015;
+  const percentDex = (rUpg.percentDex || 0) * 0.015;
+  const percentCon = (rUpg.percentCon || 0) * 0.015;
+
+  const comboChance = 0;
+  const comboMultiplier = 1.5;
+  const comboHitsAdded = 0;
 
   const modifiers = {
-    offlineRewardMultiplier: 0,
+    offlineRewardMultiplier: (rUpg.goldGainPercent || 0) * 0.05,
     startStageBonus: 0,
     evasionChanceBonus: 0,
-    goldMultiplier: 0,
-    expMultiplier: 0,
+    goldMultiplier: (rUpg.goldGainPercent || 0) * 0.05,
+    expMultiplier: (rUpg.expGainPercent || 0) * 0.05,
     rpBonusMultiplier: 0,
+    coreFragmentDropBonus: (rUpg.coreFragmentDropRatePercent || 0) * 0.03,
+    oneShotLeapBonus: Math.floor((rUpg.oneShotLeapBonus || 0) * 0.2),
   };
 
-  unlockedSkills.forEach(skillId => {
-    const skill = SKILL_TREE_DATA[skillId];
-    if (skill?.effects) {
-      // 1) 고정형 보너스 스탯 누적
-      if (skill.effects.str) baseStr += skill.effects.str;
-      if (skill.effects.dex) baseDex += skill.effects.dex;
-      if (skill.effects.con) baseCon += skill.effects.con;
-
-      // 2) 백분율(%) 보너스 스탯 누적
-      if (skill.effects.strPercent) percentStr += skill.effects.strPercent;
-      if (skill.effects.dexPercent) percentDex += skill.effects.dexPercent;
-      if (skill.effects.conPercent) percentCon += skill.effects.conPercent;
-
-      // 3) 연격(Combo) 옵션 누적
-      if (skill.effects.comboChance) comboChance += skill.effects.comboChance;
-      if (skill.effects.comboMultiplier) comboMultiplier += skill.effects.comboMultiplier;
-      if (skill.effects.comboHitsAdded) comboHitsAdded += skill.effects.comboHitsAdded;
-
-      // 4) 기타 유틸리티 누적
-      if (skill.effects.offlineRewardMultiplier) modifiers.offlineRewardMultiplier += skill.effects.offlineRewardMultiplier;
-      if (skill.effects.startStageBonus) modifiers.startStageBonus += skill.effects.startStageBonus;
-      if (skill.effects.evasionChanceBonus) modifiers.evasionChanceBonus += skill.effects.evasionChanceBonus;
-      if (skill.effects.goldMultiplier) modifiers.goldMultiplier += skill.effects.goldMultiplier;
-      if (skill.effects.expMultiplier) modifiers.expMultiplier += skill.effects.expMultiplier;
-      if (skill.effects.rpBonusMultiplier) modifiers.rpBonusMultiplier += skill.effects.rpBonusMultiplier;
-    }
-  });
-
-  // 고정형 보너스 가산 후 백분율(%) 보너스 복리 계산
   const finalStr = Math.floor(baseStr * (1 + percentStr));
   const finalDex = Math.floor(baseDex * (1 + percentDex));
   const finalCon = Math.floor(baseCon * (1 + percentCon));
 
+  // 모든 전투력(공격력, 방어력, 체력)은 STR, DEX, CON 스탯에 의해서만 100% 산출
   let attack = 20 + (finalStr * 2);
   let defense = 5 + (finalCon * 0.2);
   let maxHealth = 100 + (finalCon * 5);
@@ -210,7 +203,7 @@ export const getComputedStats = (stats: Stats, unlockedSkills: string[] = [], ac
     attack,
     defense,
     maxHealth,
-    attackSpeed: 2.0, // 공격 속도는 기획에 명세된 규칙대로 완전히 2.0초로 고정
+    attackSpeed: 2.0,
     accuracy: finalDex,
     evasion: finalDex,
     comboChance,
@@ -249,6 +242,10 @@ const initialGameState: GameState = {
   lastEnemyShieldRecovered: 0,
   battleStartTime: 0,
   reincarnationPoints: 0,
+  coreFragments: 0,
+  boxFragments: 0,
+  rebirthUpgrades: defaultRebirthUpgrades,
+  coreAbilities: defaultCoreAbilities,
   unlockedSkills: ['core_origin'],
   playerShield: 0,
   enemyShield: 0,
@@ -268,7 +265,12 @@ const getInitialStoreState = (): GameState => {
   try {
     const loadedState = loadStateFromLocalStorage();
     if (loadedState && typeof loadedState === 'object') {
-      const state: GameState = { ...initialGameState, ...loadedState };
+      const state: GameState = {
+        ...initialGameState,
+        ...loadedState,
+        rebirthUpgrades: { ...defaultRebirthUpgrades, ...(loadedState.rebirthUpgrades || {}) },
+        coreAbilities: { ...defaultCoreAbilities, ...(loadedState.coreAbilities || {}) },
+      };
       state.player = { ...initialPlayer, ...(loadedState.player || {}) };
       return state;
     }
@@ -283,21 +285,78 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
   setDefeat: (reason) => set({ gameStatus: 'DEFEAT', defeatReason: reason }),
 
+  upgradeRebirthStat: (statKey, count = 1) => set((state) => {
+    const config = REBIRTH_UPGRADES_CONFIG.find(c => c.id === statKey);
+    if (!config) return state;
+
+    const currentLvl = state.rebirthUpgrades ? (state.rebirthUpgrades[statKey] || 0) : 0;
+    if (config.maxLevel !== undefined && currentLvl >= config.maxLevel) {
+      alert("최대 레벨에 도달했습니다.");
+      return state;
+    }
+
+    const actualCount = config.maxLevel !== undefined
+      ? Math.min(count, config.maxLevel - currentLvl)
+      : count;
+
+    const cost = calculateRebirthUpgradeCost(config, currentLvl, actualCount);
+    if (state.reincarnationPoints < cost) {
+      alert("환생 포인트(RP)가 부족합니다.");
+      return state;
+    }
+
+    return {
+      reincarnationPoints: state.reincarnationPoints - cost,
+      rebirthUpgrades: {
+        ...state.rebirthUpgrades,
+        [statKey]: currentLvl + actualCount,
+      }
+    };
+  }),
+
+  upgradeCoreAbility: (abilityKey) => set((state) => {
+    const config = CORE_ABILITIES_CONFIG.find(c => c.id === abilityKey);
+    if (!config) return state;
+
+    const currentLvl = state.coreAbilities ? (state.coreAbilities[abilityKey] || 0) : 0;
+    if (config.maxLevel !== undefined && currentLvl >= config.maxLevel) {
+      alert("최대 연구 레벨에 도달했습니다.");
+      return state;
+    }
+
+    const cost = calculateCoreAbilityCost(config, currentLvl);
+    if (state.coreFragments < cost) {
+      alert("코어 조각(💎)이 부족합니다.");
+      return state;
+    }
+
+    return {
+      coreFragments: state.coreFragments - cost,
+      coreAbilities: {
+        ...state.coreAbilities,
+        [abilityKey]: currentLvl + 1,
+      }
+    };
+  }),
+
   reincarnate: () => {
     const state = get();
-    const unlockedSkills = state.unlockedSkills;
-    const computed = getComputedStats(initialStats, unlockedSkills);
+    const computed = getComputedStats(initialStats, state.unlockedSkills, {}, state.rebirthUpgrades);
     const basePoints = calculateReincarnationPoints(state.stage);
     const rpMultiplier = 1 + (computed.modifiers.rpBonusMultiplier || 0);
     const pointsEarned = Math.floor(basePoints * rpMultiplier);
-    const startStage = 1 + (computed.modifiers.startStageBonus || 0);
+    const startStage = 1;
 
     set({
       ...initialGameState,
       reincarnationPoints: state.reincarnationPoints + pointsEarned,
-      unlockedSkills,
+      coreFragments: state.coreFragments,
+      boxFragments: state.boxFragments,
+      rebirthUpgrades: state.rebirthUpgrades,
+      coreAbilities: state.coreAbilities,
+      unlockedSkills: state.unlockedSkills,
       stage: startStage,
-      maxStage: startStage,
+      maxStage: Math.max(state.maxStage, startStage),
       playerCores: [],
       equippedCore: null,
     });
@@ -319,21 +378,21 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       level: coreLevel,
     };
 
-    // 몬스터 기본 스탯 (STR/DEX/CON 균등): 1층 단위 연속 가속 곡선 (1.5차 다항식)
-    // 공식: Stat = 3 + Math.floor(0.09 * Math.pow(nextStage - 1, 1.5))
-    // 1층: 각 3 (체력 115) -> 100층: 각 92 (체력 560) -> 200층: 각 256 (체력 1,380) -> 481층: 각 949 (체력 4,845) -> 1,000층: 각 2,845 (체력 14,325)
     const statVal = 3 + Math.floor(0.09 * Math.pow(Math.max(0, nextStage - 1), 1.5));
     const stats = { str: statVal, dex: statVal, con: statVal };
 
-    // 몬스터는 별도 스킬트리 스탯 보너스 없이 순수 기본 스탯으로만 플레이어와 동일하게 산출
     const enemyComputed = getComputedStats(stats);
     const enemyHp = enemyComputed.maxHealth;
 
-    const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
+    const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs, state.rebirthUpgrades);
+    
+    // 코어 독립 연구 기능: 💧 물의 코어 - 시작 수호 쉴드
+    const waterInitialLvl = (state.coreAbilities?.water_initial_shield || state.coreAbilities?.initialShield || 0);
     let playerInitialShield = 0;
     if (state.equippedCore?.type === 'WATER') {
+      const abilityShieldBonus = playerComputed.maxHealth * (waterInitialLvl * 0.025);
       const waterStats = getCoreStats('WATER', state.equippedCore.level, state.unlockedSkills);
-      playerInitialShield = Math.floor(playerComputed.maxHealth * (waterStats.effects.initialShieldMultiplier || 0));
+      playerInitialShield = abilityShieldBonus + Math.floor(playerComputed.maxHealth * (waterStats.effects.initialShieldMultiplier || 0.1));
     }
 
     let enemyInitialShield = 0;
@@ -366,7 +425,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       },
       gameStatus: 'BATTLE',
       battleStartTime: Date.now(),
-      playerShield: playerInitialShield,
+      playerShield: Math.floor(playerInitialShield),
       enemyShield: enemyInitialShield,
       windHitCount: 0,
       hasWindEvasion: false,
@@ -382,21 +441,21 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const now = Date.now();
     if (now < state.playerStunEndTime) return state;
 
-    const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
+    const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs, state.rebirthUpgrades);
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
 
+    // 1. 명중/회피 계산 (바람 코어 특화 적용)
     let hitChance = 0.95 + ((playerComputed.accuracy - enemyComputed.evasion) * 0.01);
     if (state.equippedCore?.type === 'WIND') {
       const windStats = getCoreStats('WIND', state.equippedCore.level, state.unlockedSkills);
-      hitChance += (windStats.effects.hitEvasionBonus || 0);
+      const windEvasionLvl = state.coreAbilities?.wind_hit_evasion || 0;
+      hitChance += (windStats.effects.hitEvasionBonus || 0) + (windEvasionLvl * 0.005);
     }
 
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
     const isEvaded = Math.random() > finalHitChance;
 
-    // 피버타임은 데미지를 뻥튀기하는 시스템이 아니라 전투 시뮬레이션 배속(시간가속) 시스템임
     const hitCount = 1;
-
     let coreDamage = 0;
     let shieldRecovered = 0;
     let nextPlayerShield = state.playerShield;
@@ -405,45 +464,87 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let currentElecHits = state.elecHitCount;
     let nextEnemyStunEndTime = state.enemyStunEndTime;
 
+    // 2. 코어별 고유 독립 연구 스킬 계산
     if (state.equippedCore) {
-      const coreStats = getCoreStats(state.equippedCore.type, state.equippedCore.level, state.unlockedSkills);
-      const effects = coreStats.effects;
+      const coreType = state.equippedCore.type;
+      const coreLvl = state.equippedCore.level;
 
-      if (state.equippedCore.type === 'FIRE') {
-        const strBonusDamage = state.player.stats.str * (effects.strRatio || 0);
-        const baseCoreDamage = (effects.baseDamageFlat || 0) + strBonusDamage;
-        const isFireExtreme = state.activeBuffs['buff_core_fire'] && state.activeBuffs['buff_core_fire'] > now;
+      if (coreType === 'WATER') {
+        // 💧 물의 코어: 쉴드 회복 (기본 + 조류의 충전 연구)
+        const shieldOnHitLvl = state.coreAbilities?.water_shield_on_hit || state.coreAbilities?.shieldOnHit || 0;
+        const waterStats = getCoreStats('WATER', coreLvl, state.unlockedSkills);
+        const baseRatio = waterStats.effects.shieldPerHitRatio || 0.02;
+        const totalShieldRatio = baseRatio + (shieldOnHitLvl * 0.005);
+        shieldRecovered = Math.floor(playerComputed.maxHealth * totalShieldRatio * hitCount);
+      } else if (coreType === 'FIRE') {
+        // 🔥 불의 코어: 작열의 불꽃, 힘 계수, 화염폭발, 초신성
+        const flatDmgLvl = state.coreAbilities?.fire_flat_damage || 0;
+        const strRatioLvl = state.coreAbilities?.fire_str_ratio || 0;
+        const dmgMultLvl = state.coreAbilities?.fire_damage_multiplier || 0;
+        const burnDotLvl = state.coreAbilities?.fire_burn_dot || 0;
+        const supernovaLvl = state.coreAbilities?.fire_supernova || 0;
+
+        const fireStats = getCoreStats('FIRE', coreLvl, state.unlockedSkills);
+        const strRatio = (fireStats.effects.strRatio || 0.5) + (strRatioLvl * 0.05);
+        const baseFlat = (fireStats.effects.baseDamageFlat || 0) + (flatDmgLvl * 6);
+        const dmgMultiplier = (1 + (dmgMultLvl * 0.025)) * (1 + (burnDotLvl * 0.03));
+
+        const strBonusDamage = state.player.stats.str * strRatio;
+        const baseCoreDmg = (baseFlat + strBonusDamage) * dmgMultiplier;
         const randomMultiplier = 0.85 + Math.random() * 0.3;
-        coreDamage = Math.floor(baseCoreDamage * (effects.baseDamageMultiplier || 1) * randomMultiplier * hitCount * (isFireExtreme ? 10 : 1));
-      } else if (state.equippedCore.type === 'WATER') {
-        const regenAmount = Math.floor(playerComputed.maxHealth * (effects.shieldPerHitRatio || 0));
-        shieldRecovered = regenAmount * hitCount;
-        nextPlayerShield = Math.min(playerComputed.maxHealth * 20000, nextPlayerShield + shieldRecovered);
-      } else if (state.equippedCore.type === 'WIND') {
-        currentWindHits += hitCount;
-        const isWindExtreme = state.activeBuffs['buff_core_wind'] && state.activeBuffs['buff_core_wind'] > now;
-        const comboThreshold = isWindExtreme ? 5 : (effects.comboThreshold || 15);
-        if (currentWindHits >= comboThreshold) {
-          const comboCount = Math.floor(currentWindHits / comboThreshold);
-          coreDamage += Math.floor(playerComputed.attack * (effects.comboDamageMultiplier || 1) * comboCount);
-          currentWindHits %= comboThreshold;
+        coreDamage = Math.floor(baseCoreDmg * randomMultiplier * hitCount);
+
+        // 초신성 (5타마다 폭발)
+        currentWindHits += hitCount; // 타수 카운터 공용 활용
+        if (currentWindHits >= 5) {
+          const supernovaMult = 1.5 + (supernovaLvl * 0.05);
+          coreDamage += Math.floor(playerComputed.attack * supernovaMult);
+          currentWindHits = 0;
         }
-        if (currentWindHits >= (effects.evasionThreshold || 20)) {
+      } else if (coreType === 'WIND') {
+        // 🌪️ 바람의 코어: 태풍의 눈(10타 폭풍 강타) & 잔상 분신(8타 절대 회피)
+        const comboBurstLvl = state.coreAbilities?.wind_combo_burst || 0;
+        const absoluteEvaLvl = state.coreAbilities?.wind_absolute_evasion || 0;
+
+        currentWindHits += hitCount;
+        if (currentWindHits >= 10) {
+          const burstMult = 1.5 + (comboBurstLvl * 0.05);
+          coreDamage += Math.floor(playerComputed.attack * burstMult);
+          currentWindHits = 0;
+        }
+        if (absoluteEvaLvl > 0 && currentWindHits >= 8) {
           nextWindEvasion = true;
         }
-      } else if (state.equippedCore.type === 'ELECTRIC') {
+      } else if (coreType === 'ELECTRIC') {
+        // ⚡ 번개의 코어: 뇌전 스파크, 감전 기절, 전류 지속, 뇌신 처형, 과부하 방전
+        const flatDmgLvl = state.coreAbilities?.electric_flat_damage || 0;
+        const stunChanceLvl = state.coreAbilities?.electric_stun_chance || 0;
+        const stunDurLvl = state.coreAbilities?.electric_stun_duration || 0;
+        const execLvl = state.coreAbilities?.electric_execution_damage || 0;
+        const overloadLvl = state.coreAbilities?.electric_chain_overload || 0;
+
+        const baseElecDmg = 10 + (flatDmgLvl * 5);
+        coreDamage += baseElecDmg;
+
         if (now < state.enemyStunEndTime) {
-          coreDamage += Math.floor(playerComputed.attack * (effects.executeDamageMultiplier || 0.5));
+          // 기절 중인 적에게 처형 및 과부하 낙뢰
+          const execMult = 0.5 + (execLvl * 0.05);
+          const overloadMult = 0.5 + (overloadLvl * 0.03);
+          coreDamage += Math.floor(playerComputed.attack * (execMult + overloadMult));
         } else {
+          // 기절 확률 체크
+          const stunChance = 0.10 + (stunChanceLvl * 0.01);
           currentElecHits += hitCount;
-          const stunThreshold = effects.stunThreshold || 10;
-          if (currentElecHits >= stunThreshold) {
-            nextEnemyStunEndTime = now + ((effects.stunDuration || 1) * 1000);
+          if (currentElecHits >= 8 || Math.random() < stunChance) {
+            const stunDurationMs = Math.floor(1500 + (stunDurLvl * 100));
+            nextEnemyStunEndTime = now + stunDurationMs;
             currentElecHits = 0;
           }
         }
       }
     }
+
+    nextPlayerShield = Math.min(playerComputed.maxHealth * 10, nextPlayerShield + shieldRecovered);
 
     if (isEvaded) {
       return {
@@ -457,17 +558,43 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       };
     }
 
+    // 3. 기본 공격 및 연격(Multi-Hit) 계산
     const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
     const randomMultiplier = 0.85 + Math.random() * 0.3;
 
-    // 연격(Combo/Multi-Hit) 확률 주사위
-    const isCombo = playerComputed.comboChance > 0 && Math.random() < playerComputed.comboChance;
-    const comboHits = isCombo ? (1 + (playerComputed.comboHitsAdded || 0)) : 1;
-    const comboMult = isCombo ? (playerComputed.comboMultiplier || 1.5) : 1.0;
+    // 바람 코어 연격 연구
+    let multiHitChance = 0;
+    let comboDamageBonus = 1.4;
+    if (state.equippedCore?.type === 'WIND') {
+      const windMultiChanceLvl = state.coreAbilities?.wind_multi_hit_chance || state.coreAbilities?.multiHitMastery || 0;
+      const windMultiDmgLvl = state.coreAbilities?.wind_multi_hit_damage || 0;
+      multiHitChance = windMultiChanceLvl * 0.015;
+      comboDamageBonus = 1.4 + (windMultiDmgLvl * 0.04);
+    }
 
-    const normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount * comboHits * comboMult);
+    const isCombo = multiHitChance > 0 && Math.random() < multiHitChance;
+    const comboHits = isCombo ? (Math.random() < 0.25 ? 3 : 2) : 1;
+    const comboMult = isCombo ? comboDamageBonus : 1.0;
+
+    let normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount * comboHits * comboMult);
+
+    // 물의 코어: 수호 공명 (쉴드 유지 중 피해 증폭)
+    if (state.equippedCore?.type === 'WATER' && nextPlayerShield > 0) {
+      const shieldBurstLvl = state.coreAbilities?.water_shield_burst || 0;
+      normalDamage = Math.floor(normalDamage * (1 + (shieldBurstLvl * 0.02)));
+    }
 
     const totalDamage = normalDamage + coreDamage;
+
+    // 물의 코어: 생명 갈취 (흡혈)
+    let leechedHealth = 0;
+    if (state.equippedCore?.type === 'WATER') {
+      const lifeStealLvl = state.coreAbilities?.water_life_steal || state.coreAbilities?.lifeSteal || 0;
+      if (lifeStealLvl > 0) {
+        leechedHealth = Math.floor(totalDamage * (lifeStealLvl * 0.005));
+      }
+    }
+
     let remainingEnemyShield = state.enemyShield;
     let actualHealthDamage = 0;
 
@@ -479,15 +606,33 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     const newEnemyHealth = Math.max(0, state.currentEnemy.currentHealth - actualHealthDamage);
+    const newPlayerHp = Math.min(playerComputed.maxHealth, state.player.currentHealth + leechedHealth);
 
     if (newEnemyHealth <= 0) {
-      // 1타 처치(원킬) 판정: 적이 풀 체력인 상태에서 1번의 타격으로 즉시 파괴된 경우
       const isOneShot = state.currentEnemy.currentHealth === state.currentEnemy.maxHealth;
-      const leapedStages = isOneShot ? 3 : 1; // 원샷 시 +3층 도약
+      const extraLeap = playerComputed.modifiers.oneShotLeapBonus || 0;
+      const leapedStages = isOneShot ? (3 + extraLeap) : 1;
 
       const { expReward, goldReward } = state.currentEnemy;
       const totalExpReward = expReward * leapedStages;
       const totalGoldReward = goldReward * leapedStages;
+
+      // 💎 코어 조각 & 📦 박스 조각 드랍 계산 (전투 승리 시에만 드랍, 오프라인 보상 지급 불가)
+      // 기준: 100회 전투(약 100층)당 평균 1개 획득 (기본 드랍률 1.0%), 원샷 3층 도약 시 약 300층당 1개 체감
+      const dropBonus = 1 + (playerComputed.modifiers.coreFragmentDropBonus || 0);
+      const baseChance = 0.01 * (1 + state.stage / 5000); // 1층: 1%, 1000층: 1.2%, 5000층: 2.0%
+      const finalCoreDropChance = Math.min(0.05, baseChance * dropBonus);
+      const finalBoxDropChance = Math.min(0.05, baseChance);
+
+      let coreFragmentsGained = 0;
+      if (Math.random() < finalCoreDropChance) {
+        coreFragmentsGained = 1;
+      }
+
+      let boxFragmentsGained = 0;
+      if (Math.random() < finalBoxDropChance) {
+        boxFragmentsGained = 1;
+      }
 
       let newExp = state.player.experience + totalExpReward;
       const goldGained = totalGoldReward;
@@ -517,6 +662,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         },
         stage: nextStageNumber,
         maxStage: Math.max(state.maxStage, nextStageNumber),
+        coreFragments: state.coreFragments + coreFragmentsGained,
+        boxFragments: (state.boxFragments || 0) + boxFragmentsGained,
         gameStatus: 'VICTORY',
         lastDamageDealt: {
           normal: normalDamage,
@@ -527,6 +674,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           isOneShotLeap: isOneShot,
           leapedStages
         },
+        lastLeechedHealth: leechedHealth,
         playerShield: nextPlayerShield,
         enemyShield: 0,
         windHitCount: currentWindHits,
@@ -538,8 +686,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     return {
+      player: { ...state.player, currentHealth: newPlayerHp },
       currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
       lastDamageDealt: { normal: normalDamage, core: coreDamage, shieldRecovered, isCombo, comboHits },
+      lastLeechedHealth: leechedHealth,
       playerShield: nextPlayerShield,
       enemyShield: remainingEnemyShield,
       windHitCount: currentWindHits,
@@ -557,7 +707,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (now < state.enemyStunEndTime) return state;
 
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
-    const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
+    const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs, state.rebirthUpgrades);
 
     let hitChance = 0.95 + ((enemyComputed.accuracy - playerComputed.evasion) * 0.01);
     const enemyCore = state.currentEnemy.core;
@@ -568,7 +718,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     hitChance -= playerComputed.modifiers.evasionChanceBonus;
     if (state.equippedCore?.type === 'WIND') {
       const windStats = getCoreStats('WIND', state.equippedCore.level, state.unlockedSkills);
-      hitChance -= (windStats.effects.hitEvasionBonus || 0);
+      const windEvaLvl = state.coreAbilities?.wind_hit_evasion || 0;
+      hitChance -= ((windStats.effects.hitEvasionBonus || 0) + (windEvaLvl * 0.005));
     }
 
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
@@ -584,7 +735,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const normalDamage = Math.floor(baseDamage * randomMultiplier);
     let coreDamage = 0;
     let nextPlayerStunEndTime = state.playerStunEndTime;
-    let amountLeeched = 0;
     let enemyShieldRecovered = 0;
     let nextEnemyShield = state.enemyShield;
 
@@ -592,16 +742,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
       const effects = enemyCoreStats.effects;
       if (enemyCore.type === 'FIRE' && effects.baseDamageFlat) {
-        const strBonus = state.currentEnemy.stats.str * (effects.strRatio || 0);
+        const strBonus = state.currentEnemy.stats.str * (effects.strRatio || 0.5);
         coreDamage = Math.floor(((effects.baseDamageFlat || 0) + strBonus) * randomMultiplier);
       }
-      if (enemyCore.type === 'ELECTRIC' && effects.stunThreshold) {
-        if (Math.random() < 0.1) {
-          nextPlayerStunEndTime = now + ((effects.stunDuration || 2) * 1000);
-        }
+      if (enemyCore.type === 'ELECTRIC' && Math.random() < 0.1) {
+        nextPlayerStunEndTime = now + 2000;
       }
-      if (enemyCore.type === 'WATER' && effects.shieldPerHitRatio) {
-        enemyShieldRecovered = Math.floor(state.currentEnemy.maxHealth * effects.shieldPerHitRatio);
+      if (enemyCore.type === 'WATER') {
+        enemyShieldRecovered = Math.floor(state.currentEnemy.maxHealth * 0.02);
         nextEnemyShield += enemyShieldRecovered;
       }
     }
@@ -619,20 +767,17 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     const nextHealth = Math.max(0, state.player.currentHealth - actualHealthDamage);
     let enemyNextHealth = state.currentEnemy.currentHealth;
+    
+    // 코어 연구 기능: 💧 물의 코어 - 해일의 가시 (반사 피해)
     let actualReflectedDmg = 0;
-
     if (state.equippedCore?.type === 'WATER') {
-      const coreStats = getCoreStats('WATER', state.equippedCore.level, state.unlockedSkills);
-      const isWaterExtreme = state.activeBuffs['buff_core_water'] && state.activeBuffs['buff_core_water'] > now;
-      actualReflectedDmg = Math.floor(totalDamage * (coreStats.effects.reflectRatio || 0) * (isWaterExtreme ? 5 : 1));
-      if (actualReflectedDmg > 0) {
-        enemyNextHealth = Math.max(0, enemyNextHealth - actualReflectedDmg);
-      }
+      const thornsLvl = state.coreAbilities?.water_thorns_reflect || state.coreAbilities?.thornsReflect || 0;
+      const reflectPercent = 0.15 + (thornsLvl * 0.02); // 기본 15% + 레벨당 2%
+      actualReflectedDmg = Math.floor(totalDamage * reflectPercent);
     }
 
-    if (enemyCore?.type === 'WATER') {
-      amountLeeched = Math.floor(actualHealthDamage * 0.01);
-      enemyNextHealth = Math.min(state.currentEnemy.maxHealth, enemyNextHealth + amountLeeched);
+    if (actualReflectedDmg > 0) {
+      enemyNextHealth = Math.max(0, enemyNextHealth - actualReflectedDmg);
     }
 
     if (nextHealth <= 0) {
@@ -643,7 +788,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         defeatReason: 'HEALTH',
         lastDamageTaken: { normal: normalDamage, core: coreDamage },
         lastReflectedDamage: actualReflectedDmg,
-        lastLeechedHealth: amountLeeched,
         lastEnemyShieldRecovered: enemyShieldRecovered,
         lastPlayerEvadedTime: 0,
         playerStunEndTime: 0,
@@ -657,7 +801,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
       lastDamageTaken: { normal: normalDamage, core: coreDamage },
       lastReflectedDamage: actualReflectedDmg,
-      lastLeechedHealth: amountLeeched,
       lastEnemyShieldRecovered: enemyShieldRecovered,
       lastPlayerEvadedTime: 0,
       playerStunEndTime: nextPlayerStunEndTime,
@@ -744,38 +887,26 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
     return {};
   }),
+
   calculateOfflineRewards: () => {
     const s = get();
-    const diff = Date.now() - s.lastOnlineTime;
+    const diff = Date.now() - (s.lastOnlineTime || Date.now());
     const rawMinutes = Math.floor(diff / 60000);
-
     if (rawMinutes < 1) return { gold: 0, exp: 0, minutes: 0, levelsGained: 0 };
 
-    // 오프라인 방치 보상 상한선: 최대 12시간 (720분)
     const minutes = Math.min(rawMinutes, 720);
-
-    const computed = getComputedStats(s.player.stats, s.unlockedSkills, s.activeBuffs);
+    const computed = getComputedStats(s.player.stats, s.unlockedSkills, s.activeBuffs, s.rebirthUpgrades);
     const bonusMultiplier = 1 + computed.modifiers.offlineRewardMultiplier;
 
-    const now = Date.now();
-    const skillGoldMult = 1 + (computed.modifiers.goldMultiplier || 0);
-    const skillExpMult = 1 + (computed.modifiers.expMultiplier || 0);
-
-    const goldMult = ((s.activeBuffs['buff_gold_2x'] && s.activeBuffs['buff_gold_2x'] > now) ? 2.0 : 1.0) * skillGoldMult;
-    const expMult = ((s.activeBuffs['buff_exp_2x'] && s.activeBuffs['buff_exp_2x'] > now) ? 2.0 : 1.0) * skillExpMult;
-
-    // 80% 오프라인 효율성 (1분당 약 8마리 처치 기준)
     const baseEnemyExp = Math.floor(20 + (s.stage * 8) + (Math.pow(s.stage, 1.3) * 2));
     const baseEnemyGold = Math.floor(10 + (s.stage * 2) + (Math.pow(s.stage, 1.35) * 1.5));
 
-    const g = Math.floor((baseEnemyGold * 8 / 60) * minutes * 60 * bonusMultiplier * goldMult);
-    const e = Math.floor((baseEnemyExp * 8 / 60) * minutes * 60 * bonusMultiplier * expMult);
+    const g = Math.floor((baseEnemyGold * 8 / 60) * minutes * 60 * bonusMultiplier);
+    const e = Math.floor((baseEnemyExp * 8 / 60) * minutes * 60 * bonusMultiplier);
 
-    // 오프라인 경험치 수령 후 즉시 레벨업 루프 처리
     let newLevel = s.player.level;
     let newExp = s.player.experience + e;
     let newNextExp = s.player.nextLevelExperience || getRequiredExpForLevel(newLevel);
-    let statPointsGained = 0;
     let levelsGained = 0;
 
     while (newExp >= newNextExp) {
@@ -783,13 +914,32 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       newLevel++;
       levelsGained++;
       newNextExp = getRequiredExpForLevel(newLevel);
+    }
+
+    return { gold: g, exp: e, minutes, levelsGained };
+  },
+
+  claimOfflineRewards: () => {
+    const s = get();
+    const rewards = s.calculateOfflineRewards();
+    if (rewards.minutes < 1) return rewards;
+
+    let newLevel = s.player.level;
+    let newExp = s.player.experience + rewards.exp;
+    let newNextExp = s.player.nextLevelExperience || getRequiredExpForLevel(newLevel);
+    let statPointsGained = 0;
+
+    while (newExp >= newNextExp) {
+      newExp -= newNextExp;
+      newLevel++;
+      newNextExp = getRequiredExpForLevel(newLevel);
       statPointsGained += 3;
     }
 
     set({
       player: {
         ...s.player,
-        gold: s.player.gold + g,
+        gold: s.player.gold + rewards.gold,
         level: newLevel,
         experience: newExp,
         nextLevelExperience: newNextExp,
@@ -798,10 +948,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       lastOnlineTime: Date.now()
     });
 
-    return { gold: g, exp: e, minutes, levelsGained };
+    return rewards;
   },
+
   retryCurrentFloor: () => set((state) => {
-    const computed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs);
+    const computed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs, state.rebirthUpgrades);
     return {
       player: { ...state.player, currentHealth: Math.floor(computed.maxHealth) },
       currentEnemy: null,
@@ -809,61 +960,20 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       gameStatus: 'IDLE'
     };
   }),
+
   spendGold: (amount) => set((state) => ({ player: { ...state.player, gold: Math.max(0, state.player.gold - amount) } })),
   removeCore: (coreId) => set((state) => ({ playerCores: state.playerCores.filter(c => c.id !== coreId), equippedCore: state.equippedCore?.id === coreId ? null : state.equippedCore })),
-  canClaimRewards: () => (Date.now() - get().lastOnlineTime) >= 60000,
-  unlockSkill: (skillId) => set((state) => {
-    const skill = SKILL_TREE_DATA[skillId];
-    if (!skill) return state;
-    if (state.unlockedSkills.includes(skillId)) {
-      alert("이미 해금한 스킬입니다.");
-      return state;
-    }
-    if (state.reincarnationPoints < skill.cost) {
-      alert("환생 포인트(RP)가 부족합니다.");
-      return state;
-    }
-    const hasPrerequisites = skill.requires.every(reqId => state.unlockedSkills.includes(reqId));
-    if (!hasPrerequisites) {
-      alert("먼저 연결된 선행 스킬을 해금해야 합니다.");
-      return state;
-    }
-    return {
-      reincarnationPoints: state.reincarnationPoints - skill.cost,
-      unlockedSkills: [...state.unlockedSkills, skillId]
-    };
-  }),
-
-  resetSkills: () => set((state) => {
-    if (window.confirm('정말로 모든 스킬을 초기화하시겠습니까? 사용한 환생 포인트는 모두 돌려받지만, 스탯은 초기화됩니다.')) {
-      const refundedPoints = state.unlockedSkills
-          .filter(id => id !== 'core_origin')
-          .reduce((sum, id) => sum + (SKILL_TREE_DATA[id]?.cost || 0), 0);
-
-      const statPointsFromLevels = (state.player.level - 1) * 3;
-      const tempStatPoints = state.player.tempStatPoints || 0;
-
-      return {
-        reincarnationPoints: state.reincarnationPoints + refundedPoints,
-        unlockedSkills: ['core_origin'],
-        player: {
-          ...state.player,
-          stats: initialStats,
-          statPoints: statPointsFromLevels + tempStatPoints,
-        }
-      };
-    }
+  canClaimRewards: () => (Date.now() - (get().lastOnlineTime || Date.now())) >= 60000,
+  
+  unlockSkill: (_skillId) => set((state) => {
+    void _skillId;
     return state;
   }),
+  resetSkills: () => set((state) => state),
 
   buyShopItem: (item) => set((state) => {
     if (state.player.gold < item.cost) {
       alert("골드가 부족합니다.");
-      return state;
-    }
-
-    if (item.requiredSkillId && !state.unlockedSkills.includes(item.requiredSkillId)) {
-      alert("이 아이템을 구매하기 위한 선행 스킬을 해금하지 않았습니다.");
       return state;
     }
 

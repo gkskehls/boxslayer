@@ -42,6 +42,67 @@ export interface Core {
   level: number;
 }
 
+export interface CoreAbilityLevels {
+  // 💧 물의 코어 (WATER)
+  water_initial_shield?: number;     // 시작 수호 쉴드
+  water_shield_on_hit?: number;      // 타격 시 쉴드 회복
+  water_thorns_reflect?: number;     // 피격 피해 반사
+  water_life_steal?: number;         // 타격 피해 흡혈
+  water_shield_burst?: number;       // 쉴드 유지 시 데미지 증폭
+
+  // 🔥 불의 코어 (FIRE)
+  fire_flat_damage?: number;         // 고정 화염 관통 데미지
+  fire_str_ratio?: number;           // 힘(STR) 비례 화염 계수
+  fire_burn_dot?: number;            // 화염 도트 지속 피해
+  fire_damage_multiplier?: number;   // 화염 폭발 증폭
+  fire_supernova?: number;           // 5타 주기 초신성 폭발
+
+  // 🌪️ 바람의 코어 (WIND)
+  wind_hit_evasion?: number;         // 명중 및 회피율 상승
+  wind_multi_hit_chance?: number;    // 연격 발동 확률
+  wind_multi_hit_damage?: number;    // 연격 데미지 배율
+  wind_combo_burst?: number;         // 10타 누적 태풍 강타
+  wind_absolute_evasion?: number;    // 잔상 분신 절대 회피
+
+  // ⚡ 번개의 코어 (ELECTRIC)
+  electric_flat_damage?: number;     // 기본 번개 추가 피해
+  electric_stun_chance?: number;     // 감전 기절 유도 확률
+  electric_stun_duration?: number;   // 기절 지속 시간 증가
+  electric_execution_damage?: number;// 기절 적 처형 추가 데미지
+  electric_chain_overload?: number;  // 과부하 방전 추가 낙뢰
+
+  // 하위 호환성 (Legacy fallback)
+  initialShield?: number;
+  shieldOnHit?: number;
+  lifeSteal?: number;
+  thornsReflect?: number;
+  multiHitMastery?: number;
+  elementalBurst?: number;
+  elementalResonance?: number;
+}
+
+export interface RebirthUpgrades {
+  // 기본 스탯 (Flat & %)
+  flatStr: number;
+  flatDex: number;
+  flatCon: number;
+  percentStr: number;
+  percentDex: number;
+  percentCon: number;
+  // 유틸리티
+  goldGainPercent: number;
+  expGainPercent: number;
+  coreFragmentDropRatePercent: number;
+  oneShotLeapBonus: number;
+  // 하위 호환성용 옵셔널 (구 저장 데이터 호환)
+  flatAttack?: number;
+  percentAttack?: number;
+  flatDefense?: number;
+  percentDefense?: number;
+  flatHp?: number;
+  percentHp?: number;
+}
+
 export type DefeatReason = 'HEALTH' | 'TIMEOUT';
 
 export interface DamageDetails {
@@ -69,6 +130,11 @@ export interface GameState {
   lastEnemyShieldRecovered: number;
   battleStartTime: number;
   reincarnationPoints: number;
+  // [신규 영구 재화 및 연구]
+  coreFragments: number;             // 💎 사냥 드랍 코어 조각
+  boxFragments: number;              // 📦 박스 조각
+  rebirthUpgrades: RebirthUpgrades;  // 🌟 환생 RP 무한 업그레이드
+  coreAbilities: CoreAbilityLevels;  // 🔮 코어 조각 영구 특화 레벨
   unlockedSkills: string[];
   playerShield: number;
   enemyShield: number;

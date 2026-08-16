@@ -1,258 +1,367 @@
 // src/components/CoreScreen.tsx
 
-import React from 'react';
-import { useGameStore, getCoreStats } from '../store/gameStore';
+import React, { useState } from 'react';
+import { useGameStore } from '../store/gameStore';
 import type { CoreType } from '../types/game';
 import { formatNumber } from '../utils/format';
-
-/* [RENEWAL] 레트로 아케이드 섀시에 맞춘 속성별 고유 픽셀 보더 & 틴트 컬러 맵
-   - 현대식 어두운 반투명 색상을 배제하고, 클래식 도트 게임 특유의 직관적이고 산뜻한 하드 틴트로 전환합니다.
-*/
-const getCoreTypeColor = (type: CoreType) => {
-  switch (type) {
-    case 'FIRE': return 'border-red-600 bg-red-50 text-red-700';
-    case 'WATER': return 'border-blue-600 bg-blue-50 text-blue-700';
-    case 'WIND': return 'border-green-600 bg-green-50 text-green-700';
-    case 'ELECTRIC': return 'border-yellow-500 bg-yellow-50 text-yellow-800';
-    default: return 'border-stone-500 bg-stone-200 text-stone-700';
-  }
-};
+import { CORE_ABILITIES_CONFIG, calculateCoreAbilityCost } from '../data/rebirthConfig';
 
 const CORE_INFO_MAP: Record<
-    CoreType,
-    {
-      name: string;
-      icon: string;
-      color: string;
-      tagline: string;
-      summary: string;
-      notables: string;
-    }
+  CoreType,
+  {
+    name: string;
+    icon: string;
+    borderColor: string;
+    bgColor: string;
+    textColor: string;
+    tagline: string;
+    summary: string;
+    scalingStat: string;
+  }
 > = {
   FIRE: {
     name: '불의 코어 (Flame)',
     icon: '🔥',
-    color: 'border-red-600 bg-red-50 text-red-800',
+    borderColor: 'border-red-600',
+    bgColor: 'bg-red-50',
+    textColor: 'text-red-800',
     tagline: '방어 무시 / 지속 화염 피해',
-    summary: '공격 시 적의 방어력을 무시하는 고정 화염 피해를 입히며, STR(힘) 스탯에 비례해 위력이 폭증합니다.',
-    notables: '화상(DoT) 부여, 확정 치명타 연계',
+    summary: '공격 시 적의 방어력을 무시하는 고정 화염 피해를 입힙니다. STR(힘)에 비례해 위력이 증가합니다.',
+    scalingStat: '주 스탯: STR (힘)',
   },
   WATER: {
     name: '물의 코어 (Water)',
     icon: '💧',
-    color: 'border-blue-600 bg-blue-50 text-blue-800',
-    tagline: '방어막 생성 / 피해 반사 / 타격 회복',
-    summary: '전투 시작 시 최대 체력 비례 쉴드를 획득하고, 타격 시 쉴드 회복 및 피격 시 데미지를 반사합니다.',
-    notables: '시작 쉴드 증폭, 타격당 쉴드 회복, 피해 반사(Reflect)',
+    borderColor: 'border-blue-600',
+    bgColor: 'bg-blue-50',
+    textColor: 'text-blue-800',
+    tagline: '보호막 생성 / 피해 반사 / 타격 회복',
+    summary: '전투 시작 시 쉴드를 얻고 타격마다 쉴드를 회복하며 적의 피해를 반사합니다. CON(체력)에 비례합니다.',
+    scalingStat: '주 스탯: CON (체력)',
   },
   WIND: {
     name: '바람의 코어 (Wind)',
     icon: '🌪️',
-    color: 'border-emerald-600 bg-emerald-50 text-emerald-800',
-    tagline: '명중·회피 / 연격(Combo) 폭격',
-    summary: '명중률과 회피율이 상승하며, 누적 타격 시 추가 공격(연격) 및 절대 회피 잔상을 발동합니다.',
-    notables: '연격(Multi-Hit) 확률/배율 증가, 확정 회피 잔상',
+    borderColor: 'border-emerald-600',
+    bgColor: 'bg-emerald-50',
+    textColor: 'text-emerald-800',
+    tagline: '명중·회피 / 연격(Multi-Hit) 폭격',
+    summary: '명중률과 회피율이 상승하며, 연속 공격 시 추가 타격 및 절대 회피 잔상을 활성화합니다.',
+    scalingStat: '주 스탯: DEX (민첩)',
   },
   ELECTRIC: {
     name: '번개의 코어 (Electric)',
     icon: '⚡',
-    color: 'border-yellow-600 bg-yellow-50 text-yellow-900',
-    tagline: '추가 번개 피해 / 기절(Stun) / 처형(Execute)',
-    summary: '타격 시 추가 번개 피해를 주고 적을 기절시키며, 기절 상태의 적에게 최대 체력 비례 처형 피해를 가합니다.',
-    notables: '주기적 기절, 기절 대상 폭발적 처형 피해',
+    borderColor: 'border-yellow-600',
+    bgColor: 'bg-yellow-50',
+    textColor: 'text-yellow-900',
+    tagline: '추가 번개 피해 / 기절(Stun) / 처형',
+    summary: '방어력을 무시하는 번개 피해를 주며, 적을 기절시키고 기절한 적에게 치명적인 추가 피해를 입힙니다.',
+    scalingStat: '주 스탯: STR / DEX 균등',
   },
 };
 
 const CoreScreen: React.FC = () => {
-  const { player, equippedCore, selectCore, upgradeCore, unlockedSkills } = useGameStore();
+  const {
+    equippedCore,
+    selectCore,
+    upgradeCore,
+    upgradeCoreAbility,
+    coreAbilities,
+    coreFragments,
+    player,
+  } = useGameStore();
 
-  const getBatchCost = (currentLvl: number, amount: number) => {
+  const [activeTab, setActiveTab] = useState<'EQUIP' | 'ABILITIES'>('EQUIP');
+  const [selectedType, setSelectedType] = useState<CoreType>(equippedCore?.type || 'FIRE');
+  const [goldUpgradeMultiplier, setGoldUpgradeMultiplier] = useState<1 | 10>(1);
+
+  const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
+  const currentInfo = CORE_INFO_MAP[selectedType];
+  const isSelectedEquipped = equippedCore?.type === selectedType;
+
+  // 골드 강화 비용 계산
+  const getGoldUpgradeCost = (currentLvl: number, count: number) => {
     let cost = 0;
-    for (let i = 0; i < amount; i++) cost += 100 * (currentLvl + i);
+    for (let i = 0; i < count; i++) {
+      cost += 100 * (currentLvl + i);
+    }
     return cost;
   };
 
-  const getMaxUpgrades = (currentLvl: number, gold: number) => {
-    if (gold <= 0) return 0;
-    const L = currentLvl;
-    const G = gold / 50; // 등차수열 합공식 치환용 상수
-    const n = Math.floor((1 - 2 * L + Math.sqrt(Math.pow(2 * L - 1, 2) + 4 * G)) / 2);
-    return Math.max(0, n);
-  };
-
-  const handleSelectCore = (type: CoreType) => {
-    const info = CORE_INFO_MAP[type];
-    if (window.confirm(`[${info.name}]을(를) 이번 회차 코어로 선택하시겠습니까?\n한 번 선택하면 환생 전까지 변경할 수 없습니다.`)) {
-      selectCore(type);
-    }
-  };
-
-  /* ================= [상태 1] 코어가 선택되지 않은 경우: 4대 원소 선택 화면 ================= */
-  if (!equippedCore) {
-    const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
-
-    return (
-        <div
-            className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-3 text-stone-900 font-mono select-none text-xs shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex-grow"
-            style={{
-              backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
-              backgroundSize: '16px 16px',
-            }}
-        >
-          {/* 헤더 영역 */}
-          <div className="w-full text-center border-b-4 border-black pb-2">
-            <h2 className="text-sm font-black text-stone-500 tracking-widest uppercase leading-none">-[ CORE_SELECT ]-</h2>
-            <div className="text-amber-700 font-black text-xs mt-1.5 font-mono">보유 골드: {formatNumber(player.gold)} G</div>
-          </div>
-
-          {/* 안내 배너 */}
-          <div className="bg-stone-300 p-2.5 rounded-none border-4 border-black text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <p className="font-black text-stone-800 text-[11px] leading-tight">
-              이번 환생 회차에 함께할 <span className="text-red-700">원소 코어 1종</span>을 선택하세요.
-            </p>
-            <p className="text-[9px] text-stone-600 mt-1 font-bold">
-              ※ 선택한 코어는 환생 시까지 변경할 수 없으며 골드로 레벨업할 수 있습니다.
-            </p>
-          </div>
-
-          {/* 4대 원소 카드 목록 */}
-          <div className="flex flex-col gap-2.5">
-            {coreTypes.map((type) => {
-              const info = CORE_INFO_MAP[type];
-              return (
-                  <div
-                      key={type}
-                      className={`p-3 rounded-none border-4 border-black flex flex-col gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${info.color}`}
-                  >
-                    <div className="flex justify-between items-center border-b border-black/15 pb-1">
-                      <div className="flex items-center gap-1.5 font-black text-xs tracking-wider uppercase">
-                        <span className="text-sm">{info.icon}</span>
-                        <span>{info.name}</span>
-                      </div>
-                      <span className="text-[9px] font-black border border-current px-1.5 py-0.5 bg-white/50 uppercase">
-                    {info.tagline}
-                  </span>
-                    </div>
-
-                    <p className="text-[10px] font-bold text-stone-800 leading-snug">
-                      {info.summary}
-                    </p>
-
-                    <div className="text-[9px] font-semibold text-stone-700 bg-white/40 p-1 border border-black/10">
-                      <span className="font-bold text-purple-900">시너지:</span> {info.notables}
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={() => handleSelectCore(type)}
-                        className="w-full py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-black text-xs border-2 border-black border-b-4 active:border-b-2 active:translate-y-[2px] cursor-pointer tracking-wider uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] transition-colors mt-0.5"
-                    >
-                      {info.name} 선택하기 [SELECT]
-                    </button>
-                  </div>
-              );
-            })}
-          </div>
-        </div>
-    );
-  }
-
-  /* ================= [상태 2] 코어가 선택된 상태: 정보 및 레벨업 화면 ================= */
-  const currentInfo = CORE_INFO_MAP[equippedCore.type];
-  const maxAffordable = getMaxUpgrades(equippedCore.level, player.gold);
-  const coreStats = getCoreStats(equippedCore.type, equippedCore.level, unlockedSkills);
+  const currentLevel = equippedCore && isSelectedEquipped ? equippedCore.level : 1;
+  const goldCost = getGoldUpgradeCost(currentLevel, goldUpgradeMultiplier);
+  const canAffordGold = player.gold >= goldCost && isSelectedEquipped;
 
   return (
-      <div
-          className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-3 text-stone-900 font-mono select-none text-xs shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex-grow"
-          style={{
-            backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
-            backgroundSize: '16px 16px',
-          }}
-      >
-        {/* 헤더 영역 */}
-        <div className="w-full text-center border-b-4 border-black pb-2">
-          <h2 className="text-sm font-black text-stone-500 tracking-widest uppercase leading-none">-[ ACTIVE_CORE ]-</h2>
-          <div className="text-amber-700 font-black text-xs mt-1.5 font-mono">보유 골드: {formatNumber(player.gold)} G</div>
+    <div
+      className="max-w-md mx-auto p-4 rounded-none border-4 border-black bg-stone-100 w-full flex flex-col gap-4 text-stone-900 font-mono select-none flex-grow"
+      style={{
+        backgroundImage: 'linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px)',
+        backgroundSize: '16px 16px',
+      }}
+    >
+      {/* 1. 상단 재화 현황 바 */}
+      <div className="bg-stone-300 p-2.5 rounded-none border-4 border-black w-full flex justify-between items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="flex flex-col text-left">
+          <span className="text-[10px] font-black text-stone-600 uppercase leading-none">CORE_RESEARCH_LAB</span>
+          <span className="text-xs font-black text-black">
+            장착 코어: {equippedCore ? CORE_INFO_MAP[equippedCore.type].name : '미장착 (선택 필요)'}
+          </span>
         </div>
-
-        {/* 현재 활성화된 코어 메인 카드 */}
-        <div className={`p-3 rounded-none border-4 border-black flex flex-col gap-2.5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${getCoreTypeColor(equippedCore.type)}`}>
-          <div className="flex justify-between items-center border-b border-black/15 pb-1.5 w-full">
-            <div className="flex items-center gap-1.5">
-              <span className="text-base">{currentInfo.icon}</span>
-              <span className="text-sm font-black uppercase tracking-wider">{equippedCore.name}</span>
-            </div>
-            <div className="text-xs font-black border-2 border-current px-2 py-0.5 bg-white/50 shadow-[1px_1px_0px_0px_rgba(0,0,0,0.2)]">
-              LV.{equippedCore.level}
-            </div>
+        <div className="flex gap-3 text-right">
+          <div className="flex flex-col">
+            <span className="text-[9px] font-bold text-stone-600 leading-none">보유 골드</span>
+            <span className="text-xs font-black text-yellow-700">🪙 {formatNumber(player.gold)}</span>
           </div>
-
-          {/* 코어 상세 효과 창 */}
-          <div className="p-2.5 bg-white/70 border border-black/15 text-[11px] font-bold leading-normal break-keep whitespace-pre-wrap flex flex-col gap-1.5 shadow-[inset_1px_1px_0px_0px_rgba(0,0,0,0.05)]">
-            <div className="text-stone-900 font-bold">{coreStats.desc}</div>
-            <div className="pt-1.5 border-t border-black/10 text-[9px] text-stone-600 font-mono flex justify-between items-center">
-              <span>코어 레벨: LV.{equippedCore.level}</span>
-              <span className="text-purple-900 font-black bg-purple-100 border border-purple-300 px-1 py-0.5">✨ 패시브 스킬 보너스 적용 중</span>
-            </div>
+          <div className="flex flex-col">
+            <span className="text-[9px] font-bold text-stone-600 leading-none">코어 조각</span>
+            <span className="text-xs font-black text-cyan-700">💎 {formatNumber(coreFragments)}</span>
           </div>
-        </div>
-
-        {/* 코어 강화 패널 */}
-        <div className="bg-stone-200 p-3 rounded-none border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-2">
-          <div className="flex justify-between items-center border-b border-black/10 pb-1">
-            <h3 className="font-black text-stone-700 text-[11px] uppercase tracking-wider">CORE ENHANCEMENT (골드 강화)</h3>
-            <span className="text-[9px] text-stone-500 font-bold">비용: 100 × Lv</span>
-          </div>
-
-          <div className="text-[9px] font-black text-stone-600 text-center tracking-tight font-mono">
-            +1 ({formatNumber(getBatchCost(equippedCore.level, 1))}G) | +10 ({formatNumber(getBatchCost(equippedCore.level, 10))}G) | +100 ({formatNumber(getBatchCost(equippedCore.level, 100))}G)
-          </div>
-
-          <div className="flex gap-1.5 w-full">
-            {[1, 10, 100].map((amt) => {
-              const cost = getBatchCost(equippedCore.level, amt);
-              const canAfford = player.gold >= cost;
-              return (
-                  <button
-                      key={amt}
-                      type="button"
-                      onClick={() => upgradeCore(amt)}
-                      disabled={!canAfford}
-                      className={`flex-1 py-2 rounded-none border-2 border-black border-b-4 font-black text-xs active:border-b-2 active:translate-y-[2px] transition-all ${
-                          canAfford
-                              ? 'bg-amber-400 hover:bg-amber-300 text-neutral-950 cursor-pointer shadow-[1px_1px_0px_rgba(255,255,255,0.6)_inset]'
-                              : 'bg-stone-300 text-stone-500 opacity-50 cursor-not-allowed border-stone-500'
-                      }`}
-                  >
-                    +{amt}
-                  </button>
-              );
-            })}
-            {/* MAX 강화 버튼 */}
-            <button
-                type="button"
-                onClick={() => {
-                  if (maxAffordable > 0) upgradeCore(maxAffordable);
-                  else upgradeCore(1);
-                }}
-                disabled={maxAffordable <= 0}
-                className={`flex-1 py-2 rounded-none border-2 border-black border-b-4 font-black text-xs active:border-b-2 active:translate-y-[2px] transition-all ${
-                    maxAffordable > 0
-                        ? 'bg-red-600 hover:bg-red-500 text-white cursor-pointer shadow-[1px_1px_0px_rgba(255,255,255,0.3)_inset]'
-                        : 'bg-stone-300 text-stone-500 opacity-50 cursor-not-allowed border-stone-500'
-                }`}
-            >
-              MAX {maxAffordable > 0 ? `(+${maxAffordable})` : ''}
-            </button>
-          </div>
-        </div>
-
-        {/* 하단 안내 */}
-        <div className="mt-auto text-center text-[9px] text-stone-500 font-bold tracking-wide">
-          ※ 코어 종류는 환생(Reincarnation) 후 다시 선택할 수 있습니다.
         </div>
       </div>
+
+      {/* 2. 서브 탭 전환: [코어 장착 & 골드 강화] / [💎 코어 조각 독립 연구] */}
+      <div className="flex gap-1 w-full">
+        <button
+          onClick={() => setActiveTab('EQUIP')}
+          className={`flex-1 py-2 text-xs font-black border-2 border-black transition-all cursor-pointer uppercase ${
+            activeTab === 'EQUIP'
+              ? 'bg-amber-300 text-black shadow-none translate-x-[1px] translate-y-[1px]'
+              : 'bg-stone-200 text-stone-700 hover:bg-stone-300 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none'
+          }`}
+        >
+          ⚔️ 코어 장착 & 기본 강화
+        </button>
+        <button
+          onClick={() => setActiveTab('ABILITIES')}
+          className={`flex-1 py-2 text-xs font-black border-2 border-black transition-all cursor-pointer uppercase ${
+            activeTab === 'ABILITIES'
+              ? 'bg-cyan-300 text-black shadow-none translate-x-[1px] translate-y-[1px]'
+              : 'bg-stone-200 text-stone-700 hover:bg-stone-300 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none'
+          }`}
+        >
+          💎 코어 독립 특화 연구
+        </button>
+      </div>
+
+      {/* 3. 코어 장착 & 골드 기본 강화 탭 */}
+      {activeTab === 'EQUIP' && (
+        <div className="flex flex-col gap-3">
+          {/* 4대 속성 코어 선택 버튼 그리드 */}
+          <div className="grid grid-cols-4 gap-1.5">
+            {coreTypes.map(type => {
+              const info = CORE_INFO_MAP[type];
+              const isEquipped = equippedCore?.type === type;
+              const isSelected = selectedType === type;
+
+              return (
+                <button
+                  key={type}
+                  onClick={() => setSelectedType(type)}
+                  className={`p-2 rounded-none border-2 border-black flex flex-col items-center justify-center transition-all cursor-pointer relative ${
+                    isSelected
+                      ? 'bg-amber-200 shadow-none translate-x-[1px] translate-y-[1px]'
+                      : 'bg-stone-100 hover:bg-stone-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+                  }`}
+                >
+                  {isEquipped && (
+                    <span className="absolute -top-1.5 -right-1 bg-green-600 text-white text-[8px] font-black px-1 border border-black leading-tight">
+                      장착중
+                    </span>
+                  )}
+                  <span className="text-xl">{info.icon}</span>
+                  <span className="text-[10px] font-black text-black mt-1 leading-tight">{type}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 선택된 코어 상세 및 장착/강화 패널 */}
+          <div className={`p-3.5 border-4 border-black ${currentInfo.bgColor} shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-3`}>
+            <div className="flex justify-between items-start border-b-2 border-stone-300 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-3xl p-1.5 bg-white border-2 border-black">{currentInfo.icon}</span>
+                <div className="flex flex-col text-left">
+                  <span className="text-sm font-black text-black">{currentInfo.name}</span>
+                  <span className="text-[10px] font-bold text-stone-600">{currentInfo.tagline}</span>
+                  <span className="text-[10px] font-black text-blue-700 mt-0.5">{currentInfo.scalingStat}</span>
+                </div>
+              </div>
+              {isSelectedEquipped && (
+                <span className="text-xs font-black text-black bg-amber-300 px-2 py-1 border border-black">
+                  Lv.{equippedCore.level}
+                </span>
+              )}
+            </div>
+
+            <p className="text-[11px] text-stone-800 leading-relaxed text-left bg-white/70 p-2 border border-stone-400">
+              {currentInfo.summary}
+            </p>
+
+            {/* 장착 또는 골드 레벨업 액션 버튼 */}
+            <div className="flex gap-2 items-center pt-1">
+              {!equippedCore ? (
+                <button
+                  onClick={() => selectCore(selectedType)}
+                  className="w-full py-2.5 bg-green-600 hover:bg-green-500 text-white text-xs font-black rounded-none border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer uppercase tracking-wider"
+                >
+                  이 코어로 장착하기 (회차 고정)
+                </button>
+              ) : isSelectedEquipped ? (
+                <div className="flex gap-2 w-full items-center">
+                  <div className="flex gap-0.5 bg-stone-200 p-0.5 border border-black">
+                    {([1, 10] as const).map(mult => (
+                      <button
+                        key={mult}
+                        onClick={() => setGoldUpgradeMultiplier(mult)}
+                        className={`px-2 py-1 text-[10px] font-black border border-black ${
+                          goldUpgradeMultiplier === mult ? 'bg-black text-yellow-300' : 'bg-white text-stone-800'
+                        }`}
+                      >
+                        +{mult}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => upgradeCore(goldUpgradeMultiplier)}
+                    disabled={!canAffordGold}
+                    className={`flex-1 py-2 text-xs font-black rounded-none border-2 border-black transition-all flex justify-between px-3 items-center cursor-pointer ${
+                      canAffordGold
+                        ? 'bg-yellow-400 hover:bg-yellow-300 text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none'
+                        : 'bg-stone-300 text-stone-400 border-stone-400 cursor-not-allowed shadow-none'
+                    }`}
+                  >
+                    <span>기본 속성 +{goldUpgradeMultiplier} 강화</span>
+                    <span className="text-[10px]">🪙 {formatNumber(goldCost)}</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full p-2 bg-stone-200 border-2 border-black text-[10px] text-stone-600 text-center font-bold">
+                  ⚠️ 이번 회차에는 다른 코어가 장착되어 있습니다. (환생 시 교체 가능)
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. 💎 코어 조각 독립 특화 연구 탭 (코어별 분리 탭 적용) */}
+      {activeTab === 'ABILITIES' && (
+        <div className="flex flex-col gap-2.5">
+          {/* 상단 안내 패널 */}
+          <div className="bg-cyan-50 p-2.5 border-2 border-cyan-800 flex justify-between items-center text-left">
+            <div>
+              <span className="text-xs font-black text-cyan-900 block">💎 코어별 독립 특화 연구</span>
+              <span className="text-[10px] text-cyan-700">각 코어 장착 시 발동되는 고유 메커니즘을 영구 연구합니다. (환생 시 유지)</span>
+            </div>
+            <span className="text-xs font-black text-cyan-800">💎 {formatNumber(coreFragments)}</span>
+          </div>
+
+          {/* 코어별 연구 카테고리 선택 탭 */}
+          <div className="grid grid-cols-4 gap-1">
+            {coreTypes.map(type => {
+              const info = CORE_INFO_MAP[type];
+              const isSelected = selectedType === type;
+              const isEquipped = equippedCore?.type === type;
+
+              return (
+                <button
+                  key={type}
+                  onClick={() => setSelectedType(type)}
+                  className={`py-1.5 px-1 rounded-none border-2 border-black flex flex-col items-center justify-center transition-all cursor-pointer relative ${
+                    isSelected
+                      ? 'bg-cyan-300 text-black shadow-none translate-x-[1px] translate-y-[1px]'
+                      : 'bg-stone-200 text-stone-700 hover:bg-stone-300 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+                  }`}
+                >
+                  {isEquipped && (
+                    <span className="absolute -top-1 -right-1 bg-green-600 text-white text-[7px] font-black px-0.5 border border-black leading-none">
+                      ON
+                    </span>
+                  )}
+                  <span className="text-base">{info.icon}</span>
+                  <span className="text-[9px] font-black leading-tight mt-0.5">{type}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 선택된 코어 연구 헤더 안내 */}
+          <div className={`p-2 border-2 border-black ${currentInfo.bgColor} flex justify-between items-center text-left`}>
+            <div className="flex items-center gap-1.5">
+              <span className="text-lg">{currentInfo.icon}</span>
+              <div>
+                <span className="text-xs font-black text-black block">{currentInfo.name} 연구</span>
+                <span className="text-[9px] font-bold text-stone-600">{currentInfo.tagline}</span>
+              </div>
+            </div>
+            {isSelectedEquipped ? (
+              <span className="text-[10px] font-black text-green-700 bg-green-100 px-1.5 py-0.5 border border-green-700">
+                ⚡ 현재 전투 적용 중
+              </span>
+            ) : (
+              <span className="text-[9px] font-bold text-stone-500 bg-white/70 px-1.5 py-0.5 border border-stone-400">
+                장착 시 발동
+              </span>
+            )}
+          </div>
+
+          {/* 해당 코어의 독립 특화 연구 목록 */}
+          <div className="flex flex-col gap-2">
+            {CORE_ABILITIES_CONFIG.filter(c => c.coreType === selectedType).map(config => {
+              const currentLvl = coreAbilities ? (coreAbilities[config.id] || 0) : 0;
+              const cost = calculateCoreAbilityCost(config, currentLvl);
+              const isMax = config.maxLevel !== undefined && currentLvl >= config.maxLevel;
+              const canAfford = coreFragments >= cost && !isMax;
+              const currentValue = currentLvl * config.valuePerLevel;
+
+              return (
+                <div
+                  key={config.id}
+                  className="bg-stone-50 p-2.5 rounded-none border-2 border-black flex justify-between items-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                >
+                  <div className="flex items-start gap-2 max-w-[65%]">
+                    <span className="text-xl p-1 bg-stone-200 border border-black">{config.icon}</span>
+                    <div className="flex flex-col text-left">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-black">{config.name}</span>
+                        <span className="text-[10px] font-bold text-stone-500">Lv.{currentLvl}</span>
+                      </div>
+                      <span className="text-[10px] text-stone-600 leading-tight mt-0.5">{config.desc}</span>
+                      <span className="text-[10px] font-black text-cyan-800 mt-0.5">
+                        현재 효과: +{currentValue.toFixed(1)}{config.unit}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => upgradeCoreAbility(config.id)}
+                    disabled={!canAfford}
+                    className={`px-3 py-2 rounded-none border-2 border-black text-xs font-black transition-all flex flex-col items-center justify-center min-w-[75px] cursor-pointer ${
+                      canAfford
+                        ? 'bg-cyan-400 hover:bg-cyan-300 text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none'
+                        : 'bg-stone-300 text-stone-400 border-stone-400 cursor-not-allowed shadow-none'
+                    }`}
+                  >
+                    {isMax ? (
+                      <span>MAX</span>
+                    ) : (
+                      <>
+                        <span>연구 +1</span>
+                        <span className="text-[9px] font-bold text-stone-900 leading-none">
+                          💎 {formatNumber(cost)}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
