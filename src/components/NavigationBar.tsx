@@ -22,7 +22,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ onNavigate, currentScreen
   ];
 
   return (
-    <div className="w-full max-w-md mx-auto bg-stone-300 border-t-4 border-black flex justify-between p-1.5 gap-1 select-none shadow-[0_-4px_10px_rgba(0,0,0,0.5),inset_0_2px_0px_rgba(255,255,255,0.4)]">
+    <div className="w-full max-w-md mx-auto bg-stone-300 border-t-4 border-black flex justify-between p-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] gap-1 select-none shadow-[0_-4px_10px_rgba(0,0,0,0.5),inset_0_2px_0px_rgba(255,255,255,0.4)]">
       {navItems.map((item) => {
         const isActive = currentScreen === item.screen;
         return (

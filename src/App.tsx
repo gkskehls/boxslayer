@@ -22,15 +22,15 @@ function App() {
   const showNavigationBar = screen !== 'TITLE_SCREEN' && screen !== 'LOGIN_CHOICE_SCREEN';
 
   return (
-    <div className="h-screen h-[100dvh] w-full bg-neutral-900 text-white font-mono flex flex-col items-center select-none overflow-hidden relative">
+    <div className="min-h-screen min-h-[100dvh] w-full bg-neutral-900 text-white font-mono flex flex-col items-center select-none relative">
       
       {/* Version Display */}
       <div className="fixed top-2 right-2 text-xs text-neutral-500 z-[9999] pointer-events-none font-mono">
         v{APP_VERSION}
       </div>
 
-      {/* Main Scrollable Content Area */}
-      <main className="flex-1 w-full overflow-y-auto overflow-x-hidden p-3 md:p-4 pb-24 flex flex-col items-center">
+      {/* Main Content Area */}
+      <main className="w-full flex-grow flex flex-col items-center p-3 md:p-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
         {/* ================= TITLE SCREEN ================= */}
         {screen === 'TITLE_SCREEN' && (
           <div

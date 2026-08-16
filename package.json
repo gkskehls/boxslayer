@@ -1,7 +1,7 @@
 {
   "name": "boxslayer",
   "private": true,
-  "version": "0.0.182",
+  "version": "0.0.181",
   "type": "module",
   "scripts": {
     "dev": "vite",
