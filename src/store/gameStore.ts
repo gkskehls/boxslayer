@@ -622,6 +622,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     let remainingEnemyShield = state.enemyShield;
     let actualHealthDamage = 0;
+    const absorbedByEnemyShield = Math.min(remainingEnemyShield, totalDamage);
 
     if (remainingEnemyShield >= totalDamage) {
       remainingEnemyShield -= totalDamage;
@@ -695,6 +696,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           normal: normalDamage,
           core: coreDamage,
           shieldRecovered,
+          absorbedByShield: absorbedByEnemyShield,
           isCombo,
           comboHits,
           isOneShotLeap: isOneShot,
@@ -714,7 +716,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     return {
       player: { ...state.player, currentHealth: newPlayerHp },
       currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
-      lastDamageDealt: { normal: normalDamage, core: coreDamage, shieldRecovered, isCombo, comboHits },
+      lastDamageDealt: { normal: normalDamage, core: coreDamage, shieldRecovered, absorbedByShield: absorbedByEnemyShield, isCombo, comboHits },
       lastLeechedHealth: leechedHealth,
       playerShield: nextPlayerShield,
       enemyShield: remainingEnemyShield,
@@ -783,6 +785,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const totalDamage = normalDamage + coreDamage;
     let remainingPlayerShield = state.playerShield;
     let actualHealthDamage = 0;
+    const absorbedByPlayerShield = Math.min(remainingPlayerShield, totalDamage);
 
     if (remainingPlayerShield >= totalDamage) {
       remainingPlayerShield -= totalDamage;
@@ -812,7 +815,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         playerShield: 0,
         gameStatus: 'DEFEAT',
         defeatReason: 'HEALTH',
-        lastDamageTaken: { normal: normalDamage, core: coreDamage },
+        lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield },
         lastReflectedDamage: actualReflectedDmg,
         lastEnemyShieldRecovered: enemyShieldRecovered,
         lastPlayerEvadedTime: 0,
@@ -825,7 +828,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       playerShield: remainingPlayerShield,
       enemyShield: nextEnemyShield,
       currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
-      lastDamageTaken: { normal: normalDamage, core: coreDamage },
+      lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield },
       lastReflectedDamage: actualReflectedDmg,
       lastEnemyShieldRecovered: enemyShieldRecovered,
       lastPlayerEvadedTime: 0,
@@ -839,13 +842,25 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       alert("장착된 코어가 없습니다.");
       return {};
     }
+    if (amount <= 0) return {};
+
     let totalCost = 0;
-    for (let i = 0; i < amount; i++) totalCost += 100 * (target.level + i);
-    if (state.player.gold < totalCost) {
+    let actualCount = 0;
+    for (let i = 0; i < amount; i++) {
+      const stepCost = 100 * (target.level + i);
+      if (state.player.gold < totalCost + stepCost) {
+        break;
+      }
+      totalCost += stepCost;
+      actualCount++;
+    }
+
+    if (actualCount === 0) {
       alert("골드가 부족합니다.");
       return {};
     }
-    const upgraded = { ...target, level: target.level + amount };
+
+    const upgraded = { ...target, level: target.level + actualCount };
     return {
       player: { ...state.player, gold: state.player.gold - totalCost },
       equippedCore: upgraded
@@ -982,7 +997,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     return {
       player: { ...state.player, currentHealth: Math.floor(computed.maxHealth) },
       currentEnemy: null,
-      stage: Math.max(1, Math.floor((state.stage - 1) / 5) * 5 + 1),
+      stage: Math.max(1, state.stage - 10),
       gameStatus: 'IDLE'
     };
   }),

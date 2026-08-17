@@ -22,13 +22,10 @@ const getDynamicBoxStyle = (
   const normB = (con || 0) / myTotalStats;
 
   // 2) 상대와의 스탯 총합 비율에 따른 명암(밝기) 계수 산출 (25% ~ 75% 안전 가독 범위)
-  // ratio = 1.0 (동등) -> lightness = 50%
-  // ratio > 1.0 (우세) -> 최대 75%까지 밝아짐
-  // ratio < 1.0 (열세) -> 최소 25%까지 어두워짐
   const diffRatio = (myTotalStats - oppTotalStats) / Math.max(myTotalStats, oppTotalStats);
   const lightness = Math.min(0.75, Math.max(0.25, 0.50 + diffRatio * 0.25));
 
-  // 기본 색상을 명도에 맞춰 스케일링 (2 * lightness 배수 적용)
+  // 기본 색상을 명도에 맞춰 스케일링
   const lightnessFactor = lightness * 2;
   const r = Math.min(255, Math.max(0, Math.floor(normR * 255 * lightnessFactor)));
   const g = Math.min(255, Math.max(0, Math.floor(normG * 255 * lightnessFactor)));
@@ -42,13 +39,39 @@ const getDynamicBoxStyle = (
   };
 };
 
+// 코어 타입별 테두리 및 톤온톤 인셋 스타일 (캐릭터 색상과 자연스럽게 조화)
+const getCoreBorderClass = (coreType?: CoreType | null) => {
+  switch (coreType) {
+    case 'FIRE':
+      return 'border-neutral-950 ring-2 ring-inset ring-red-500/40 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+    case 'WATER':
+      return 'border-neutral-950 ring-2 ring-inset ring-sky-400/40 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+    case 'WIND':
+      return 'border-neutral-950 ring-2 ring-inset ring-emerald-400/40 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+    case 'ELECTRIC':
+      return 'border-neutral-950 ring-2 ring-inset ring-amber-400/40 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+    default:
+      return 'border-neutral-950 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+  }
+};
+
+const getCoreKoreanName = (coreType?: CoreType | null) => {
+  switch (coreType) {
+    case 'FIRE': return '불';
+    case 'WATER': return '물';
+    case 'WIND': return '바람';
+    case 'ELECTRIC': return '전기';
+    default: return '속성';
+  }
+};
+
 // [신규] 레트로 아케이드 픽셀 HP 바 & 쉴드 덧띠 오버레이 컴포넌트
 const RetroHpBar = ({
-                      current,
-                      max,
-                      shield = 0,
-                      isEnemy = false,
-                    }: {
+  current,
+  max,
+  shield = 0,
+  isEnemy = false,
+}: {
   current: number;
   max: number;
   shield?: number;
@@ -60,29 +83,29 @@ const RetroHpBar = ({
   const shieldPercent = ((shield || 0) / safeMax) * 100;
 
   return (
-      <div className="relative w-full h-3.5 bg-neutral-950 border-2 border-black overflow-hidden shadow-[inset_0_1px_3px_rgba(0,0,0,0.9)]">
-        {/* 기본 체력바 채우기 */}
+    <div className="relative w-full h-3 bg-neutral-950/80 border border-neutral-900 overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.8)]">
+      {/* 기본 체력바 채우기 */}
+      <div
+        className={`h-full transition-all duration-200 ${
+          isEnemy
+            ? 'bg-gradient-to-r from-red-700 via-rose-600 to-red-500'
+            : 'bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-400'
+        }`}
+        style={{ width: `${hpPercent}%` }}
+      />
+      {/* 쉴드 오버레이 (사이언 파란색 덧띠) */}
+      {shield > 0 && (
         <div
-            className={`h-full transition-all duration-200 ${
-                isEnemy
-                    ? 'bg-gradient-to-r from-red-700 via-rose-600 to-red-500'
-                    : 'bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-400'
-            }`}
-            style={{ width: `${hpPercent}%` }}
+          className="absolute top-0 bottom-0 bg-cyan-400/90 border-l-2 border-white animate-pulse transition-all duration-200 shadow-[0_0_6px_rgba(34,211,238,0.8)]"
+          style={{
+            left: `${Math.min(95, hpPercent)}%`,
+            width: `${Math.min(100 - hpPercent, shieldPercent)}%`,
+          }}
         />
-        {/* 쉴드 오버레이 (사이언 파란색 덧띠) */}
-        {shield > 0 && (
-            <div
-                className="absolute top-0 bottom-0 bg-cyan-400/90 border-l-2 border-white animate-pulse transition-all duration-200 shadow-[0_0_6px_rgba(34,211,238,0.8)]"
-                style={{
-                  left: `${Math.min(95, hpPercent)}%`,
-                  width: `${Math.min(100 - hpPercent, shieldPercent)}%`,
-                }}
-            />
-        )}
-        {/* 8비트 아케이드 격자 필터 */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.3)_1px,transparent_1px)] bg-[size:4px_100%] pointer-events-none" />
-      </div>
+      )}
+      {/* 8비트 아케이드 격자 필터 */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.3)_1px,transparent_1px)] bg-[size:4px_100%] pointer-events-none" />
+    </div>
   );
 };
 
@@ -110,10 +133,10 @@ const getUniqueId = (): string => {
 const getCoreBadgeDisplay = (type?: CoreType) => {
   if (!type) return null;
   switch (type) {
-    case 'FIRE': return { label: '🔥화염', color: 'bg-red-600 text-white border-red-950' };
-    case 'WATER': return { label: '💧빙결', color: 'bg-blue-600 text-white border-blue-950' };
-    case 'WIND': return { label: '🍃질풍', color: 'bg-green-600 text-white border-green-950' };
-    case 'ELECTRIC': return { label: '⚡뇌전', color: 'bg-yellow-400 text-black border-yellow-800' };
+    case 'FIRE': return { label: '🔥불', color: 'bg-red-600 text-white border-red-950' };
+    case 'WATER': return { label: '💧물', color: 'bg-blue-600 text-white border-blue-950' };
+    case 'WIND': return { label: '🍃바람', color: 'bg-emerald-600 text-white border-emerald-950' };
+    case 'ELECTRIC': return { label: '⚡전기', color: 'bg-amber-400 text-black border-amber-800' };
     default: return null;
   }
 };
@@ -181,7 +204,6 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
   }, [playerStunEndTime]);
 
   const computed = getComputedStats(player.stats, unlockedSkills, activeBuffs, rebirthUpgrades);
-  const currentEnemyId = currentEnemy?.id;
   const enemyComputed = currentEnemy ? getComputedStats(currentEnemy.stats) : null;
   const enemyAttackSpeed = enemyComputed?.attackSpeed ?? 1;
 
@@ -193,18 +215,12 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
   const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit' | 'stunned'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
 
-  const lastPlayerAnimTimeRef = useRef(0);
-  const lastEnemyAnimTimeRef = useRef(0);
-  const lastPlayerPopupTimeRef = useRef(0);
-  const lastEnemyPopupTimeRef = useRef(0);
-
   const [damagePopups, setDamagePopups] = useState<DamagePopup[]>([]);
   const [showStats, setShowStats] = useState<boolean>(false);
   const [damageLog, setDamageLog] = useState<LogEntry[]>([]);
   const [battleTime, setBattleTime] = useState(0);
   const [timeMultiplier, setTimeMultiplier] = useState(1);
   const [feverToast, setFeverToast] = useState<string | null>(null);
-  const [turn, setTurn] = useState(1);
 
   const showFeverToast = (msg: string) => {
     setFeverToast(msg);
@@ -224,7 +240,6 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
         setEnemyAnim('idle');
         setBattleTime(0);
         setTimeMultiplier(1);
-        setTurn(1);
         setFeverToast(null);
       });
     }
@@ -258,17 +273,17 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
 
     const timeout2 = setTimeout(() => {
       setTimeMultiplier(5.0);
-      showFeverToast('🔥 5.0x FEVER!');
+      showFeverToast('⚡ 5.0x FEVER!!');
     }, 10000);
 
     const timeout3 = setTimeout(() => {
       setTimeMultiplier(10.0);
-      showFeverToast('⚡ 10.0x SUPER FEVER!');
+      showFeverToast('💥 10.0x FEVER!!!');
     }, 15000);
 
     const timeout4 = setTimeout(() => {
       setTimeMultiplier(50.0);
-      showFeverToast('💥 50.0x HYPER FEVER!');
+      showFeverToast('🚀 50.0x MAX SPEED!!!!');
     }, 20000);
 
     return () => {
@@ -279,310 +294,278 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     };
   }, [gameStatus]);
 
-
-  useEffect(() => {
-    if (gameStatus === 'IDLE') {
-      queueMicrotask(() => {
-        spawnEnemy();
-        setTurn(1);
-      });
-    }
-
-    let playerAttackTimer: number;
-    let enemyAttackTimer: number;
-
-    if (gameStatus === 'BATTLE' && currentEnemyId) {
-      playerAttackTimer = window.setInterval(() => {
-        // 실제 게임 데미지/상태는 10x, 50x 속도로 정확하게 연산
-        attackEnemy();
-
-        // [시각 연출 최적화] 캐릭터 박치기 모션 속도를 5초 피버 단계별로 가독성 있게 조절
-        // 5초마다 약 1번 내외 더 치는 느낌으로 쾌적하게 조절 (1.0x: ~1000ms, 1.5x: ~830ms, 5.0x: ~660ms, 10.0x: ~520ms, 50.0x: ~420ms)
-        const now = Date.now();
-        const visualInterval = timeMultiplier >= 50 ? 420 : timeMultiplier >= 10 ? 520 : timeMultiplier >= 5 ? 660 : timeMultiplier >= 1.5 ? 830 : 1000;
-
-        if (now - lastPlayerAnimTimeRef.current >= visualInterval) {
-          lastPlayerAnimTimeRef.current = now;
-          setPlayerAnim('attack');
-          const hitDelay = Math.min(100, Math.floor(visualInterval * 0.35));
-          const resetDelay = Math.min(220, Math.floor(visualInterval * 0.75));
-          setTimeout(() => setEnemyAnim('hit'), hitDelay);
-          setTimeout(() => {
-            setPlayerAnim(p => p === 'attack' ? 'idle' : p);
-            setEnemyAnim(e => e === 'hit' ? 'idle' : e);
-          }, resetDelay);
-        }
-      }, 1000 / (computed.attackSpeed * timeMultiplier));
-
-      enemyAttackTimer = window.setInterval(() => {
-        attackPlayer();
-        setTurn(t => t + 1);
-
-        const now = Date.now();
-        const visualInterval = timeMultiplier >= 50 ? 420 : timeMultiplier >= 10 ? 520 : timeMultiplier >= 5 ? 660 : timeMultiplier >= 1.5 ? 830 : 1000;
-
-        if (now - lastEnemyAnimTimeRef.current >= visualInterval) {
-          lastEnemyAnimTimeRef.current = now;
-          setEnemyAnim('attack');
-          const hitDelay = Math.min(100, Math.floor(visualInterval * 0.35));
-          const resetDelay = Math.min(220, Math.floor(visualInterval * 0.75));
-          setTimeout(() => setPlayerAnim('hit'), hitDelay);
-          setTimeout(() => {
-            setEnemyAnim(e => e === 'attack' ? 'idle' : e);
-            setPlayerAnim(p => p === 'hit' ? 'idle' : p);
-          }, resetDelay);
-        }
-      }, 1000 / (enemyAttackSpeed * timeMultiplier));
-    }
-
-    return () => {
-      clearInterval(playerAttackTimer);
-      clearInterval(enemyAttackTimer);
-    };
-  }, [gameStatus, currentEnemyId, computed.attackSpeed, enemyAttackSpeed, spawnEnemy, attackEnemy, attackPlayer, timeMultiplier]);
-
-  const addLog = (message: React.ReactNode) => {
-    queueMicrotask(() => {
-      setDamageLog(prev => [{ id: getUniqueId(), message }, ...prev.slice(0, 49)]);
-    });
+  const addDamagePopup = (popup: Omit<DamagePopup, 'id'>) => {
+    const id = getUniqueId();
+    setDamagePopups((prev) => [...prev.slice(-10), { ...popup, id }]);
+    setTimeout(() => {
+      setDamagePopups((prev) => prev.filter((p) => p.id !== id));
+    }, 750);
   };
 
+  const addLog = (message: React.ReactNode) => {
+    const id = getUniqueId();
+    setDamageLog((prev) => [{ id, message }, ...prev.slice(0, 19)]);
+  };
+
+  // 플레이어 피격/쉴드 이벤트 리액션
+  const prevDamageTakenRef = useRef(lastDamageTaken);
+  const prevPlayerEvadedTimeRef = useRef(lastPlayerEvadedTime);
+
   useEffect(() => {
-    // 피버 배속별 시각적 데미지 팝업 유지 시간 및 최소 간격 설정 (가독성 최우선)
-    const popupDuration = timeMultiplier >= 50 ? 600 : timeMultiplier >= 10 ? 680 : timeMultiplier >= 5 ? 750 : 850;
-    const popupMinInterval = timeMultiplier >= 50 ? 380 : timeMultiplier >= 10 ? 480 : timeMultiplier >= 5 ? 600 : 750;
+    if (lastDamageTaken && (lastDamageTaken !== prevDamageTakenRef.current || lastPlayerEvadedTime !== prevPlayerEvadedTimeRef.current)) {
+      prevDamageTakenRef.current = lastDamageTaken;
+      prevPlayerEvadedTimeRef.current = lastPlayerEvadedTime;
+      const isEvaded = lastPlayerEvadedTime > 0;
 
-    if (lastDamageDealt || (lastEnemyEvadedTime ?? 0) > 0) {
-      const { normal = 0, core = 0, shieldRecovered = 0 } = lastDamageDealt || { normal: 0, core: 0, shieldRecovered: 0 };
-      const isMiss = (lastEnemyEvadedTime ?? 0) > 0;
-      const now = Date.now();
-
-      // 배속별 일반 데미지 팝업 간격 필터링 (연격/코어는 최우선 표출)
-      let shouldShowNormal = normal > 0;
-      if (normal > 0 && !lastDamageDealt?.isCombo) {
-        if (now - lastPlayerPopupTimeRef.current < popupMinInterval) {
-          shouldShowNormal = false;
+      queueMicrotask(() => {
+        if (!isEvaded) {
+          setPlayerAnim('hit');
+          setTimeout(() => {
+            setPlayerAnim(isPlayerStunned ? 'stunned' : 'idle');
+          }, 180);
         }
-      }
 
-      if (shouldShowNormal) {
-        lastPlayerPopupTimeRef.current = now;
-        const popup: DamagePopup = {
-          id: getUniqueId(),
-          val: normal,
-          type: 'normal',
-          isCombo: lastDamageDealt?.isCombo,
-          comboHits: lastDamageDealt?.comboHits,
-        };
-        queueMicrotask(() => {
-          setDamagePopups(prev => [...prev.slice(-6), popup]);
-        });
-        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
-      }
-      if (core > 0) {
-        const popup: DamagePopup = {
-          id: getUniqueId(),
-          val: core,
-          type: 'core',
-          coreType: useGameStore.getState().equippedCore?.type,
-        };
-        setTimeout(() => {
-          setDamagePopups(prev => [...prev.slice(-6), popup]);
-          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
-        }, 80);
-      }
-      if (shieldRecovered > 0) {
-        const popup: DamagePopup = { id: getUniqueId(), val: shieldRecovered, type: 'shield' };
-        setTimeout(() => {
-          setDamagePopups(prev => [...prev.slice(-6), popup]);
-          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
-        }, 80);
-      }
-      if (isMiss) {
-        const popup: DamagePopup = { id: getUniqueId(), val: 0, type: 'miss-enemy' };
-        queueMicrotask(() => {
-          setDamagePopups(prev => [...prev.slice(-6), popup]);
-        });
-        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
-      }
+        if (isEvaded) {
+          addDamagePopup({ val: 0, type: 'miss-player' });
+          addLog(
+            <span className="text-stone-400 font-mono">
+              <span className="text-rose-400 font-bold">[적 ➜ 나]</span> 회피 (EVADE)
+            </span>
+          );
+        } else {
+          const totalTaken = (lastDamageTaken.normal || 0) + (lastDamageTaken.core || 0);
+          const absorbed = lastDamageTaken.absorbedByShield || 0;
+          if (totalTaken > 0 || absorbed > 0) {
+            if (totalTaken > 0) {
+              addDamagePopup({ val: totalTaken, type: 'taken' });
+            }
+            const normalDmg = lastDamageTaken.normal || 0;
+            const coreDmg = lastDamageTaken.core || 0;
+            const enemyCore = currentEnemy?.core?.type;
+            const coreText = coreDmg > 0 ? ` | ${getCoreKoreanName(enemyCore)} ${formatNumber(coreDmg)}` : '';
+            const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)} 흡수)` : '';
+            const stunText = isPlayerStunned ? ' ⚡기절' : '';
 
-      if (lastDamageDealt?.isOneShotLeap) {
-        const popup: DamagePopup = {
-          id: getUniqueId(),
-          val: 0,
-          type: 'one-shot-leap',
-          leapedStages: lastDamageDealt.leapedStages || 3,
-        };
-        setTimeout(() => {
-          setDamagePopups(prev => [...prev.slice(-6), popup]);
-          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration + 200);
-        }, 120);
-      }
-
-      if (isMiss) {
-        addLog(
-            <span>
-            <span className="text-blue-500">[S{stage}-{turn}] P: </span>
-            <span className="text-yellow-400 italic">회피</span>
-              {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{formatNumber(shieldRecovered)})</span>}
-          </span>
-        );
-      } else if (normal > 0 || core > 0 || shieldRecovered > 0) {
-        const damageParts = [];
-        if (normal > 0) {
-          if (lastDamageDealt?.isCombo) {
-            damageParts.push(
-                <span key="n" className="text-amber-400 font-bold animate-pulse">
-                ⚡연격({lastDamageDealt.comboHits || 2}히트) {formatNumber(normal)}
+            addLog(
+              <span className="text-rose-300 font-mono">
+                <span className="text-rose-400 font-bold">[적 ➜ 나]</span> 일반 {formatNumber(normalDmg)}{coreText}{absorbText}{stunText}
               </span>
             );
-          } else {
-            damageParts.push(<span key="n" className="text-blue-400">일반 {formatNumber(normal)}</span>);
           }
         }
-        if (core > 0) damageParts.push(<span key="c" className="text-orange-500">코어 {formatNumber(core)}</span>);
+      });
+    }
+  }, [lastDamageTaken, lastPlayerEvadedTime, isPlayerStunned, currentEnemy?.core?.type]);
 
+  // 적 피격/반사/흡혈 이벤트 리액션
+  const prevDamageDealtRef = useRef(lastDamageDealt);
+  const prevEnemyEvadedTimeRef = useRef(lastEnemyEvadedTime);
+
+  useEffect(() => {
+    if (lastDamageDealt && (lastDamageDealt !== prevDamageDealtRef.current || lastEnemyEvadedTime !== prevEnemyEvadedTimeRef.current)) {
+      prevDamageDealtRef.current = lastDamageDealt;
+      prevEnemyEvadedTimeRef.current = lastEnemyEvadedTime;
+      const isEvaded = lastEnemyEvadedTime > 0;
+
+      queueMicrotask(() => {
+        if (!isEvaded) {
+          setEnemyAnim('hit');
+          setTimeout(() => setEnemyAnim('idle'), 180);
+        }
+
+        if (isEvaded) {
+          addDamagePopup({ val: 0, type: 'miss-enemy' });
+          addLog(
+            <span className="text-stone-500 font-mono">
+              <span className="text-emerald-400 font-bold">[나 ➜ 적]</span> 빗맞음 (MISS)
+            </span>
+          );
+        } else {
+          if (lastDamageDealt.normal > 0) {
+            addDamagePopup({
+              val: lastDamageDealt.normal,
+              type: 'normal',
+              isCombo: lastDamageDealt.isCombo,
+              comboHits: lastDamageDealt.comboHits,
+            });
+          }
+          if (lastDamageDealt.core > 0) {
+            addDamagePopup({
+              val: lastDamageDealt.core,
+              type: 'core',
+              coreType: state.equippedCore?.type,
+            });
+          }
+          if (lastDamageDealt.leapedStages && lastDamageDealt.leapedStages > 0) {
+            addDamagePopup({
+              val: 0,
+              type: 'one-shot-leap',
+              leapedStages: lastDamageDealt.leapedStages,
+            });
+          }
+
+          const normalDmg = lastDamageDealt.normal || 0;
+          const coreDmg = lastDamageDealt.core || 0;
+          const absorbed = lastDamageDealt.absorbedByShield || 0;
+          const playerCore = state.equippedCore?.type;
+          const coreText = coreDmg > 0 ? ` | ${getCoreKoreanName(playerCore)} ${formatNumber(coreDmg)}` : '';
+          const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)} 흡수)` : '';
+          const comboText = lastDamageDealt.isCombo ? ` ⚡${lastDamageDealt.comboHits || 2}x` : '';
+          const leapText = (lastDamageDealt.leapedStages && lastDamageDealt.leapedStages > 0) ? ` 🚀+${lastDamageDealt.leapedStages}층` : '';
+
+          addLog(
+            <span className="text-amber-200 font-mono">
+              <span className="text-emerald-400 font-bold">[나 ➜ 적]</span> 일반 {formatNumber(normalDmg)}{coreText}{absorbText}{comboText}{leapText}
+            </span>
+          );
+        }
+      });
+    }
+  }, [lastDamageDealt, lastEnemyEvadedTime, state.equippedCore?.type]);
+
+  // 반사 데미지 로그
+  const prevReflectedRef = useRef(lastReflectedDamage);
+  useEffect(() => {
+    if (lastReflectedDamage && lastReflectedDamage > 0 && lastReflectedDamage !== prevReflectedRef.current) {
+      prevReflectedRef.current = lastReflectedDamage;
+      queueMicrotask(() => {
+        addDamagePopup({ val: lastReflectedDamage, type: 'reflect' });
         addLog(
-            <span>
-            <span className="text-blue-500">[S{stage}-{turn}] P: </span>
-              {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
-              {shieldRecovered > 0 && <span className="text-green-500 ml-1">(쉴드 +{formatNumber(shieldRecovered)})</span>}
-              {lastDamageDealt?.isOneShotLeap && (
-                <span className="text-cyan-300 font-black ml-1 animate-pulse">
-                  🚀 원샷 도약(+{lastDamageDealt.leapedStages || 3}층)!
-                </span>
-              )}
+          <span className="text-cyan-300 font-mono">
+            <span className="text-cyan-400 font-bold">[나 ➜ 적]</span> 🌀반사 {formatNumber(lastReflectedDamage)}
           </span>
         );
-      }
+      });
     }
+  }, [lastReflectedDamage]);
 
-    if (lastDamageTaken && (lastDamageTaken.normal > 0 || lastDamageTaken.core > 0)) {
-      const { normal, core } = lastDamageTaken;
-      const now = Date.now();
-
-      let shouldShowTaken = normal > 0;
-      if (normal > 0) {
-        if (now - lastEnemyPopupTimeRef.current < popupMinInterval) {
-          shouldShowTaken = false;
-        }
-      }
-
-      if (shouldShowTaken) {
-        lastEnemyPopupTimeRef.current = now;
-        const popup: DamagePopup = { id: getUniqueId(), val: normal, type: 'taken' };
-        queueMicrotask(() => {
-          setDamagePopups(prev => [...prev.slice(-6), popup]);
-        });
-        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
-      }
-      if (core > 0) {
-        const popup: DamagePopup = { id: getUniqueId(), val: core, type: 'taken-core' };
-        setTimeout(() => {
-          setDamagePopups(prev => [...prev.slice(-6), popup]);
-          setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
-        }, 80);
-      }
-
-      const damageParts = [];
-      if (normal > 0) damageParts.push(<span key="n" className="text-red-400">일반 {formatNumber(normal)}</span>);
-      if (core > 0) damageParts.push(<span key="c" className="text-purple-500">코어 {formatNumber(core)}</span>);
-
-      const reflectionText = (lastReflectedDamage ?? 0) > 0 ? <span className="text-cyan-400 ml-1">(반사 {formatNumber(lastReflectedDamage || 0)})</span> : '';
-      const leechText = (lastLeechedHealth ?? 0) > 0 ? <span className="text-green-400 ml-1">(흡수 {formatNumber(lastLeechedHealth || 0)})</span> : '';
-      const enemyShieldText = (lastEnemyShieldRecovered ?? 0) > 0 ? <span className="text-blue-400 ml-1">(적 쉴드 +{formatNumber(lastEnemyShieldRecovered || 0)})</span> : '';
-
-      addLog(
-          <span>
-          <span className="text-red-500">[S{stage}-{turn}] E: </span>
-            {damageParts.map((part, i) => <React.Fragment key={i}>{i > 0 && ' / '}{part}</React.Fragment>)}
-            {reflectionText}
-            {leechText}
-            {enemyShieldText}
-        </span>
-      );
-    }
-
-    if (lastEnemyShieldRecovered && lastEnemyShieldRecovered > 0) {
-      const popup: DamagePopup = { id: getUniqueId(), val: lastEnemyShieldRecovered, type: 'enemy-shield' };
-      setTimeout(() => {
-        setDamagePopups(prev => [...prev.slice(-6), popup]);
-        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
-      }, 100);
-    }
-
-    if ((lastPlayerEvadedTime ?? 0) > 0) {
-      const popup: DamagePopup = { id: getUniqueId(), val: 0, type: 'miss-player' };
-      setTimeout(() => {
-        setDamagePopups(prev => [...prev.slice(-6), popup]);
-        setTimeout(() => setDamagePopups(prev => prev.filter(p => p.id !== popup.id)), popupDuration);
-      }, 80);
-      addLog(
-          <span>
-          <span className="text-red-500">[S{stage}-{turn}] E: </span>
-          <span className="text-yellow-400 italic">회피</span>
-        </span>
-      );
-    }
-
-  }, [lastDamageDealt, lastDamageTaken, lastReflectedDamage, lastLeechedHealth, lastEnemyShieldRecovered, lastEnemyEvadedTime, lastPlayerEvadedTime, stage, turn, timeMultiplier]);
-
+  // 흡혈 회복 로그
+  const prevLeechedRef = useRef(lastLeechedHealth);
   useEffect(() => {
+    if (lastLeechedHealth && lastLeechedHealth > 0 && lastLeechedHealth !== prevLeechedRef.current) {
+      prevLeechedRef.current = lastLeechedHealth;
+      queueMicrotask(() => {
+        addDamagePopup({ val: lastLeechedHealth, type: 'leech' });
+        addLog(
+          <span className="text-emerald-300 font-mono">
+            <span className="text-emerald-400 font-bold">[나]</span> 🩸흡혈 +{formatNumber(lastLeechedHealth)}
+          </span>
+        );
+      });
+    }
+  }, [lastLeechedHealth]);
+
+  // 적 쉴드 회복 로그
+  const prevEnemyShieldRef = useRef(lastEnemyShieldRecovered);
+  useEffect(() => {
+    if (lastEnemyShieldRecovered && lastEnemyShieldRecovered > 0 && lastEnemyShieldRecovered !== prevEnemyShieldRef.current) {
+      prevEnemyShieldRef.current = lastEnemyShieldRecovered;
+      queueMicrotask(() => {
+        addDamagePopup({ val: lastEnemyShieldRecovered, type: 'enemy-shield' });
+        addLog(
+          <span className="text-cyan-300 font-mono">
+            <span className="text-rose-400 font-bold">[적]</span> 🛡️쉴드 +{formatNumber(lastEnemyShieldRecovered)}
+          </span>
+        );
+      });
+    }
+  }, [lastEnemyShieldRecovered]);
+
+  // 전투 스케줄러 루프
+  useEffect(() => {
+    if (gameStatus === 'IDLE') {
+      const timer = setTimeout(() => {
+        spawnEnemy();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+
     if (gameStatus === 'VICTORY') {
-      const timer = setTimeout(() => spawnEnemy(), 1000);
+      const timer = setTimeout(() => {
+        spawnEnemy();
+      }, 100);
       return () => clearTimeout(timer);
     }
-  }, [gameStatus, spawnEnemy]);
 
-  useEffect(() => {
     if (gameStatus === 'DEFEAT') {
-      const timer = setTimeout(() => retryCurrentFloor(), 3000);
+      const timer = setTimeout(() => {
+        retryCurrentFloor();
+      }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [gameStatus, retryCurrentFloor]);
+  }, [gameStatus, spawnEnemy, retryCurrentFloor]);
+
+  // 전투 턴 타이머 (피버 배속 연동)
+  useEffect(() => {
+    if (gameStatus !== 'BATTLE') return;
+
+    const basePlayerSpeed = 1.0;
+    const baseEnemySpeed = Math.max(0.5, enemyAttackSpeed);
+
+    const playerIntervalMs = Math.max(50, Math.floor(1000 / (basePlayerSpeed * timeMultiplier)));
+    const enemyIntervalMs = Math.max(50, Math.floor(1000 / (baseEnemySpeed * timeMultiplier)));
+
+    const playerTimer = setInterval(() => {
+      if (!isPlayerStunned) {
+        setPlayerAnim('attack');
+        attackEnemy();
+        setTimeout(() => {
+          setPlayerAnim(isPlayerStunned ? 'stunned' : 'idle');
+        }, Math.min(150, playerIntervalMs / 2));
+      }
+    }, playerIntervalMs);
+
+    const enemyTimer = setInterval(() => {
+      setEnemyAnim('attack');
+      attackPlayer();
+      setTimeout(() => {
+        setEnemyAnim('idle');
+      }, Math.min(150, enemyIntervalMs / 2));
+    }, enemyIntervalMs);
+
+    return () => {
+      clearInterval(playerTimer);
+      clearInterval(enemyTimer);
+    };
+  }, [gameStatus, attackEnemy, attackPlayer, isPlayerStunned, timeMultiplier, enemyAttackSpeed]);
 
   const playerVariants: Variants = {
-    idle: { y: [0, -6, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut" } },
-    attack: { x: [0, 50, 0], transition: { duration: 0.22, times: [0, 0.4, 1] } },
-    hit: { x: [-12, 12, -8, 6, 0], filter: ["brightness(1)", "brightness(2) contrast(1.5)", "brightness(1)"], transition: { duration: 0.25 } },
-    stunned: { rotate: [0, -2, 2, -2, 2, 0], transition: { duration: 0.5, repeat: Infinity } },
+    idle: { x: 0, scale: 1, rotate: 0 },
+    attack: {
+      x: [0, 45, 0],
+      scale: [1, 1.15, 1],
+      transition: { duration: 0.15, ease: 'easeOut' },
+    },
+    hit: {
+      x: [0, -16, 8, -4, 0],
+      rotate: [0, -8, 6, -3, 0],
+      transition: { duration: 0.2 },
+    },
+    stunned: {
+      rotate: [-5, 5, -5],
+      transition: { repeat: Infinity, duration: 0.3 },
+    },
   };
 
   const enemyVariants: Variants = {
-    idle: { y: [0, -6, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut", delay: 0.5 } },
-    attack: { x: [0, -50, 0], transition: { duration: 0.22, times: [0, 0.4, 1] } },
-    hit: { x: [12, -12, 8, -6, 0], filter: ["brightness(1)", "brightness(2) contrast(1.5)", "brightness(1)"], transition: { duration: 0.25 } }
+    idle: { x: 0, scale: 1, rotate: 0 },
+    attack: {
+      x: [0, -45, 0],
+      scale: [1, 1.15, 1],
+      transition: { duration: 0.15, ease: 'easeOut' },
+    },
+    hit: {
+      x: [0, 16, -8, 4, 0],
+      rotate: [0, 8, -6, 3, 0],
+      transition: { duration: 0.2 },
+    },
   };
-
-  const statComparisonList = [
-    {
-      label: '힘 (STR)',
-      pValue: computed.skillBonusStats.str > 0 ? `${player.stats.str} (+${computed.skillBonusStats.str})` : player.stats.str,
-      eValue: currentEnemy?.stats.str
-    },
-    {
-      label: '민첩 (DEX)',
-      pValue: computed.skillBonusStats.dex > 0 ? `${player.stats.dex} (+${computed.skillBonusStats.dex})` : player.stats.dex,
-      eValue: currentEnemy?.stats.dex
-    },
-    {
-      label: '체력 (CON)',
-      pValue: computed.skillBonusStats.con > 0 ? `${player.stats.con} (+${computed.skillBonusStats.con})` : player.stats.con,
-      eValue: currentEnemy?.stats.con
-    },
-    { label: '공격력', pValue: formatNumber(computed.attack), eValue: enemyComputed ? formatNumber(enemyComputed.attack) : undefined },
-    { label: '방어력', pValue: formatNumber(computed.defense), eValue: enemyComputed ? formatNumber(enemyComputed.defense) : undefined },
-    { label: '공격속도', pValue: `${computed.attackSpeed.toFixed(1)}/s`, eValue: enemyComputed ? `${enemyComputed.attackSpeed.toFixed(1)}/s` : undefined },
-    { label: '최대체력', pValue: formatNumber(computed.maxHealth), eValue: currentEnemy?.maxHealth ? formatNumber(currentEnemy.maxHealth) : '-' },
-    { label: '명중', pValue: formatNumber(computed.accuracy), eValue: enemyComputed ? formatNumber(enemyComputed.accuracy) : undefined },
-    { label: '회피', pValue: formatNumber(computed.evasion), eValue: enemyComputed ? formatNumber(enemyComputed.evasion) : undefined },
-  ];
 
   const remainingTime = 30 - battleTime;
   const playerCoreBadge = getCoreBadgeDisplay(state.equippedCore?.type);
   const enemyCoreBadge = getCoreBadgeDisplay(currentEnemy?.core?.type);
 
-  // 피버 타임 레벨별 외곽 글로우 아우라 스타일에 적용할 Tailwind 클래스
+  // 피버 타임 레벨별 외곽 글로우 아우라 스타일
   let arenaFeverStyle = 'bg-stone-100 border-neutral-900 shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)]';
   if (timeMultiplier === 1.5) {
     arenaFeverStyle = 'bg-amber-50/90 border-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.6),inset_0_0_12px_rgba(245,158,11,0.2)]';
@@ -594,56 +577,62 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     arenaFeverStyle = 'bg-yellow-100/95 border-yellow-300 shadow-[0_0_40px_rgba(234,179,8,1),inset_0_0_24px_rgba(234,179,8,0.5)] animate-pulse';
   }
 
-  return (
-      <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none flex-grow">
+  const playerCoreBorderClass = getCoreBorderClass(state.equippedCore?.type);
+  const enemyCoreBorderClass = getCoreBorderClass(currentEnemy?.core?.type);
 
-        {/* 🎁 오프라인 방치 보상 상세 팝업 모달 */}
-        {showOfflineModal && offlineBanner && (
-          <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4 font-mono">
-            <div className="bg-stone-200 border-4 border-black p-4 w-full max-w-xs shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-3 text-stone-900 animate-scale-in">
-              <div className="bg-emerald-600 text-white p-2 border-2 border-black text-center font-black text-sm tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                🎁 오프라인 방치 보상
+  const expPercent = Math.min(100, Math.max(0, (player.experience / (player.nextLevelExperience || 1)) * 100));
+
+  return (
+    <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none flex-grow">
+
+      {/* 🎁 오프라인 방치 보상 상세 팝업 모달 */}
+      {showOfflineModal && offlineBanner && (
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4 font-mono">
+          <div className="bg-stone-200 border-4 border-black p-4 w-full max-w-xs shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-3 text-stone-900 animate-scale-in">
+            <div className="bg-emerald-600 text-white p-2 border-2 border-black text-center font-black text-sm tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+              🎁 오프라인 방치 보상
+            </div>
+            <div className="bg-stone-100 p-3 border-2 border-black flex flex-col gap-2 text-xs">
+              <div className="flex justify-between items-center text-stone-600 border-b border-stone-300 pb-1.5">
+                <span className="font-bold">누적 방치 시간</span>
+                <span className="font-black text-stone-900 bg-stone-200 px-1.5 py-0.5 border border-stone-400">
+                  {offlineBanner.minutes}분
+                </span>
               </div>
-              <div className="bg-stone-100 p-3 border-2 border-black flex flex-col gap-2 text-xs">
-                <div className="flex justify-between items-center text-stone-600 border-b border-stone-300 pb-1.5">
-                  <span className="font-bold">누적 방치 시간</span>
-                  <span className="font-black text-stone-900 bg-stone-200 px-1.5 py-0.5 border border-stone-400">
-                    {offlineBanner.minutes}분
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-amber-700 font-bold">🪙 획득 골드</span>
-                  <span className="font-black text-stone-900">+{formatNumber(offlineBanner.gold)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-blue-700 font-bold">📚 획득 경험치</span>
-                  <span className="font-black text-stone-900">+{formatNumber(offlineBanner.exp)} EXP</span>
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-amber-700 font-bold">🪙 획득 골드</span>
+                <span className="font-black text-stone-900">+{formatNumber(offlineBanner.gold)}</span>
               </div>
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={handleClaimBannerRewards}
-                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
-                >
-                  보상 모두 수령
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowOfflineModal(false)}
-                  className="px-3 py-2.5 bg-stone-300 hover:bg-stone-400 text-stone-900 text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
-                >
-                  닫기
-                </button>
+              <div className="flex justify-between items-center">
+                <span className="text-blue-700 font-bold">📚 획득 경험치</span>
+                <span className="font-black text-stone-900">+{formatNumber(offlineBanner.exp)} EXP</span>
               </div>
             </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleClaimBannerRewards}
+                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
+              >
+                보상 모두 수령
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowOfflineModal(false)}
+                className="px-3 py-2.5 bg-stone-300 hover:bg-stone-400 text-stone-900 text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
+              >
+                닫기
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* ================= 통합 상단 HUD (간결한 2줄 구성) ================= */}
-        <div className="bg-stone-100 px-2 py-1.5 rounded-none border-4 border-neutral-900 flex flex-col gap-1 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-mono text-xs">
-          
-          {/* [1행] 스테이지 / 최고층 & 레벨/EXP & 퀵 액션 (스탯/방치보상) */}
+      {/* ================= 통합 상단 HUD (간결한 2줄 구성) ================= */}
+      <div className="bg-stone-100 px-2.5 py-2 rounded-none border-4 border-neutral-900 flex flex-col gap-1.5 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-mono text-xs">
+        
+        {/* [1행] 스테이지 / 최고층 & 레벨/EXP & 얇은 밑줄 경험치바 */}
+        <div className="flex flex-col gap-1 w-full">
           <div className="flex justify-between items-center whitespace-nowrap gap-1.5">
             <div className="flex items-center gap-1.5 shrink-0">
               <span className="font-black text-stone-900 tracking-wider">
@@ -659,421 +648,446 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
               </span>
             </div>
 
-            {/* 우측 컴팩트 퀵 액션 버튼 2종 */}
-            <div className="flex items-center gap-1 shrink-0">
-              {player.statPoints > 0 && onNavigateToStats ? (
+            {/* 우측 컴팩트 퀵 액션 버튼 (스탯 포인트 - 방치 버튼과 길이 및 스타일 일치) */}
+            {onNavigateToStats && (
+              player.statPoints > 0 ? (
                 <button
                   type="button"
                   onClick={onNavigateToStats}
-                  className="bg-stone-200 hover:bg-stone-300 text-stone-900 text-[10px] font-black px-1.5 py-0.5 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer flex items-center gap-1 leading-tight"
+                  className="bg-stone-200 hover:bg-stone-300 border border-black px-1.5 py-0.5 flex items-center justify-between shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer w-[68px] shrink-0"
                 >
-                  <span>스탯</span>
-                  <span className="bg-red-600 text-white text-[8px] px-1 py-0.2 font-black leading-none">
+                  <span className="text-[9px] font-black text-stone-800 shrink-0">스탯</span>
+                  <span className="bg-red-600 text-white text-[8px] px-1 py-0.2 font-black leading-none rounded-none truncate ml-0.5">
                     +{player.statPoints}
                   </span>
                 </button>
               ) : (
-                <div className="bg-stone-100 border border-stone-300 text-stone-400 text-[10px] font-bold px-1.5 py-0.5 flex items-center gap-1 leading-tight select-none">
-                  <span>스탯</span>
-                  <span className="text-[8px] text-stone-400 font-mono">0P</span>
-                </div>
-              )}
-
-              {offlineBanner ? (
                 <button
                   type="button"
-                  onClick={() => setShowOfflineModal(true)}
-                  className="bg-stone-200 hover:bg-stone-300 text-stone-900 text-[10px] font-black px-1.5 py-0.5 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer flex items-center gap-1 leading-tight"
+                  onClick={onNavigateToStats}
+                  className="bg-stone-200/60 hover:bg-stone-200 border border-stone-300 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer w-[68px] shrink-0"
                 >
-                  <span>방치</span>
-                  <span className="bg-stone-800 text-yellow-300 text-[8px] px-1 py-0.2 font-black leading-none">
-                    +{offlineBanner.minutes}m
-                  </span>
+                  <span className="text-[9px] font-bold text-stone-500 shrink-0">스탯</span>
+                  <span className="text-[8px] font-mono text-stone-400 leading-none truncate ml-0.5">0</span>
                 </button>
-              ) : (
-                <div className="bg-stone-100 border border-stone-300 text-stone-400 text-[10px] font-bold px-1.5 py-0.5 flex items-center gap-1 leading-tight select-none">
-                  <span>방치</span>
-                  <span className="text-[8px] text-stone-400">대기</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* [2행] 정돈된 3분할 슬림 재화 표시 바 */}
-          <div className="grid grid-cols-3 gap-1 w-full text-[11px]">
-            <div className="bg-stone-200/80 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)]">
-              <span className="text-[9px] font-bold text-stone-500">골드</span>
-              <span className="text-stone-900 font-black truncate ml-1">{formatNumber(player.gold)}</span>
-            </div>
-            <div className="bg-stone-200/80 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)]">
-              <span className="text-[9px] font-bold text-stone-500">코어</span>
-              <span className="text-stone-900 font-black truncate ml-1">{formatNumber(coreFragments)}</span>
-            </div>
-            <div className="bg-stone-200/80 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)]">
-              <span className="text-[9px] font-bold text-stone-500">상자</span>
-              <span className="text-stone-900 font-black truncate ml-1">{formatNumber(boxFragments || 0)}</span>
-            </div>
-          </div>
-
-        </div>
-
-        {/* 메인 전투 무대 (전투 구역 + 피버 아우라) */}
-        <div
-            className={`px-5 pt-3 pb-2 flex flex-col border-4 relative overflow-hidden transition-all duration-300 flex-grow ${arenaFeverStyle}`}
-            style={{
-              backgroundImage: 'linear-gradient(to right, #e7e5e4 2px, transparent 2px), linear-gradient(to bottom, #e7e5e4 2px, transparent 2px)',
-              backgroundSize: '16px 16px',
-            }}
-        >
-
-          {/* 상단 타이머 & 피버 상태 뱃지 */}
-          {gameStatus === 'BATTLE' && (
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-2 z-30 pointer-events-none">
-                <div className={`font-mono text-2xl font-black transition-colors duration-300 ${remainingTime <= 10 ? 'text-red-600 animate-pulse' : 'text-stone-600'}`}>
-                  ⏱️{remainingTime}s
-                </div>
-                {timeMultiplier > 1.0 && (
-                    <motion.div
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="bg-amber-400 text-black text-xs font-black px-2.5 py-1 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-mono tracking-tight flex items-center gap-1"
-                    >
-                      <span className="animate-pulse">🔥</span>
-                      <span>FEVER {timeMultiplier}x SPEED</span>
-                    </motion.div>
-                )}
-              </div>
-          )}
-
-          {/* 피버 등급 상승 스플래시 토스트 연출 */}
-          <AnimatePresence>
-            {feverToast && (
-                <motion.div
-                    initial={{ scale: 0.5, opacity: 0, y: 10 }}
-                    animate={{ scale: 1.2, opacity: 1, y: 0 }}
-                    exit={{ scale: 1.5, opacity: 0 }}
-                    className="absolute top-12 left-1/2 -translate-x-1/2 z-40 bg-black text-amber-400 px-4 py-1.5 border-4 border-amber-400 font-mono font-black text-sm md:text-base shadow-[0_0_20px_rgba(251,191,36,0.9)] pointer-events-none whitespace-nowrap"
-                >
-                  {feverToast}
-                </motion.div>
+              )
             )}
-          </AnimatePresence>
-
-          {/* ----------------------------------------------------------------- */}
-          {/* [리뉴얼 1] 통합 체력바 & 스탯 HUD (Player / Enemy Status Window) */}
-          {/* ----------------------------------------------------------------- */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full relative z-30 font-mono p-2 sm:p-2.5 border-4 border-black bg-stone-900 text-stone-100 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-
-            {/* 플레이어 HUD */}
-            <div className="flex flex-col items-start select-none w-full min-w-0">
-              <div className="text-[11px] font-black flex items-center gap-1.5 leading-none mb-1.5 truncate w-full">
-                <span className="text-emerald-400">PLAYER</span>
-                {playerCoreBadge && (
-                    <span className={`px-1 py-0.5 text-[9px] font-bold border leading-none shrink-0 ${playerCoreBadge.color} shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`}>
-                  {playerCoreBadge.label}
-                </span>
-                )}
-                {isPlayerStunned && <span className="text-yellow-400 text-xs font-bold animate-pulse">⚡STUN</span>}
-              </div>
-
-              {/* 픽셀 HP 게이지 바 & 쉴드 덧띠 */}
-              <RetroHpBar
-                  current={player.currentHealth}
-                  max={computed.maxHealth}
-                  shield={playerShield}
-                  isEnemy={false}
-              />
-
-              {/* 체력 / 보호막 수치 (한 줄 고정, 이모지 제거) */}
-              <div className="flex items-center justify-between w-full mt-1.5 leading-none gap-1 whitespace-nowrap overflow-hidden">
-              <span className="text-[10px] font-black font-mono text-stone-200">
-                {formatNumber(Math.max(0, player.currentHealth))}<span className="text-stone-500 mx-0.5">/</span>{formatNumber(computed.maxHealth)}
-              </span>
-                {(playerShield || 0) > 0 && (
-                    <span className="text-cyan-400 text-[10px] font-black font-mono shrink-0">
-                  +{formatNumber(playerShield || 0)}
-                </span>
-                )}
-              </div>
-            </div>
-
-            {/* 적 HUD */}
-            <div className="flex flex-col items-end select-none w-full min-w-0">
-              <div className="text-[11px] font-black leading-none mb-1.5 truncate w-full text-right flex justify-end items-center gap-1.5">
-                {enemyCoreBadge && (
-                    <span className={`px-1 py-0.5 text-[9px] font-bold border leading-none shrink-0 ${enemyCoreBadge.color} shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`}>
-                  {enemyCoreBadge.label}
-                </span>
-                )}
-                <span className="text-rose-400">ENEMY</span>
-              </div>
-
-              {/* 픽셀 HP 게이지 바 & 쉴드 덧띠 */}
-              <RetroHpBar
-                  current={currentEnemy?.currentHealth || 0}
-                  max={currentEnemy?.maxHealth || 1}
-                  shield={enemyShield}
-                  isEnemy={true}
-              />
-
-              {/* 체력 / 보호막 수치 (한 줄 고정, 이모지 제거) */}
-              <div className="flex items-center justify-between w-full mt-1.5 leading-none gap-1 whitespace-nowrap overflow-hidden">
-                {(enemyShield || 0) > 0 ? (
-                    <span className="text-cyan-400 text-[10px] font-black font-mono shrink-0">
-                  +{formatNumber(enemyShield || 0)}
-                </span>
-                ) : <span />}
-                <span className="text-[10px] font-black font-mono text-stone-200 ml-auto">
-                {formatNumber(Math.max(0, currentEnemy?.currentHealth || 0))}<span className="text-stone-500 mx-0.5">/</span>{formatNumber(currentEnemy?.maxHealth || 1)}
-              </span>
-              </div>
-            </div>
-
           </div>
 
-          {/* ----------------------------------------------------------------- */}
-          {/* 캐릭터 캔버스 및 데미지 팝업 레인 */}
-          {/* ----------------------------------------------------------------- */}
-          <div className="flex justify-center items-end gap-16 mt-10 pb-3 z-10 relative">
-
-            {/* 플레이어 캐릭터 & 피격/쉴드 팝업 */}
-            <div className="relative z-20">
-              <motion.div
-                  variants={playerVariants}
-                  animate={playerAnim}
-                  className="flex items-center justify-center border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-20 overflow-hidden"
-                  style={getDynamicBoxStyle(
-                    {
-                      str: computed.finalStr || player.stats.str,
-                      dex: computed.finalDex || player.stats.dex,
-                      con: computed.finalCon || player.stats.con,
-                    },
-                    enemyTotalStats,
-                    80
-                  )}
-              >
-                <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-950 font-mono select-none">
-                  <div className="flex justify-between w-full px-2 mb-1.5">
-                    {playerAnim === 'hit' || playerAnim === 'stunned' ? (
-                        <>
-                          <span className="text-xs font-black leading-none">&gt;</span>
-                          <span className="text-xs font-black leading-none">&lt;</span>
-                        </>
-                    ) : (
-                        <>
-                          <span className="w-2 h-2 bg-neutral-950 block"></span>
-                          <span className="w-2 h-2 bg-neutral-950 block"></span>
-                        </>
-                    )}
-                  </div>
-                  <div className={`h-1 bg-neutral-950 transition-all duration-100 ${playerAnim === 'attack' ? 'w-4 bg-red-950' : 'w-2.5'}`}></div>
-                </div>
-              </motion.div>
-
-              {/* 플레이어 쪽 피격/보호막/회피 팝업 (체력바 아래 여백으로 측면 대각선 산출) */}
-              <AnimatePresence>
-                {damagePopups.filter(p => p.type.startsWith('taken') || p.type === 'miss-player' || p.type === 'shield').map((popup) => {
-                  const isMiss = popup.type === 'miss-player';
-                  const isShield = popup.type === 'shield';
-                  const isCore = popup.type === 'taken-core';
-
-                  let text = `-${formatNumber(popup.val)}`;
-                  let colorClass = 'text-rose-500 font-black text-base md:text-lg';
-                  let xArc = -30;
-
-                  if (isMiss) {
-                    text = 'MISS';
-                    colorClass = 'text-stone-300 italic font-black text-xs md:text-sm';
-                    xArc = -15;
-                  } else if (isShield) {
-                    text = `+${formatNumber(popup.val)}`;
-                    colorClass = 'text-cyan-300 font-black text-sm md:text-base';
-                    xArc = 25;
-                  } else if (isCore) {
-                    colorClass = 'text-purple-400 font-black text-lg md:text-xl';
-                    xArc = -35;
-                  }
-
-                  return (
-                      <motion.div
-                          key={popup.id}
-                          initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
-                          animate={{
-                            opacity: [0, 1, 1, 0],
-                            y: [-2, -18, -30],
-                            x: [0, xArc * 0.7, xArc],
-                            scale: [0.6, 1.25, 1.0],
-                          }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.75, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] pointer-events-none z-50 ${colorClass}`}
-                      >
-                        {text}
-                      </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
-
-            {/* 적 캐릭터 & 공격/연격/속성 데미지 팝업 */}
-            <div className="relative z-20">
-              {currentEnemy ? (
-                  <motion.div
-                      variants={enemyVariants}
-                      animate={enemyAnim}
-                      className="flex items-center justify-center border-4 border-neutral-950 bg-stone-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden"
-                      style={getDynamicBoxStyle(currentEnemy.stats, playerTotalStats, 80)}
-                  >
-                    <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-900 font-mono select-none">
-                      <div className="flex justify-between w-full px-2 mb-1 text-xs font-black leading-none">
-                        {enemyAnim === 'hit' ? (
-                            <>
-                              <span className="text-red-900">✖</span>
-                              <span className="text-red-900">✖</span>
-                            </>
-                        ) : (
-                            <>
-                              <span>■</span>
-                              <span>■</span>
-                            </>
-                        )}
-                      </div>
-                      <div className="w-5 h-1 bg-neutral-900 mt-1"></div>
-                    </div>
-                  </motion.div>
-              ) : (
-                  <div className="w-[80px] h-[80px] flex items-center justify-center text-neutral-600 italic font-mono">...</div>
-              )}
-
-              {/* 적 쪽 타격/연격/속성/회피 팝업 (체력바 아래 여백으로 측면 대각선 산출) */}
-              <AnimatePresence>
-                {damagePopups.filter(p => !p.type.startsWith('taken') && p.type !== 'miss-player' && p.type !== 'shield').map((popup) => {
-                  let colorClass = 'text-amber-300 font-black text-base md:text-lg';
-                  let text = `-${formatNumber(popup.val)}`;
-                  let xArc = 35;
-
-                  if (popup.isCombo) {
-                    text = `⚡COMBO ${popup.comboHits || 2}x! -${formatNumber(popup.val)}`;
-                    colorClass = 'text-amber-300 font-black text-base md:text-xl';
-                    xArc = 40;
-                  }
-
-                  if (popup.type === 'core') {
-                    xArc = 40;
-
-                    if (popup.coreType === 'FIRE') {
-                      colorClass = 'text-red-500 font-black text-lg md:text-2xl';
-                      text = `🔥 -${formatNumber(popup.val)}`;
-                    } else if (popup.coreType === 'WIND') {
-                      colorClass = 'text-green-400 font-black text-lg md:text-2xl';
-                      text = `🍃 -${formatNumber(popup.val)}`;
-                    } else if (popup.coreType === 'ELECTRIC') {
-                      colorClass = 'text-yellow-300 font-black text-lg md:text-2xl';
-                      text = `⚡ -${formatNumber(popup.val)}`;
-                    } else {
-                      colorClass = 'text-orange-400 font-black text-lg md:text-2xl';
-                      text = `💧 -${formatNumber(popup.val)}`;
-                    }
-                  } else if (popup.type === 'reflect') {
-                    colorClass = 'text-cyan-300 font-black text-sm md:text-base';
-                    text = `🌀 -${formatNumber(popup.val)}`;
-                    xArc = -25;
-                  } else if (popup.type === 'miss-enemy') {
-                    colorClass = 'text-stone-300 italic font-black text-xs md:text-sm';
-                    text = 'MISS';
-                    xArc = 15;
-                  } else if (popup.type === 'one-shot-leap') {
-                    colorClass = 'text-cyan-300 font-black text-lg md:text-2xl animate-bounce';
-                    text = `🚀 ONE-SHOT +${popup.leapedStages || 3}F!`;
-                    xArc = 0;
-                  } else if (popup.type === 'leech' || popup.type === 'enemy-shield') {
-                    colorClass = 'text-emerald-400 font-black text-sm md:text-base';
-                    text = `+${formatNumber(popup.val)}`;
-                    xArc = 25;
-                  }
-
-                  return (
-                      <motion.div
-                          key={popup.id}
-                          initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
-                          animate={{
-                            opacity: [0, 1, 1, 0],
-                            y: [-2, -18, -30],
-                            x: [0, xArc * 0.7, xArc],
-                            scale: [0.6, 1.3, 1.0],
-                          }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.75, ease: "easeOut" }}
-                          className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_2px_2px_rgba(0,0,0,1)] pointer-events-none z-50 ${colorClass}`}
-                      >
-                        {text}
-                      </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
-          </div>
-
-          {/* 게임 오버 모달 */}
-          {gameStatus === 'DEFEAT' && (
-              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-50 pointer-events-none backdrop-blur-xs">
-                <h2 className="text-5xl md:text-6xl font-black text-red-500 mb-4 animate-pulse font-mono tracking-widest drop-shadow-[0_4px_2px_rgba(0,0,0,1)]">GAME OVER</h2>
-                <p className="text-white text-base md:text-lg font-bold mb-2 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
-                  {defeatReason === 'TIMEOUT' ? '시간이 초과되었습니다!' : '전투에서 패배했습니다!'}
-                </p>
-                <p className="text-neutral-300 text-xs font-mono drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">잠시 후 이전 층으로 돌아갑니다...</p>
-              </div>
-          )}
-        </div>
-
-        {/* 전투 로그 레인 */}
-        <div className="bg-neutral-950 p-2 rounded-none border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <div className="h-24 overflow-y-auto custom-scrollbar text-[10px] font-mono text-neutral-200 text-left">
-            {damageLog.map((entry) => (
-                <div key={entry.id} className="leading-tight">
-                  {entry.message}
-                </div>
-            ))}
+          {/* 레벨 경험치 거의 밑줄처럼 얇은 경험치 바 */}
+          <div className="w-full h-[2.5px] bg-stone-300 rounded-none overflow-hidden -mt-0.5 shadow-[inset_0_1px_1px_rgba(0,0,0,0.2)]">
+            <div
+              className="h-full bg-emerald-500 transition-all duration-200"
+              style={{ width: `${expPercent}%` }}
+            />
           </div>
         </div>
 
-        {/* 하단 상세 스탯 접기/펼치기 Accordion */}
-        <div className="flex flex-col bg-neutral-950 rounded-none border-4 border-neutral-950 overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <button
+        {/* [2행] 골드 / 코어 / 상자 / 방치를 한 줄에 4분할 일렬 배치 */}
+        <div className="grid grid-cols-4 gap-1 w-full text-[11px]">
+          <div className="bg-stone-200/90 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] min-w-0">
+            <span className="text-[9px] font-bold text-stone-500 shrink-0">골드</span>
+            <span className="text-stone-900 font-black truncate ml-1 font-mono text-[10px]">{formatNumber(player.gold)}</span>
+          </div>
+          <div className="bg-stone-200/90 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] min-w-0">
+            <span className="text-[9px] font-bold text-stone-500 shrink-0">코어</span>
+            <span className="text-cyan-800 font-black truncate ml-1 font-mono text-[10px]">{formatNumber(coreFragments)}</span>
+          </div>
+          <div className="bg-stone-200/90 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] min-w-0">
+            <span className="text-[9px] font-bold text-stone-500 shrink-0">상자</span>
+            <span className="text-purple-800 font-black truncate ml-1 font-mono text-[10px]">{formatNumber(boxFragments || 0)}</span>
+          </div>
+          {offlineBanner ? (
+            <button
               type="button"
-              onClick={() => setShowStats(!showStats)}
-              className="w-full py-2 bg-neutral-900/90 hover:bg-neutral-800 text-[11px] font-mono font-bold text-neutral-400 hover:text-neutral-200 transition-colors duration-150 flex items-center justify-center gap-1 border-b-2 border-neutral-950 cursor-pointer"
-          >
-            {showStats ? '상세 스탯 접기 ▲' : '상세 스탯 보기 ▼'}
-          </button>
-
-          <AnimatePresence>
-            {showStats && (
-                <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                >
-                  <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-0.5 text-[11px] font-mono bg-neutral-900">
-                    {statComparisonList.map((item) => (
-                        <div
-                            key={item.label}
-                            className="flex justify-between items-center py-0.5 border-b border-neutral-950/50"
-                        >
-                          <span className="font-bold text-green-400 w-14 text-left">{item.pValue}</span>
-                          <span className="text-neutral-500 font-sans text-center flex-1 text-[10px] tracking-tight">{item.label}</span>
-                          <span className="font-bold text-red-400 w-14 text-right">{item.eValue ?? '-'}</span>
-                        </div>
-                    ))}
-                  </div>
-                </motion.div>
-            )}
-          </AnimatePresence>
+              onClick={() => setShowOfflineModal(true)}
+              className="bg-stone-200 hover:bg-stone-300 border border-black px-1.5 py-0.5 flex items-center justify-between shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer min-w-0"
+            >
+              <span className="text-[9px] font-black text-stone-800 shrink-0">방치</span>
+              <span className="bg-stone-800 text-yellow-300 text-[8px] px-1 py-0.2 font-black leading-none rounded-none truncate ml-0.5">
+                +{offlineBanner.minutes}m
+              </span>
+            </button>
+          ) : (
+            <div className="bg-stone-200/60 border border-stone-300 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] text-stone-400 select-none min-w-0">
+              <span className="text-[9px] font-bold">방치</span>
+              <span className="text-[9px] font-mono">대기</span>
+            </div>
+          )}
         </div>
 
       </div>
+
+      {/* ================= 메인 전투 아레나 (일체형 화면) ================= */}
+      <div
+        className={`px-4 pt-3 pb-4 flex flex-col justify-between border-4 relative overflow-hidden transition-all duration-300 flex-grow min-h-[260px] ${arenaFeverStyle}`}
+        style={{
+          backgroundImage: 'linear-gradient(to right, #e7e5e4 2px, transparent 2px), linear-gradient(to bottom, #e7e5e4 2px, transparent 2px)',
+          backgroundSize: '16px 16px',
+        }}
+      >
+
+        {/* 피버 등급 상승 스플래시 토스트 연출 */}
+        <AnimatePresence>
+          {feverToast && (
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0, y: 10 }}
+              animate={{ scale: 1.2, opacity: 1, y: 0 }}
+              exit={{ scale: 1.5, opacity: 0 }}
+              className="absolute top-14 left-1/2 -translate-x-1/2 z-40 bg-black text-amber-400 px-4 py-1 border-2 border-amber-400 font-mono font-black text-xs md:text-sm shadow-[0_0_20px_rgba(251,191,36,0.9)] pointer-events-none whitespace-nowrap"
+            >
+              {feverToast}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ----------------------------------------------------------------- */}
+        {/* [전투 화면 상단 일체형 HUD] 최상단 체력바 & 코어 뱃지 라인 높이에 정렬된 타이머 */}
+        {/* ----------------------------------------------------------------- */}
+        <div className="w-full relative z-30 font-mono pb-1.5 border-b border-neutral-900/20">
+          
+          {/* 중앙 흐린 워터마크 타이머 (플레이어/적 코어 뱃지 행과 높이 일치) */}
+          {gameStatus === 'BATTLE' && (
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none z-20 flex flex-col items-center justify-center select-none">
+              <span
+                className={`font-mono text-base md:text-lg font-black tracking-tighter leading-none transition-colors duration-300 ${
+                  remainingTime <= 10 ? 'text-red-600/50 animate-pulse' : 'text-neutral-950/20'
+                }`}
+              >
+                {remainingTime}
+              </span>
+              {timeMultiplier > 1.0 && (
+                <div className="bg-amber-400/90 text-black text-[7px] font-black px-1 py-0.2 border border-black/80 shadow-[1px_1px_0px_0px_rgba(0,0,0,0.8)] tracking-tight mt-0.5 whitespace-nowrap">
+                  FEVER {timeMultiplier}x
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 최상단 좌(플레이어) / 우(에너미) 체력바 & 쉴드 */}
+          <div className="grid grid-cols-2 gap-3 w-full relative z-10">
+            
+            {/* 플레이어 체력 HUD */}
+            <div className="flex flex-col items-start select-none w-full min-w-0">
+              <div className="text-[11px] font-black flex items-center gap-1 leading-none mb-1 truncate w-full">
+                <span className="text-emerald-700">PLAYER</span>
+                {playerCoreBadge && (
+                  <span className={`px-1 py-0.2 text-[8px] font-bold border leading-none shrink-0 ${playerCoreBadge.color}`}>
+                    {playerCoreBadge.label}
+                  </span>
+                )}
+                {isPlayerStunned && <span className="text-yellow-600 text-[10px] font-bold animate-pulse">⚡STUN</span>}
+              </div>
+
+              <RetroHpBar
+                current={player.currentHealth}
+                max={computed.maxHealth}
+                shield={playerShield}
+                isEnemy={false}
+              />
+
+              <div className="flex items-center justify-between w-full mt-1 leading-none gap-1 whitespace-nowrap overflow-hidden">
+                <span className="text-[10px] font-black font-mono text-stone-700">
+                  {formatNumber(Math.max(0, player.currentHealth))}<span className="text-stone-400 mx-0.5">/</span>{formatNumber(computed.maxHealth)}
+                </span>
+                {(playerShield || 0) > 0 && (
+                  <span className="text-cyan-600 text-[10px] font-black font-mono shrink-0">
+                    +{formatNumber(playerShield || 0)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 에너미 체력 HUD */}
+            <div className="flex flex-col items-end select-none w-full min-w-0">
+              <div className="text-[11px] font-black leading-none mb-1 truncate w-full text-right flex justify-end items-center gap-1">
+                {enemyCoreBadge && (
+                  <span className={`px-1 py-0.2 text-[8px] font-bold border leading-none shrink-0 ${enemyCoreBadge.color}`}>
+                    {enemyCoreBadge.label}
+                  </span>
+                )}
+                <span className="text-rose-700">ENEMY</span>
+              </div>
+
+              <RetroHpBar
+                current={currentEnemy?.currentHealth || 0}
+                max={currentEnemy?.maxHealth || 1}
+                shield={enemyShield}
+                isEnemy={true}
+              />
+
+              <div className="flex items-center justify-between w-full mt-1 leading-none gap-1 whitespace-nowrap overflow-hidden">
+                {(enemyShield || 0) > 0 ? (
+                  <span className="text-cyan-600 text-[10px] font-black font-mono shrink-0">
+                    +{formatNumber(enemyShield || 0)}
+                  </span>
+                ) : <span />}
+                <span className="text-[10px] font-black font-mono text-stone-700 ml-auto">
+                  {formatNumber(Math.max(0, currentEnemy?.currentHealth || 0))}<span className="text-stone-400 mx-0.5">/</span>{formatNumber(currentEnemy?.maxHealth || 1)}
+                </span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {/* ----------------------------------------------------------------- */}
+        {/* [전투 화면 하단] 캐릭터 캔버스 및 데미지 팝업 레인 */}
+        {/* ----------------------------------------------------------------- */}
+        <div className="flex justify-center items-end gap-16 my-auto pt-6 pb-2 z-10 relative">
+
+          {/* 플레이어 캐릭터 & 피격/쉴드 팝업 */}
+          <div className="relative z-20">
+            <motion.div
+              variants={playerVariants}
+              animate={playerAnim}
+              className={`flex items-center justify-center border-4 ${playerCoreBorderClass} z-20 overflow-hidden bg-stone-300`}
+              style={getDynamicBoxStyle(
+                {
+                  str: computed.finalStr || player.stats.str,
+                  dex: computed.finalDex || player.stats.dex,
+                  con: computed.finalCon || player.stats.con,
+                },
+                enemyTotalStats,
+                80
+              )}
+            >
+              <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-950 font-mono select-none">
+                <div className="flex justify-between w-full px-2 mb-1.5">
+                  {playerAnim === 'hit' || playerAnim === 'stunned' ? (
+                    <>
+                      <span className="text-xs font-black leading-none">&gt;</span>
+                      <span className="text-xs font-black leading-none">&lt;</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-2 h-2 bg-neutral-950 block"></span>
+                      <span className="w-2 h-2 bg-neutral-950 block"></span>
+                    </>
+                  )}
+                </div>
+                <div className={`h-1 bg-neutral-950 transition-all duration-100 ${playerAnim === 'attack' ? 'w-4 bg-red-950' : 'w-2.5'}`}></div>
+              </div>
+            </motion.div>
+
+            {/* 플레이어 쪽 피격/보호막/회피 팝업 */}
+            <AnimatePresence>
+              {damagePopups.filter(p => p.type.startsWith('taken') || p.type === 'miss-player' || p.type === 'shield').map((popup) => {
+                const isMiss = popup.type === 'miss-player';
+                const isShield = popup.type === 'shield';
+                const isCore = popup.type === 'taken-core';
+
+                let text = `-${formatNumber(popup.val)}`;
+                let colorClass = 'text-rose-600 font-black text-base md:text-lg';
+                let xArc = -30;
+
+                if (isMiss) {
+                  text = 'MISS';
+                  colorClass = 'text-stone-500 italic font-black text-xs md:text-sm';
+                  xArc = -15;
+                } else if (isShield) {
+                  text = `+${formatNumber(popup.val)}`;
+                  colorClass = 'text-cyan-600 font-black text-sm md:text-base';
+                  xArc = 25;
+                } else if (isCore) {
+                  colorClass = 'text-purple-600 font-black text-lg md:text-xl';
+                  xArc = -35;
+                }
+
+                return (
+                  <motion.div
+                    key={popup.id}
+                    initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
+                    animate={{
+                      opacity: [0, 1, 1, 0],
+                      y: [-2, -18, -30],
+                      x: [0, xArc * 0.7, xArc],
+                      scale: [0.6, 1.25, 1.0],
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.75, ease: "easeOut" }}
+                    className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_1px_1px_rgba(255,255,255,1)] pointer-events-none z-50 ${colorClass}`}
+                  >
+                    {text}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+
+          {/* 적 캐릭터 & 공격/연격/속성 데미지 팝업 */}
+          <div className="relative z-20">
+            {currentEnemy ? (
+              <motion.div
+                variants={enemyVariants}
+                animate={enemyAnim}
+                className={`flex items-center justify-center border-4 ${enemyCoreBorderClass} bg-stone-400 overflow-hidden`}
+                style={getDynamicBoxStyle(currentEnemy.stats, playerTotalStats, 80)}
+              >
+                <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-900 font-mono select-none">
+                  <div className="flex justify-between w-full px-2 mb-1 text-xs font-black leading-none">
+                    {enemyAnim === 'hit' ? (
+                      <>
+                        <span className="text-red-900">✖</span>
+                        <span className="text-red-900">✖</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>■</span>
+                        <span>■</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="w-5 h-1 bg-neutral-900 mt-1"></div>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="w-[80px] h-[80px] flex items-center justify-center text-neutral-600 italic font-mono">...</div>
+            )}
+
+            {/* 적 쪽 타격/연격/속성/회피 팝업 */}
+            <AnimatePresence>
+              {damagePopups.filter(p => !p.type.startsWith('taken') && p.type !== 'miss-player' && p.type !== 'shield').map((popup) => {
+                let colorClass = 'text-amber-600 font-black text-base md:text-lg';
+                let text = `-${formatNumber(popup.val)}`;
+                let xArc = 35;
+
+                if (popup.isCombo) {
+                  text = `⚡COMBO ${popup.comboHits || 2}x! -${formatNumber(popup.val)}`;
+                  colorClass = 'text-amber-600 font-black text-base md:text-xl';
+                  xArc = 40;
+                }
+
+                if (popup.type === 'core') {
+                  xArc = 40;
+
+                  if (popup.coreType === 'FIRE') {
+                    colorClass = 'text-red-600 font-black text-lg md:text-2xl';
+                    text = `🔥 -${formatNumber(popup.val)}`;
+                  } else if (popup.coreType === 'WIND') {
+                    colorClass = 'text-emerald-600 font-black text-lg md:text-2xl';
+                    text = `🍃 -${formatNumber(popup.val)}`;
+                  } else if (popup.coreType === 'ELECTRIC') {
+                    colorClass = 'text-amber-500 font-black text-lg md:text-2xl';
+                    text = `⚡ -${formatNumber(popup.val)}`;
+                  } else {
+                    colorClass = 'text-blue-600 font-black text-lg md:text-2xl';
+                    text = `💧 -${formatNumber(popup.val)}`;
+                  }
+                } else if (popup.type === 'reflect') {
+                  colorClass = 'text-cyan-600 font-black text-sm md:text-base';
+                  text = `🌀 -${formatNumber(popup.val)}`;
+                  xArc = -25;
+                } else if (popup.type === 'miss-enemy') {
+                  colorClass = 'text-stone-500 italic font-black text-xs md:text-sm';
+                  text = 'MISS';
+                  xArc = 15;
+                } else if (popup.type === 'one-shot-leap') {
+                  colorClass = 'text-cyan-600 font-black text-lg md:text-2xl animate-bounce';
+                  text = `🚀 ONE-SHOT +${popup.leapedStages || 3}F!`;
+                  xArc = 0;
+                } else if (popup.type === 'leech' || popup.type === 'enemy-shield') {
+                  colorClass = 'text-emerald-600 font-black text-sm md:text-base';
+                  text = `+${formatNumber(popup.val)}`;
+                  xArc = 25;
+                }
+
+                return (
+                  <motion.div
+                    key={popup.id}
+                    initial={{ opacity: 0, y: 0, scale: 0.5, x: 0 }}
+                    animate={{
+                      opacity: [0, 1, 1, 0],
+                      y: [-2, -18, -30],
+                      x: [0, xArc * 0.7, xArc],
+                      scale: [0.6, 1.3, 1.0],
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.75, ease: "easeOut" }}
+                    className={`absolute left-1/2 -translate-x-1/2 -top-2 font-mono whitespace-nowrap drop-shadow-[0_1px_1px_rgba(255,255,255,1)] pointer-events-none z-50 ${colorClass}`}
+                  >
+                    {text}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* 게임 오버 모달 (10층 전 후퇴 안내) */}
+        {gameStatus === 'DEFEAT' && (
+          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-50 pointer-events-none backdrop-blur-xs">
+            <h2 className="text-4xl md:text-5xl font-black text-red-500 mb-2 animate-pulse font-mono tracking-widest drop-shadow-[0_4px_2px_rgba(0,0,0,1)]">
+              GAME OVER
+            </h2>
+            <p className="text-white text-sm md:text-base font-bold mb-1.5 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
+              {defeatReason === 'TIMEOUT' ? '시간이 초과되었습니다!' : '전투에서 패배했습니다!'}
+            </p>
+            <p className="text-yellow-300 text-xs font-mono font-bold drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
+              잠시 후 10층 전 (STAGE {Math.max(1, stage - 10)})으로 이동하여 재정비합니다...
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* 전투 로그 레인 */}
+      <div className="bg-neutral-950 p-2 rounded-none border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <div className="h-20 overflow-y-auto custom-scrollbar text-[10px] font-mono text-neutral-200 text-left">
+          {damageLog.map((entry) => (
+            <div key={entry.id} className="leading-tight">
+              {entry.message}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 하단 상세 스탯 접기/펼치기 Accordion */}
+      <div className="flex flex-col bg-neutral-950 rounded-none border-4 border-neutral-950 overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        <button
+          type="button"
+          onClick={() => setShowStats(!showStats)}
+          className="w-full py-1.5 bg-neutral-900/90 hover:bg-neutral-800 text-[11px] font-mono font-bold text-neutral-400 hover:text-neutral-200 transition-colors duration-150 flex items-center justify-center gap-1 border-b-2 border-neutral-950 cursor-pointer"
+        >
+          {showStats ? '상세 스탯 접기 ▲' : '상세 스탯 보기 ▼'}
+        </button>
+
+        <AnimatePresence>
+          {showStats && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-0.5 text-[11px] font-mono bg-neutral-900">
+                {[
+                  { label: '공격력', pValue: formatNumber(computed.attack), eValue: enemyComputed ? formatNumber(enemyComputed.attack) : '-' },
+                  { label: '방어력', pValue: formatNumber(computed.defense), eValue: enemyComputed ? formatNumber(enemyComputed.defense) : '-' },
+                  { label: '최대체력', pValue: formatNumber(computed.maxHealth), eValue: currentEnemy ? formatNumber(currentEnemy.maxHealth) : '-' },
+                  { label: '공격속도', pValue: `${computed.attackSpeed.toFixed(1)}/s`, eValue: `${enemyAttackSpeed.toFixed(1)}/s` },
+                  { label: '명중력', pValue: formatNumber(computed.accuracy), eValue: enemyComputed ? formatNumber(enemyComputed.accuracy) : '-' },
+                  { label: '회피력', pValue: formatNumber(computed.evasion), eValue: enemyComputed ? formatNumber(enemyComputed.evasion) : '-' },
+                  { label: '힘 (STR)', pValue: formatNumber(computed.finalStr), eValue: enemyComputed ? formatNumber(enemyComputed.finalStr) : (currentEnemy ? formatNumber(currentEnemy.stats.str) : '-') },
+                  { label: '민첩 (DEX)', pValue: formatNumber(computed.finalDex), eValue: enemyComputed ? formatNumber(enemyComputed.finalDex) : (currentEnemy ? formatNumber(currentEnemy.stats.dex) : '-') },
+                  { label: '체력 (CON)', pValue: formatNumber(computed.finalCon), eValue: enemyComputed ? formatNumber(enemyComputed.finalCon) : (currentEnemy ? formatNumber(currentEnemy.stats.con) : '-') },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex justify-between items-center py-0.5 border-b border-neutral-950/50"
+                  >
+                    <span className="font-bold text-green-400 w-14 text-left">{item.pValue}</span>
+                    <span className="text-neutral-500 font-sans text-center flex-1 text-[10px] tracking-tight">{item.label}</span>
+                    <span className="font-bold text-red-400 w-14 text-right">{item.eValue ?? '-'}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+    </div>
   );
 };
 

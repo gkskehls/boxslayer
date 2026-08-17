@@ -112,6 +112,7 @@ export interface DamageDetails {
   comboHits?: number;
   isOneShotLeap?: boolean;
   leapedStages?: number;
+  absorbedByShield?: number;
 }
 
 export interface GameState {
