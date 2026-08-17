@@ -235,6 +235,7 @@ const initialGameState: GameState = {
   currentEnemy: null,
   stage: 1,
   maxStage: 1,
+  allTimeMaxStage: 1,
   isAutoBattle: true,
   gameStatus: 'IDLE',
   playerCores: [],
@@ -366,6 +367,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const rpMultiplier = 1 + (computed.modifiers.rpBonusMultiplier || 0);
     const pointsEarned = Math.floor(basePoints * rpMultiplier);
     const startStage = 1;
+    const currentRunMax = Math.max(state.maxStage || 1, state.stage);
+    const updatedAllTimeMax = Math.max(state.allTimeMaxStage || 1, currentRunMax);
 
     set({
       ...initialGameState,
@@ -376,7 +379,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       coreAbilities: state.coreAbilities,
       unlockedSkills: state.unlockedSkills,
       stage: startStage,
-      maxStage: Math.max(state.maxStage, startStage),
+      maxStage: startStage,
+      allTimeMaxStage: updatedAllTimeMax,
       playerCores: [],
       equippedCore: null,
     });
@@ -429,7 +433,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     set({
       stage: nextStage,
-      maxStage: Math.max(state.maxStage, nextStage),
+      maxStage: Math.max(state.maxStage || 1, nextStage),
+      allTimeMaxStage: Math.max(state.allTimeMaxStage || 1, state.maxStage || 1, nextStage),
       currentEnemy: {
         id: `enemy-${nextStage}`,
         name: `BOX ${nextStage}`,
@@ -681,7 +686,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           currentHealth: Math.floor(playerComputed.maxHealth)
         },
         stage: nextStageNumber,
-        maxStage: Math.max(state.maxStage, nextStageNumber),
+        maxStage: Math.max(state.maxStage || 1, nextStageNumber),
+        allTimeMaxStage: Math.max(state.allTimeMaxStage || 1, state.maxStage || 1, nextStageNumber),
         coreFragments: state.coreFragments + coreFragmentsGained,
         boxFragments: (state.boxFragments || 0) + boxFragmentsGained,
         gameStatus: 'VICTORY',

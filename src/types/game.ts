@@ -119,6 +119,7 @@ export interface GameState {
   currentEnemy: Enemy | null;
   stage: number;
   maxStage: number;
+  allTimeMaxStage?: number;
   isAutoBattle: boolean;
   gameStatus: 'IDLE' | 'BATTLE' | 'VICTORY' | 'DEFEAT';
   playerCores: Core[];

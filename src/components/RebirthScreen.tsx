@@ -9,6 +9,7 @@ const RebirthScreen: React.FC = () => {
   const {
     stage,
     maxStage,
+    allTimeMaxStage,
     reincarnationPoints,
     rebirthUpgrades,
     upgradeRebirthStat,
@@ -74,37 +75,37 @@ const RebirthScreen: React.FC = () => {
         </button>
       </div>
 
-      {/* 1. 상단 환생 캐시 레지스터 & 한 줄 환생 실행 바 */}
-      <div className="bg-stone-300 p-3 rounded-none border-4 border-black w-full flex flex-col gap-2 font-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-        <div className="flex justify-between items-center">
+      {/* 1. 상단 단일 환생 정보 & 실행 패널 (타이틀 상단 / 내용 하단 2줄 정렬 + 우측 환생 버튼) */}
+      <div className="bg-stone-200/90 p-3 rounded-none border-4 border-black w-full flex items-center justify-between gap-3 font-mono shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+        {/* 좌측: 타이틀(상단) + 내용(하단) 2줄로 간략 정렬된 메트릭 */}
+        <div className="grid grid-cols-3 gap-2 flex-1 min-w-0">
           <div>
-            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-wider block leading-tight">RECORD</span>
-            <span className="text-xs font-black text-stone-900">전체 최고 기록: STG.{maxStage || stage}</span>
+            <span className="text-[10px] font-bold text-stone-500 block leading-tight">최고 기록</span>
+            <span className="text-xs font-black text-stone-900 truncate block mt-0.5">STG.{allTimeMaxStage || maxStage || stage}</span>
           </div>
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-wider block leading-tight">보유 환생 포인트</span>
-            <span className="text-sm font-black text-purple-700 font-mono leading-tight">{formatNumber(reincarnationPoints)} RP</span>
+          <div>
+            <span className="text-[10px] font-bold text-stone-500 block leading-tight">보유 RP</span>
+            <span className="text-xs font-black text-purple-700 truncate block mt-0.5">{formatNumber(reincarnationPoints)}</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-stone-500 block leading-tight">획득 RP</span>
+            <span className="text-xs font-black text-purple-700 truncate block mt-0.5">+{formatNumber(potentialPoints)}</span>
           </div>
         </div>
 
-        {/* 한 줄 환생 실행 라인 */}
-        <div className="flex justify-between items-center bg-stone-100 p-2.5 border-2 border-stone-400 font-mono">
-          <span className="text-xs font-black text-purple-700">
-            환생 시 획득: +{formatNumber(potentialPoints)} RP
-          </span>
-          <button
-            type="button"
-            onClick={handleReincarnate}
-            disabled={potentialPoints <= 0}
-            className={`px-3 py-1.5 rounded-none border-2 border-black font-black text-xs transition-all whitespace-nowrap leading-none tracking-wider uppercase ${
-              potentialPoints > 0
-                ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer'
-                : 'bg-stone-300 border-stone-400 text-stone-400 opacity-40 shadow-none cursor-not-allowed'
-            }`}
-          >
-            환생
-          </button>
-        </div>
+        {/* 우측: 환생 실행 버튼 */}
+        <button
+          type="button"
+          onClick={handleReincarnate}
+          disabled={potentialPoints <= 0}
+          className={`px-3.5 py-2.5 rounded-none border-2 border-black font-black text-xs transition-all whitespace-nowrap leading-none tracking-wider shrink-0 ${
+            potentialPoints > 0
+              ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer'
+              : 'bg-stone-300 border-stone-400 text-stone-400 opacity-40 shadow-none cursor-not-allowed'
+          }`}
+        >
+          환생
+        </button>
       </div>
 
       {/* 2. 환생 스탯 강화 카테고리 탭 & 구매 배수 선택 */}

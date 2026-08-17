@@ -640,79 +640,80 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           </div>
         )}
 
-        {/* ================= 통합 상단 HUD (스테이지, 레벨/EXP, 재화 바, 퀵 액션) ================= */}
-        <div className="bg-stone-100 p-2.5 rounded-none border-4 border-neutral-900 flex flex-col gap-2 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-mono">
+        {/* ================= 통합 상단 HUD (간결한 2줄 구성) ================= */}
+        <div className="bg-stone-100 px-2 py-1.5 rounded-none border-4 border-neutral-900 flex flex-col gap-1 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-mono text-xs">
           
-          {/* [1행] 스테이지 & 레벨 / EXP (한 줄 고정) */}
-          <div className="flex justify-between items-center whitespace-nowrap gap-2">
+          {/* [1행] 스테이지 / 최고층 & 레벨/EXP & 퀵 액션 (스탯/방치보상) */}
+          <div className="flex justify-between items-center whitespace-nowrap gap-1.5">
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-xs font-black bg-neutral-950 text-yellow-400 px-2 py-0.5 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] tracking-wider">
+              <span className="font-black text-stone-900 tracking-wider">
                 STAGE {stage}
               </span>
-              {(maxStage || 1) > stage && (
-                <span className="text-[10px] text-stone-500 font-bold">
-                  (최고 {maxStage})
-                </span>
-              )}
+              <span className="font-black text-red-600 text-[11px]">
+                {maxStage || stage}
+              </span>
+              <span className="text-stone-300 text-[10px]">|</span>
+              <span className="text-neutral-900 font-bold text-[11px]">Lv.{player.level}</span>
+              <span className="text-neutral-500 text-[10px]">
+                ({formatNumber(player.experience)}/{formatNumber(player.nextLevelExperience)})
+              </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs font-bold shrink-0">
-              <span className="text-neutral-900 font-black">Lv.{player.level}</span>
-              <span className="text-stone-400 text-[10px]">|</span>
-              <div className="flex items-center gap-1">
-                <span className="text-blue-600 text-[10px] font-black">EXP</span>
-                <span className="text-[10px] text-neutral-800 font-bold">
-                  {formatNumber(player.experience)}/{formatNumber(player.nextLevelExperience)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* [2행] 정돈된 3분할 재화 표시 바 (한 줄 균등 분할) */}
-          <div className="grid grid-cols-3 gap-1.5 w-full text-xs">
-            <div className="bg-stone-200 border-2 border-stone-400 px-1.5 py-1 flex items-center justify-center gap-1 shadow-[inset_1px_1px_0px_rgba(0,0,0,0.08)] truncate">
-              <span className="text-xs shrink-0">🪙</span>
-              <span className="text-stone-900 text-[11px] font-black truncate">{formatNumber(player.gold)}</span>
-            </div>
-            <div className="bg-stone-200 border-2 border-stone-400 px-1.5 py-1 flex items-center justify-center gap-1 shadow-[inset_1px_1px_0px_rgba(0,0,0,0.08)] truncate">
-              <span className="text-xs shrink-0">💎</span>
-              <span className="text-stone-900 text-[11px] font-black truncate">{formatNumber(coreFragments)}</span>
-            </div>
-            <div className="bg-stone-200 border-2 border-stone-400 px-1.5 py-1 flex items-center justify-center gap-1 shadow-[inset_1px_1px_0px_rgba(0,0,0,0.08)] truncate">
-              <span className="text-xs shrink-0">📦</span>
-              <span className="text-stone-900 text-[11px] font-black truncate">{formatNumber(boxFragments || 0)}</span>
-            </div>
-          </div>
-
-          {/* [3행] 스탯 분배 및 오프라인 방치 보상 퀵 액션 영역 */}
-          {(player.statPoints > 0 || offlineBanner) && (
-            <div className="flex items-center gap-1.5 pt-1.5 border-t border-stone-300">
-              {player.statPoints > 0 && onNavigateToStats && (
+            {/* 우측 컴팩트 퀵 액션 버튼 2종 */}
+            <div className="flex items-center gap-1 shrink-0">
+              {player.statPoints > 0 && onNavigateToStats ? (
                 <button
                   type="button"
                   onClick={onNavigateToStats}
-                  className="flex-1 bg-amber-400 hover:bg-amber-300 text-black text-[11px] font-black py-1.5 px-2 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer flex items-center justify-center gap-1 leading-none tracking-tight animate-pulse"
+                  className="bg-stone-200 hover:bg-stone-300 text-stone-900 text-[10px] font-black px-1.5 py-0.5 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer flex items-center gap-1 leading-tight"
                 >
-                  <span>⚡ 스탯 분배</span>
-                  <span className="bg-red-600 text-white text-[9px] px-1 py-0.5 rounded font-bold">
-                    +{player.statPoints}P
+                  <span>스탯</span>
+                  <span className="bg-red-600 text-white text-[8px] px-1 py-0.2 font-black leading-none">
+                    +{player.statPoints}
                   </span>
                 </button>
+              ) : (
+                <div className="bg-stone-100 border border-stone-300 text-stone-400 text-[10px] font-bold px-1.5 py-0.5 flex items-center gap-1 leading-tight select-none">
+                  <span>스탯</span>
+                  <span className="text-[8px] text-stone-400 font-mono">0P</span>
+                </div>
               )}
-              {offlineBanner && (
+
+              {offlineBanner ? (
                 <button
                   type="button"
                   onClick={() => setShowOfflineModal(true)}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black py-1.5 px-2 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer flex items-center justify-center gap-1 leading-none tracking-tight"
+                  className="bg-stone-200 hover:bg-stone-300 text-stone-900 text-[10px] font-black px-1.5 py-0.5 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer flex items-center gap-1 leading-tight"
                 >
-                  <span>🎁 방치 보상</span>
-                  <span className="bg-emerald-900 text-emerald-100 text-[9px] px-1 py-0.5 rounded font-bold">
-                    +{offlineBanner.minutes}분
+                  <span>방치</span>
+                  <span className="bg-stone-800 text-yellow-300 text-[8px] px-1 py-0.2 font-black leading-none">
+                    +{offlineBanner.minutes}m
                   </span>
                 </button>
+              ) : (
+                <div className="bg-stone-100 border border-stone-300 text-stone-400 text-[10px] font-bold px-1.5 py-0.5 flex items-center gap-1 leading-tight select-none">
+                  <span>방치</span>
+                  <span className="text-[8px] text-stone-400">대기</span>
+                </div>
               )}
             </div>
-          )}
+          </div>
+
+          {/* [2행] 정돈된 3분할 슬림 재화 표시 바 */}
+          <div className="grid grid-cols-3 gap-1 w-full text-[11px]">
+            <div className="bg-stone-200/80 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)]">
+              <span className="text-[9px] font-bold text-stone-500">골드</span>
+              <span className="text-stone-900 font-black truncate ml-1">{formatNumber(player.gold)}</span>
+            </div>
+            <div className="bg-stone-200/80 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)]">
+              <span className="text-[9px] font-bold text-stone-500">코어</span>
+              <span className="text-stone-900 font-black truncate ml-1">{formatNumber(coreFragments)}</span>
+            </div>
+            <div className="bg-stone-200/80 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)]">
+              <span className="text-[9px] font-bold text-stone-500">상자</span>
+              <span className="text-stone-900 font-black truncate ml-1">{formatNumber(boxFragments || 0)}</span>
+            </div>
+          </div>
 
         </div>
 
