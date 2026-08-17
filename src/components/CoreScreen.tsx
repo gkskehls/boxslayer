@@ -4,7 +4,12 @@ import React, { useState } from 'react';
 import { useGameStore, getComputedStats } from '../store/gameStore';
 import type { CoreType } from '../types/game';
 import { formatNumber } from '../utils/format';
-import { CORE_ABILITIES_CONFIG, calculateCoreAbilityCost, calculateTotalSpentCoreFragments } from '../data/rebirthConfig';
+import {
+  CORE_ABILITIES_CONFIG,
+  calculateCoreAbilityCost,
+  calculateTotalSpentCoreFragments,
+  canUnlockCoreAbility,
+} from '../data/rebirthConfig';
 
 interface CoreThemeInfo {
   name: string;
@@ -150,10 +155,9 @@ const CoreScreen: React.FC = () => {
   const fireDmgMultLvl = abilities.fire_damage_multiplier || 0;
   const fireSupernovaLvl = abilities.fire_supernova || 0;
 
-  const fireBaseFlat = (1 + currentLevel * 0.5) + (fireFlatDmgLvl * 6);
-  const fireStrRatio = 50 + (fireStrRatioLvl * 5); // %
-  const fireStrBonusDmg = Math.floor(player.stats.str * (fireStrRatio / 100));
-  const fireDmgMultiplier = (1 + (fireDmgMultLvl * 0.025)) * (1 + (fireBurnDotLvl * 0.03));
+  const fireBaseFlat = (1 + currentLevel * 0.5) + (fireFlatDmgLvl * 4);
+  const fireStrBonusDmg = fireStrRatioLvl > 0 ? Math.floor(player.stats.str * (fireStrRatioLvl * 0.04)) : 0;
+  const fireDmgMultiplier = (1 + (fireDmgMultLvl * 0.025)) * (1 + (fireBurnDotLvl * 0.025));
   const fireTotalBase = Math.floor((fireBaseFlat + fireStrBonusDmg) * fireDmgMultiplier);
   const fireSupernovaPercent = 150 + (fireSupernovaLvl * 5);
   const fireSupernovaDmg = Math.floor(computed.attack * (fireSupernovaPercent / 100));
@@ -165,11 +169,11 @@ const CoreScreen: React.FC = () => {
   const waterLifeStealLvl = abilities.water_life_steal || 0;
   const waterShieldBurstLvl = abilities.water_shield_burst || 0;
 
-  const waterInitialShieldPercent = (20 + currentLevel * 2) + (waterInitialLvl * 2.5); // %
+  const waterInitialShieldPercent = (5 + currentLevel * 0.5) + (waterInitialLvl * 2.0); // %
   const waterInitialShieldVal = Math.floor(computed.maxHealth * (waterInitialShieldPercent / 100));
-  const waterHitShieldPercent = 2.0 + (waterShieldHitLvl * 0.5); // %
+  const waterHitShieldPercent = waterShieldHitLvl * 0.4; // %
   const waterHitShieldVal = Math.floor(computed.maxHealth * (waterHitShieldPercent / 100));
-  const waterThornsPercent = 15 + (waterThornsLvl * 2.0); // %
+  const waterThornsPercent = waterThornsLvl * 2.0; // %
   const waterLifeStealPercent = waterLifeStealLvl * 0.5; // %
   const waterShieldBurstPercent = waterShieldBurstLvl * 2.0; // %
 
@@ -180,9 +184,9 @@ const CoreScreen: React.FC = () => {
   const windComboBurstLvl = abilities.wind_combo_burst || 0;
   const windAbsEvaLvl = abilities.wind_absolute_evasion || 0;
 
-  const windEvaPercent = (2.0 + currentLevel * 0.2) + (windEvaLvl * 0.5); // %
+  const windEvaPercent = (1.5 + currentLevel * 0.1) + (windEvaLvl * 0.5); // %
   const windMultiChancePercent = windMultiChanceLvl * 1.5; // %
-  const windMultiDmgMultiplier = 140 + (windMultiDmgLvl * 4.0); // %
+  const windMultiDmgMultiplier = 130 + (windMultiDmgLvl * 3.0); // %
   const windComboBurstPercent = 150 + (windComboBurstLvl * 5.0); // %
   const windComboBurstDmg = Math.floor(computed.attack * (windComboBurstPercent / 100));
 
@@ -193,12 +197,12 @@ const CoreScreen: React.FC = () => {
   const elecExecLvl = abilities.electric_execution_damage || 0;
   const elecOverloadLvl = abilities.electric_chain_overload || 0;
 
-  const elecBaseFlat = (1 + currentLevel * 0.2) + (elecFlatDmgLvl * 5);
-  const elecStunChancePercent = 10 + (elecStunChanceLvl * 1.0); // %
-  const elecStunDurSec = (1.5 + (elecStunDurLvl * 0.1)).toFixed(1);
-  const elecExecBonusPercent = 50 + (elecExecLvl * 5.0); // %
+  const elecBaseFlat = (2 + currentLevel * 0.3) + (elecFlatDmgLvl * 3);
+  const elecStunChancePercent = elecStunChanceLvl * 1.0; // %
+  const elecStunDurSec = (1.2 + (elecStunDurLvl * 0.1)).toFixed(1);
+  const elecExecBonusPercent = elecExecLvl > 0 ? (30 + (elecExecLvl * 5.0)) : 0; // %
   const elecExecBonusDmg = Math.floor(computed.attack * (elecExecBonusPercent / 100));
-  const elecOverloadPercent = 50 + (elecOverloadLvl * 3.0); // %
+  const elecOverloadPercent = elecOverloadLvl > 0 ? (40 + (elecOverloadLvl * 3.0)) : 0; // %
   const elecOverloadDmg = Math.floor(computed.attack * (elecOverloadPercent / 100));
 
   return (
@@ -215,7 +219,7 @@ const CoreScreen: React.FC = () => {
           <h2 className="text-sm font-black text-stone-500 tracking-widest uppercase leading-tight">
             -[ CORE ]-
           </h2>
-          <span className="text-[10px] font-bold text-stone-500">속성 원소 및 특화 연구</span>
+          <span className="text-[10px] font-bold text-stone-500">속성 원소 및 단계별 특화 연구</span>
         </div>
         <button
           type="button"
@@ -333,7 +337,7 @@ const CoreScreen: React.FC = () => {
             </div>
 
             {/* ------------------------------------------------------------- */}
-            {/* [실시간 코어 발동 능력치 상세 보드 (레벨/연구 실시간 반영)] */}
+            {/* [실시간 코어 발동 능력치 상세 보드 (기본/연구 실시간 반영)] */}
             {/* ------------------------------------------------------------- */}
             <div className="bg-stone-50 p-2.5 border-2 border-stone-300 flex flex-col gap-2 text-left">
               <div className="flex justify-between items-center border-b border-stone-200 pb-1">
@@ -352,12 +356,14 @@ const CoreScreen: React.FC = () => {
               {selectedType === 'FIRE' && (
                 <div className="grid grid-cols-1 gap-1.5 text-[11px]">
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
-                    <span className="text-stone-600 font-bold">🔥 화염 관통 기본 피해 (방어무시)</span>
+                    <span className="text-stone-600 font-bold">🔥 기본 화염 피해 (방어무시)</span>
                     <span className="font-black text-red-600 font-mono">+{formatNumber(fireBaseFlat)}</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
                     <span className="text-stone-600 font-bold">💪 STR(힘) 화염 계수 (STR {player.stats.str})</span>
-                    <span className="font-black text-amber-700 font-mono">+{fireStrRatio}% (+{formatNumber(fireStrBonusDmg)})</span>
+                    <span className={`font-black font-mono ${fireStrRatioLvl > 0 ? 'text-amber-700' : 'text-stone-400'}`}>
+                      {fireStrRatioLvl > 0 ? `+${(fireStrRatioLvl * 4)}% (+${formatNumber(fireStrBonusDmg)})` : '연구 필요 (미해금)'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
                     <span className="text-stone-600 font-bold">💥 총 화염 타격 피해 (DoT/폭발 증폭 포함)</span>
@@ -365,7 +371,9 @@ const CoreScreen: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
                     <span className="text-stone-600 font-bold">🌟 초신성 폭발 (5회 타격마다)</span>
-                    <span className="font-black text-orange-600 font-mono">공격력의 {fireSupernovaPercent}% ({formatNumber(fireSupernovaDmg)})</span>
+                    <span className={`font-black font-mono ${fireSupernovaLvl > 0 ? 'text-orange-600' : 'text-stone-400'}`}>
+                      {fireSupernovaLvl > 0 ? `공격력의 ${fireSupernovaPercent}% (${formatNumber(fireSupernovaDmg)})` : '연구 필요 (미해금)'}
+                    </span>
                   </div>
                 </div>
               )}
@@ -378,15 +386,21 @@ const CoreScreen: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
                     <span className="text-stone-600 font-bold">🌊 타격 시 보호막 회복</span>
-                    <span className="font-black text-cyan-700 font-mono">타격당 +{waterHitShieldPercent.toFixed(1)}% (+{formatNumber(waterHitShieldVal)})</span>
+                    <span className={`font-black font-mono ${waterShieldHitLvl > 0 ? 'text-cyan-700' : 'text-stone-400'}`}>
+                      {waterShieldHitLvl > 0 ? `타격당 +${waterHitShieldPercent.toFixed(1)}% (+${formatNumber(waterHitShieldVal)})` : '연구 필요 (미해금)'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
-                    <span className="text-stone-600 font-bold">🌵 피격 피해 반사</span>
-                    <span className="font-black text-indigo-600 font-mono">받은 피해의 {waterThornsPercent.toFixed(1)}% 즉시 반사</span>
+                    <span className="text-stone-600 font-bold">🌀 피격 피해 반사</span>
+                    <span className={`font-black font-mono ${waterThornsLvl > 0 ? 'text-indigo-600' : 'text-stone-400'}`}>
+                      {waterThornsLvl > 0 ? `피격 피해의 ${waterThornsPercent.toFixed(1)}% 반사` : '연구 필요 (미해금)'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
-                    <span className="text-stone-600 font-bold">🩸 생명 갈취 (흡혈) / 💫 수호 공명</span>
-                    <span className="font-black text-emerald-700 font-mono">흡혈 +{waterLifeStealPercent.toFixed(1)}% / 피해증폭 +{waterShieldBurstPercent.toFixed(1)}%</span>
+                    <span className="text-stone-600 font-bold">🩸 생명 갈취 (흡혈) / 💎 수호 공명</span>
+                    <span className={`font-black font-mono ${waterLifeStealLvl > 0 || waterShieldBurstLvl > 0 ? 'text-emerald-700' : 'text-stone-400'}`}>
+                      {waterLifeStealLvl > 0 ? `흡혈 +${waterLifeStealPercent.toFixed(1)}%` : '흡혈 미해금'} / {waterShieldBurstLvl > 0 ? `피해증폭 +${waterShieldBurstPercent.toFixed(1)}%` : '공명 미해금'}
+                    </span>
                   </div>
                 </div>
               )}
@@ -398,17 +412,21 @@ const CoreScreen: React.FC = () => {
                     <span className="font-black text-emerald-600 font-mono">+{windEvaPercent.toFixed(1)}%</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
-                    <span className="text-stone-600 font-bold">⚡ 질풍 연격(Multi-Hit) 확률</span>
-                    <span className="font-black text-teal-700 font-mono">{windMultiChancePercent.toFixed(1)}% (2~3회 타격)</span>
+                    <span className="text-stone-600 font-bold">⚡ 질풍 연격(Multi-Hit) 발동</span>
+                    <span className={`font-black font-mono ${windMultiChanceLvl > 0 ? 'text-teal-700' : 'text-stone-400'}`}>
+                      {windMultiChanceLvl > 0 ? `${windMultiChancePercent.toFixed(1)}% (2~3연타, 배율 ${windMultiDmgMultiplier}%)` : '연구 필요 (기본 단타)'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
-                    <span className="text-stone-600 font-bold">🗡️ 연격 타격 데미지 증폭</span>
-                    <span className="font-black text-emerald-800 font-mono">{windMultiDmgMultiplier.toFixed(0)}% 배율</span>
+                    <span className="text-stone-600 font-bold">🌪️ 태풍의 눈 (10타 강타)</span>
+                    <span className={`font-black font-mono ${windComboBurstLvl > 0 ? 'text-green-700' : 'text-stone-400'}`}>
+                      {windComboBurstLvl > 0 ? `공격력의 ${windComboBurstPercent}% (${formatNumber(windComboBurstDmg)})` : '연구 필요 (미해금)'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
-                    <span className="text-stone-600 font-bold">🌪️ 태풍의 눈 (10타) / 👻 잔상 분신</span>
-                    <span className="font-black text-green-700 font-mono">
-                      강타 {windComboBurstPercent}% ({formatNumber(windComboBurstDmg)}) / 8타 절대회피 {windAbsEvaLvl > 0 ? 'ON' : 'OFF'}
+                    <span className="text-stone-600 font-bold">👤 잔상 분신 (8타 누적 회피)</span>
+                    <span className={`font-black font-mono ${windAbsEvaLvl > 0 ? 'text-emerald-700' : 'text-stone-400'}`}>
+                      {windAbsEvaLvl > 0 ? '8타마다 다음 피격 100% 절대 회피' : '연구 필요 (미해금)'}
                     </span>
                   </div>
                 </div>
@@ -417,20 +435,26 @@ const CoreScreen: React.FC = () => {
               {selectedType === 'ELECTRIC' && (
                 <div className="grid grid-cols-1 gap-1.5 text-[11px]">
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
-                    <span className="text-stone-600 font-bold">⚡ 번개 관통 추가 피해 (방어무시)</span>
+                    <span className="text-stone-600 font-bold">⚡ 기본 번개 관통 피해 (방어무시)</span>
                     <span className="font-black text-amber-700 font-mono">+{formatNumber(elecBaseFlat)}</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
-                    <span className="text-stone-600 font-bold">💫 감전 기절(Stun) 확률 & 지속시간</span>
-                    <span className="font-black text-yellow-700 font-mono">{elecStunChancePercent.toFixed(1)}% (8타 확정) / {elecStunDurSec}초</span>
+                    <span className="text-stone-600 font-bold">💫 감전 기절(Stun) 능력</span>
+                    <span className={`font-black font-mono ${elecStunChanceLvl > 0 ? 'text-yellow-700' : 'text-stone-400'}`}>
+                      {elecStunChanceLvl > 0 ? `${elecStunChancePercent.toFixed(1)}% (10타 확정) / ${elecStunDurSec}초` : '연구 필요 (미해금)'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
-                    <span className="text-stone-600 font-bold">🗡️ 뇌신 처형 (기절 상태 적 공격)</span>
-                    <span className="font-black text-red-600 font-mono">공격력의 +{elecExecBonusPercent}% (+{formatNumber(elecExecBonusDmg)})</span>
+                    <span className="text-stone-600 font-bold">🗡️ 뇌신 처형 (기절한 적 공격)</span>
+                    <span className={`font-black font-mono ${elecExecLvl > 0 ? 'text-red-600' : 'text-stone-400'}`}>
+                      {elecExecLvl > 0 ? `공격력의 +${elecExecBonusPercent}% (+${formatNumber(elecExecBonusDmg)})` : '연구 필요 (미해금)'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-1.5 border border-stone-200">
-                    <span className="text-stone-600 font-bold">🌩️ 과부하 낙뢰 방전 (기절 적 타격)</span>
-                    <span className="font-black text-purple-700 font-mono">공격력의 +{elecOverloadPercent}% (+{formatNumber(elecOverloadDmg)})</span>
+                    <span className="text-stone-600 font-bold">🌩️ 과부하 방전 (기절 적 타격 낙뢰)</span>
+                    <span className={`font-black font-mono ${elecOverloadLvl > 0 ? 'text-purple-700' : 'text-stone-400'}`}>
+                      {elecOverloadLvl > 0 ? `공격력의 +${elecOverloadPercent}% (+${formatNumber(elecOverloadDmg)})` : '연구 필요 (미해금)'}
+                    </span>
                   </div>
                 </div>
               )}
@@ -509,7 +533,7 @@ const CoreScreen: React.FC = () => {
         </div>
       )}
 
-      {/* 4. 코어 연구 탭 (원소별 분리 탭 & 일관된 카드 목록) */}
+      {/* 4. 코어 연구 탭 (단계별 해금 구조: 1개 -> 10개 -> 100개 -> 1,000개 -> 10,000개) */}
       {activeTab === 'ABILITIES' && (
         <div className="flex flex-col gap-3">
           {/* 코어별 연구 카테고리 선택 탭 */}
@@ -556,45 +580,103 @@ const CoreScreen: React.FC = () => {
             )}
           </div>
 
-          {/* 해당 코어의 독립 특화 연구 목록 */}
-          <div className="flex flex-col gap-3 w-full">
+          {/* 단계별 특화 연구 목록 */}
+          <div className="flex flex-col gap-2.5 w-full">
             {CORE_ABILITIES_CONFIG.filter(c => c.coreType === selectedType).map(config => {
               const currentLvl = coreAbilities ? (coreAbilities[config.id] || 0) : 0;
+              const unlockStatus = canUnlockCoreAbility(config, coreAbilities);
+              const isLocked = !unlockStatus.canUnlock;
               const cost = calculateCoreAbilityCost(config, currentLvl);
               const isMax = config.maxLevel !== undefined && currentLvl >= config.maxLevel;
-              const canAfford = coreFragments >= cost && !isMax;
+              const canAfford = !isLocked && coreFragments >= cost && !isMax;
               const currentValue = currentLvl * config.valuePerLevel;
+
+              const tierBadgeColors: Record<number, string> = {
+                1: 'bg-stone-200 text-stone-800 border-stone-500',
+                2: 'bg-emerald-100 text-emerald-800 border-emerald-600',
+                3: 'bg-blue-100 text-blue-800 border-blue-600',
+                4: 'bg-purple-100 text-purple-800 border-purple-600',
+                5: 'bg-amber-100 text-amber-900 border-amber-600',
+              };
 
               return (
                 <div
                   key={config.id}
-                  className="flex items-center justify-between p-3 rounded-none border-4 border-stone-800 bg-white gap-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  className={`flex flex-col p-3 rounded-none border-4 transition-all gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${
+                    isLocked
+                      ? 'border-stone-400 bg-stone-100 opacity-75'
+                      : currentLvl > 0
+                      ? 'border-black bg-white'
+                      : 'border-stone-800 bg-stone-50'
+                  }`}
                 >
-                  {/* 좌측 정보 */}
-                  <div className="text-left flex-1 min-w-0">
-                    <h3 className="text-xs font-black text-black leading-none truncate">
-                      {config.name}
-                      <span className="text-[10px] font-bold text-stone-500 ml-1.5">Lv.{currentLvl}</span>
-                    </h3>
-                    <p className="text-[10px] font-bold text-stone-500 mt-1 leading-tight">{config.desc}</p>
-                    <p className="text-[11px] font-black mt-1 text-cyan-800 font-mono tracking-tighter">
-                      적용: +{currentValue.toFixed(1)}{config.unit}
-                    </p>
+                  {/* 상단 라인: 단계(Tier) + 기본비용 + 상태 */}
+                  <div className="flex justify-between items-center border-b border-stone-200 pb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`px-1.5 py-0.2 border text-[9px] font-black ${tierBadgeColors[config.tier] || 'bg-stone-100'}`}>
+                        Tier {config.tier} (기본 {config.baseCost.toLocaleString()}개)
+                      </span>
+                      <span className="text-xs font-black text-black leading-none">
+                        {config.icon} {config.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {isLocked ? (
+                        <span className="text-[10px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 border border-red-300">
+                          🔒 잠김
+                        </span>
+                      ) : currentLvl > 0 ? (
+                        <span className="text-[10px] font-black text-cyan-800 bg-cyan-50 px-1.5 py-0.5 border border-cyan-400">
+                          Lv.{currentLvl}{config.maxLevel ? ` / ${config.maxLevel}` : ''}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 border border-amber-300">
+                          미해금 (0 Lv)
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* 우측 연구 버튼 */}
-                  <button
-                    type="button"
-                    onClick={() => upgradeCoreAbility(config.id)}
-                    disabled={!canAfford}
-                    className={`px-3 py-2 rounded-none border-2 border-black font-black text-xs transition-all whitespace-nowrap leading-none uppercase tracking-wider ${
-                      canAfford
-                        ? 'bg-stone-100 hover:bg-stone-50 text-cyan-800 border-b-[4px] shadow-[1px_1px_0px_rgba(255,255,255,0.6)_inset] active:border-b-2 active:translate-y-[2px] cursor-pointer'
-                        : 'bg-stone-300 border-stone-400 text-stone-400 opacity-40 shadow-none cursor-not-allowed'
-                    }`}
-                  >
-                    {isMax ? 'MAX' : `+1 UP (${cost.toLocaleString()}개)`}
-                  </button>
+                  {/* 본문 정보 & 하단 버튼 */}
+                  <div className="flex items-center justify-between gap-3 text-left">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-stone-600 leading-tight">{config.desc}</p>
+                      
+                      {/* 상태별 수치 또는 잠금 해제 조건 표시 */}
+                      {isLocked ? (
+                        <p className="text-[10px] font-black text-red-500 mt-1 flex items-center gap-1">
+                          <span>⚠️</span>
+                          <span>{unlockStatus.reason}</span>
+                        </p>
+                      ) : currentLvl > 0 ? (
+                        <p className="text-[11px] font-black mt-1 text-cyan-800 font-mono tracking-tighter">
+                          현재 적용: +{currentValue.toFixed(1)}{config.unit}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] font-bold mt-1 text-stone-400 font-mono">
+                          해금 시: +{config.valuePerLevel}{config.unit} 활성화 ({config.activationNote})
+                        </p>
+                      )}
+                    </div>
+
+                    {/* 우측 연구/해금 버튼 */}
+                    <button
+                      type="button"
+                      onClick={() => upgradeCoreAbility(config.id)}
+                      disabled={!canAfford}
+                      className={`px-3 py-2 rounded-none border-2 border-black font-black text-xs transition-all whitespace-nowrap leading-none uppercase tracking-wider ${
+                        isLocked
+                          ? 'bg-stone-200 border-stone-400 text-stone-400 cursor-not-allowed shadow-none'
+                          : canAfford
+                          ? currentLvl === 0
+                            ? 'bg-cyan-400 hover:bg-cyan-300 text-black border-b-[4px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:border-b-2 active:translate-y-[2px] cursor-pointer'
+                            : 'bg-amber-300 hover:bg-amber-200 text-black border-b-[4px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:border-b-2 active:translate-y-[2px] cursor-pointer'
+                          : 'bg-stone-300 border-stone-400 text-stone-400 opacity-50 shadow-none cursor-not-allowed'
+                      }`}
+                    >
+                      {isLocked ? '🔒 잠김' : isMax ? 'MAX' : currentLvl === 0 ? `해금 (${cost.toLocaleString()}개)` : `+1 강화 (${cost.toLocaleString()}개)`}
+                    </button>
+                  </div>
                 </div>
               );
             })}

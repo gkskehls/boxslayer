@@ -21,6 +21,8 @@ import {
   calculateCoreAbilityCost,
   calculateTotalSpentRP,
   calculateTotalSpentCoreFragments,
+  canUnlockCoreAbility,
+  getEnemyCoreTier,
 } from '../data/rebirthConfig';
 
 export interface CoreStats {
@@ -46,17 +48,16 @@ export const getCoreStats = (type: CoreType, level: number, _unlockedSkills?: st
 
   switch (type) {
     case 'FIRE': finalEffects.baseDamageFlat = 1 + (coreLevel * 0.5); break;
-    case 'WATER': finalEffects.initialShieldMultiplier = 0.2 + (coreLevel * 0.02); break;
-    case 'WIND': finalEffects.hitEvasionBonus = 0.02 + (coreLevel * 0.002); break;
-    case 'ELECTRIC': finalEffects.baseDamageFlat = 1 + (coreLevel * 0.2); break;
+    case 'WATER': finalEffects.initialShieldMultiplier = 0.05 + (coreLevel * 0.005); break;
+    case 'WIND': finalEffects.hitEvasionBonus = 0.015 + (coreLevel * 0.001); break;
+    case 'ELECTRIC': finalEffects.baseDamageFlat = 2 + (coreLevel * 0.3); break;
   }
 
   let description = '';
   if (type === 'FIRE') {
     description = `기본 화염 피해: +${finalEffects.baseDamageFlat?.toFixed(1) || 0}`;
-    if (finalEffects.strRatio) description += `\nSTR 계수: +${(finalEffects.strRatio * 100).toFixed(0)}%`;
   } else if (type === 'WATER') {
-    description = `시작 쉴드: 최대 체력의 +${((finalEffects.initialShieldMultiplier || 0) * 100).toFixed(0)}%`;
+    description = `시작 쉴드: 최대 체력의 +${((finalEffects.initialShieldMultiplier || 0) * 100).toFixed(1)}%`;
   } else if (type === 'WIND') {
     description = `명중/회피 보너스: +${((finalEffects.hitEvasionBonus || 0) * 100).toFixed(1)}%`;
   } else if (type === 'ELECTRIC') {
@@ -331,6 +332,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const config = CORE_ABILITIES_CONFIG.find(c => c.id === abilityKey);
     if (!config) return state;
 
+    const unlockCheck = canUnlockCoreAbility(config, state.coreAbilities);
+    if (!unlockCheck.canUnlock) {
+      alert(unlockCheck.reason || "선행 연구를 먼저 해금해야 합니다.");
+      return state;
+    }
+
     const currentLvl = state.coreAbilities ? (state.coreAbilities[abilityKey] || 0) : 0;
     if (config.maxLevel !== undefined && currentLvl >= config.maxLevel) {
       alert("최대 연구 레벨에 도달했습니다.");
@@ -390,11 +397,18 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const state = get();
     const now = Date.now();
     const nextStage = state.stage;
+    const enemyTier = getEnemyCoreTier(nextStage);
+
+    const statVal = 3 + Math.floor(0.09 * Math.pow(Math.max(0, nextStage - 1), 1.5));
+    const stats = { str: statVal, dex: statVal, con: statVal };
+    const enemyComputed = getComputedStats(stats);
+    const enemyHp = enemyComputed.maxHealth;
 
     const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
     const coreTypeIndex = (nextStage % 7) % 4;
     const coreType = coreTypes[coreTypeIndex];
-    const coreLevel = Math.max(1, Math.floor(nextStage / 10));
+    const coreLevel = Math.max(1, Math.floor(nextStage / 10)); // 10층당 1코어레벨
+
     const enemyCore: Core = {
       id: `enemy_core_${nextStage}`,
       name: `${coreType} 코어`,
@@ -402,27 +416,24 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       level: coreLevel,
     };
 
-    const statVal = 3 + Math.floor(0.09 * Math.pow(Math.max(0, nextStage - 1), 1.5));
-    const stats = { str: statVal, dex: statVal, con: statVal };
-
-    const enemyComputed = getComputedStats(stats);
-    const enemyHp = enemyComputed.maxHealth;
+    let enemyInitialShield = 0;
+    // 💧 물 코어: 1층부터 기본 수호 쉴드(최대체력의 5%) 보유
+    if (enemyCore.type === 'WATER') {
+      const waterStats = getCoreStats('WATER', enemyCore.level);
+      const shieldBonus = enemyTier >= 1 ? 0.02 : 0; // Tier 1 이상 시 쉴드 확장
+      enemyInitialShield = Math.floor(enemyHp * ((waterStats.effects.initialShieldMultiplier || 0.05) + shieldBonus));
+    }
 
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs, state.rebirthUpgrades);
     
-    // 코어 독립 연구 기능: 💧 물의 코어 - 시작 수호 쉴드
-    const waterInitialLvl = (state.coreAbilities?.water_initial_shield || state.coreAbilities?.initialShield || 0);
+    // 코어 독립 연구 기능: 💧 물의 코어 - 시작 수호 쉴드 (기본 소량 + 연구 해금 시 추가)
+    const waterInitialLvl = (state.coreAbilities?.water_initial_shield || 0);
     let playerInitialShield = 0;
     if (state.equippedCore?.type === 'WATER') {
-      const abilityShieldBonus = playerComputed.maxHealth * (waterInitialLvl * 0.025);
       const waterStats = getCoreStats('WATER', state.equippedCore.level, state.unlockedSkills);
-      playerInitialShield = abilityShieldBonus + Math.floor(playerComputed.maxHealth * (waterStats.effects.initialShieldMultiplier || 0.1));
-    }
-
-    let enemyInitialShield = 0;
-    if (enemyCore.type === 'WATER') {
-      const waterStats = getCoreStats('WATER', enemyCore.level);
-      enemyInitialShield = Math.floor(enemyHp * (waterStats.effects.initialShieldMultiplier || 0));
+      const baseInitialShield = Math.floor(playerComputed.maxHealth * (waterStats.effects.initialShieldMultiplier || 0.05));
+      const abilityShieldBonus = Math.floor(playerComputed.maxHealth * (waterInitialLvl * 0.02));
+      playerInitialShield = baseInitialShield + abilityShieldBonus;
     }
 
     const skillGoldMult = 1 + (playerComputed.modifiers.goldMultiplier || 0);
@@ -476,6 +487,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const windEvasionLvl = state.coreAbilities?.wind_hit_evasion || 0;
       hitChance += (windStats.effects.hitEvasionBonus || 0) + (windEvasionLvl * 0.005);
     }
+    const enemyTier = getEnemyCoreTier(state.stage);
+    const enemyCore = state.currentEnemy.core;
+    if (enemyCore?.type === 'WIND' && enemyTier >= 1) {
+      hitChance -= (0.015 + (enemyCore.level * 0.001));
+    }
 
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
     const isEvaded = Math.random() > finalHitChance;
@@ -495,75 +511,81 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const coreLvl = state.equippedCore.level;
 
       if (coreType === 'WATER') {
-        // 💧 물의 코어: 쉴드 회복 (기본 + 조류의 충전 연구)
-        const shieldOnHitLvl = state.coreAbilities?.water_shield_on_hit || state.coreAbilities?.shieldOnHit || 0;
-        const waterStats = getCoreStats('WATER', coreLvl, state.unlockedSkills);
-        const baseRatio = waterStats.effects.shieldPerHitRatio || 0.02;
-        const totalShieldRatio = baseRatio + (shieldOnHitLvl * 0.005);
-        shieldRecovered = Math.floor(playerComputed.maxHealth * totalShieldRatio * hitCount);
+        // 💧 물의 코어: 타격 쉴드 충전 연구 해금 시에만 쉴드 회복 (기본은 0)
+        const shieldOnHitLvl = state.coreAbilities?.water_shield_on_hit || 0;
+        if (shieldOnHitLvl > 0) {
+          shieldRecovered = Math.floor(playerComputed.maxHealth * (shieldOnHitLvl * 0.004) * hitCount);
+        }
       } else if (coreType === 'FIRE') {
-        // 🔥 불의 코어: 작열의 불꽃, 힘 계수, 화염폭발, 초신성
+        // 🔥 불의 코어: 기본 고정 데미지 + 연구 해금(작열/STR계수/지속화상/화염폭발/초신성)
         const flatDmgLvl = state.coreAbilities?.fire_flat_damage || 0;
         const strRatioLvl = state.coreAbilities?.fire_str_ratio || 0;
-        const dmgMultLvl = state.coreAbilities?.fire_damage_multiplier || 0;
         const burnDotLvl = state.coreAbilities?.fire_burn_dot || 0;
+        const dmgMultLvl = state.coreAbilities?.fire_damage_multiplier || 0;
         const supernovaLvl = state.coreAbilities?.fire_supernova || 0;
 
-        const fireStats = getCoreStats('FIRE', coreLvl, state.unlockedSkills);
-        const strRatio = (fireStats.effects.strRatio || 0.5) + (strRatioLvl * 0.05);
-        const baseFlat = (fireStats.effects.baseDamageFlat || 0) + (flatDmgLvl * 6);
-        const dmgMultiplier = (1 + (dmgMultLvl * 0.025)) * (1 + (burnDotLvl * 0.03));
+        const baseFlat = (1 + (coreLvl * 0.5)) + (flatDmgLvl * 4);
+        const strBonusDamage = strRatioLvl > 0 ? (state.player.stats.str * (strRatioLvl * 0.04)) : 0;
+        const dmgMultiplier = (1 + (dmgMultLvl * 0.025)) * (1 + (burnDotLvl * 0.025));
 
-        const strBonusDamage = state.player.stats.str * strRatio;
         const baseCoreDmg = (baseFlat + strBonusDamage) * dmgMultiplier;
         const randomMultiplier = 0.85 + Math.random() * 0.3;
         coreDamage = Math.floor(baseCoreDmg * randomMultiplier * hitCount);
 
-        // 초신성 (5타마다 폭발)
-        currentWindHits += hitCount; // 타수 카운터 공용 활용
-        if (currentWindHits >= 5) {
-          const supernovaMult = 1.5 + (supernovaLvl * 0.05);
-          coreDamage += Math.floor(playerComputed.attack * supernovaMult);
-          currentWindHits = 0;
+        // 초신성 폭발 (5타 주기) - 해금 시에만 발동
+        if (supernovaLvl > 0) {
+          currentWindHits += hitCount;
+          if (currentWindHits >= 5) {
+            const supernovaMult = 1.5 + (supernovaLvl * 0.05);
+            coreDamage += Math.floor(playerComputed.attack * supernovaMult);
+            currentWindHits = 0;
+          }
         }
       } else if (coreType === 'WIND') {
-        // 🌪️ 바람의 코어: 태풍의 눈(10타 폭풍 강타) & 잔상 분신(8타 절대 회피)
+        // 🌪️ 바람의 코어: 태풍의 눈(10타 폭풍 강타) & 잔상 분신(8타 절대 회피) - 해금 시에만 발동
         const comboBurstLvl = state.coreAbilities?.wind_combo_burst || 0;
         const absoluteEvaLvl = state.coreAbilities?.wind_absolute_evasion || 0;
 
-        currentWindHits += hitCount;
-        if (currentWindHits >= 10) {
-          const burstMult = 1.5 + (comboBurstLvl * 0.05);
-          coreDamage += Math.floor(playerComputed.attack * burstMult);
-          currentWindHits = 0;
-        }
-        if (absoluteEvaLvl > 0 && currentWindHits >= 8) {
-          nextWindEvasion = true;
+        if (comboBurstLvl > 0 || absoluteEvaLvl > 0) {
+          currentWindHits += hitCount;
+          if (comboBurstLvl > 0 && currentWindHits >= 10) {
+            const burstMult = 1.5 + (comboBurstLvl * 0.05);
+            coreDamage += Math.floor(playerComputed.attack * burstMult);
+            currentWindHits = 0;
+          }
+          if (absoluteEvaLvl > 0 && currentWindHits >= 8) {
+            nextWindEvasion = true;
+          }
         }
       } else if (coreType === 'ELECTRIC') {
-        // ⚡ 번개의 코어: 뇌전 스파크, 감전 기절, 전류 지속, 뇌신 처형, 과부하 방전
+        // ⚡ 번개의 코어: 뇌전 스파크(기본관통+연구), 감전기절(연구해금시), 뇌신처형, 과부하
         const flatDmgLvl = state.coreAbilities?.electric_flat_damage || 0;
         const stunChanceLvl = state.coreAbilities?.electric_stun_chance || 0;
         const stunDurLvl = state.coreAbilities?.electric_stun_duration || 0;
         const execLvl = state.coreAbilities?.electric_execution_damage || 0;
         const overloadLvl = state.coreAbilities?.electric_chain_overload || 0;
 
-        const baseElecDmg = 10 + (flatDmgLvl * 5);
+        const baseElecDmg = (2 + (coreLvl * 0.3)) + (flatDmgLvl * 3);
         coreDamage += baseElecDmg;
 
-        if (now < state.enemyStunEndTime) {
-          // 기절 중인 적에게 처형 및 과부하 낙뢰
-          const execMult = 0.5 + (execLvl * 0.05);
-          const overloadMult = 0.5 + (overloadLvl * 0.03);
-          coreDamage += Math.floor(playerComputed.attack * (execMult + overloadMult));
-        } else {
-          // 기절 확률 체크
-          const stunChance = 0.10 + (stunChanceLvl * 0.01);
-          currentElecHits += hitCount;
-          if (currentElecHits >= 8 || Math.random() < stunChance) {
-            const stunDurationMs = Math.floor(1500 + (stunDurLvl * 100));
-            nextEnemyStunEndTime = now + stunDurationMs;
-            currentElecHits = 0;
+        // 감전 기절 연구가 해금되었을 때만 기절 및 기절 보너스 효과 발동
+        if (stunChanceLvl > 0) {
+          if (now < state.enemyStunEndTime) {
+            // 기절 중인 적에게 처형 및 과부하 낙뢰 (연구 해금 시)
+            const execMult = execLvl > 0 ? (0.3 + (execLvl * 0.05)) : 0;
+            const overloadMult = overloadLvl > 0 ? (0.4 + (overloadLvl * 0.03)) : 0;
+            if (execMult > 0 || overloadMult > 0) {
+              coreDamage += Math.floor(playerComputed.attack * (execMult + overloadMult));
+            }
+          } else {
+            // 기절 확률 및 스택 체크
+            const stunChance = stunChanceLvl * 0.01;
+            currentElecHits += hitCount;
+            if (currentElecHits >= 10 || Math.random() < stunChance) {
+              const stunDurationMs = Math.floor(1200 + (stunDurLvl * 100));
+              nextEnemyStunEndTime = now + stunDurationMs;
+              currentElecHits = 0;
+            }
           }
         }
       }
@@ -587,14 +609,16 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
     const randomMultiplier = 0.85 + Math.random() * 0.3;
 
-    // 바람 코어 연격 연구
+    // 바람 코어 연격 연구: 해금되었을 때만 연격 발동 (기본은 단타)
     let multiHitChance = 0;
-    let comboDamageBonus = 1.4;
+    let comboDamageBonus = 1.3;
     if (state.equippedCore?.type === 'WIND') {
-      const windMultiChanceLvl = state.coreAbilities?.wind_multi_hit_chance || state.coreAbilities?.multiHitMastery || 0;
+      const windMultiChanceLvl = state.coreAbilities?.wind_multi_hit_chance || 0;
       const windMultiDmgLvl = state.coreAbilities?.wind_multi_hit_damage || 0;
-      multiHitChance = windMultiChanceLvl * 0.015;
-      comboDamageBonus = 1.4 + (windMultiDmgLvl * 0.04);
+      if (windMultiChanceLvl > 0) {
+        multiHitChance = windMultiChanceLvl * 0.015;
+        comboDamageBonus = 1.3 + (windMultiDmgLvl * 0.03);
+      }
     }
 
     const isCombo = multiHitChance > 0 && Math.random() < multiHitChance;
@@ -603,18 +627,20 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     let normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount * comboHits * comboMult);
 
-    // 물의 코어: 수호 공명 (쉴드 유지 중 피해 증폭)
+    // 물의 코어: 수호 공명 (연구 해금 시 쉴드 유지 중 피해 증폭)
     if (state.equippedCore?.type === 'WATER' && nextPlayerShield > 0) {
       const shieldBurstLvl = state.coreAbilities?.water_shield_burst || 0;
-      normalDamage = Math.floor(normalDamage * (1 + (shieldBurstLvl * 0.02)));
+      if (shieldBurstLvl > 0) {
+        normalDamage = Math.floor(normalDamage * (1 + (shieldBurstLvl * 0.02)));
+      }
     }
 
     const totalDamage = normalDamage + coreDamage;
 
-    // 물의 코어: 생명 갈취 (흡혈)
+    // 물의 코어: 생명 갈취 (연구 해금 시 흡혈)
     let leechedHealth = 0;
     if (state.equippedCore?.type === 'WATER') {
-      const lifeStealLvl = state.coreAbilities?.water_life_steal || state.coreAbilities?.lifeSteal || 0;
+      const lifeStealLvl = state.coreAbilities?.water_life_steal || 0;
       if (lifeStealLvl > 0) {
         leechedHealth = Math.floor(totalDamage * (lifeStealLvl * 0.005));
       }
@@ -737,11 +763,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs, state.rebirthUpgrades);
 
-    let hitChance = 0.95 + ((enemyComputed.accuracy - playerComputed.evasion) * 0.01);
+    const enemyTier = getEnemyCoreTier(state.stage);
     const enemyCore = state.currentEnemy.core;
+
+    let hitChance = 0.95 + ((enemyComputed.accuracy - playerComputed.evasion) * 0.01);
     if (enemyCore?.type === 'WIND') {
-      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
-      hitChance += (enemyCoreStats.effects.hitEvasionBonus || 0);
+      // 🍃 바람: 1층(Tier 0)부터 기본 명중/회피 보너스 +1.5% 적용 (Tier 1 이상 시 추가 강화)
+      const windBonus = 0.015 + (enemyCore.level * 0.001) + (enemyTier >= 1 ? 0.005 : 0);
+      hitChance += windBonus;
     }
     hitChance -= playerComputed.modifiers.evasionChanceBonus;
     if (state.equippedCore?.type === 'WIND') {
@@ -758,27 +787,74 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       return { lastPlayerEvadedTime: now, lastDamageTaken: { normal: 0, core: 0 } };
     }
 
+    // 🍃 바람 코어: Tier 2 (1,000층+) 이상에서 연격(Multi-Hit) 발동 (1,000층 미만은 단타)
+    let enemyHitCount = 1;
+    let enemyComboMult = 1.0;
+    if (enemyCore?.type === 'WIND' && enemyTier >= 2) {
+      const windMultiChance = Math.min(0.3, 0.15 + (enemyCore.level * 0.001));
+      if (Math.random() < windMultiChance) {
+        enemyHitCount = 2;
+        // Tier 3 (10,000층+) 이상에서 연격 증폭 1.3배
+        enemyComboMult = enemyTier >= 3 ? 1.3 : 1.0;
+      }
+    }
+
     const baseDamage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
     const randomMultiplier = 0.85 + Math.random() * 0.3;
-    const normalDamage = Math.floor(baseDamage * randomMultiplier);
+    let normalDamage = Math.floor(baseDamage * randomMultiplier * enemyHitCount * enemyComboMult);
     let coreDamage = 0;
     let nextPlayerStunEndTime = state.playerStunEndTime;
     let enemyShieldRecovered = 0;
     let nextEnemyShield = state.enemyShield;
 
     if (enemyCore) {
-      const enemyCoreStats = getCoreStats(enemyCore.type, enemyCore.level);
-      const effects = enemyCoreStats.effects;
-      if (enemyCore.type === 'FIRE' && effects.baseDamageFlat) {
-        const strBonus = state.currentEnemy.stats.str * (effects.strRatio || 0.5);
-        coreDamage = Math.floor(((effects.baseDamageFlat || 0) + strBonus) * randomMultiplier);
+      // 🔥 불의 코어
+      if (enemyCore.type === 'FIRE') {
+        // Tier 0 (1층+): 기초 고정 화염 피해 (기본 1)
+        // Tier 1 (100층+): 기초 화염 피해 강화 (1 + 코어레벨 * 0.5)
+        const baseFlat = enemyTier >= 1 ? (1 + (enemyCore.level * 0.5)) : 1;
+        // Tier 2 (1,000층+): 근력(STR) 비례 추가 피해 (미해금 시 0)
+        const strBonus = enemyTier >= 2 ? (state.currentEnemy.stats.str * 0.04) : 0;
+        // Tier 3 (10,000층+): 지속 화상 배율 1.25x
+        const burnMult = enemyTier >= 3 ? 1.25 : 1.0;
+        // Tier 4 (100,000층+): 화염 폭발 배율 1.25x
+        const fireMult = enemyTier >= 4 ? 1.25 : 1.0;
+
+        coreDamage = Math.floor((baseFlat + strBonus) * burnMult * fireMult * randomMultiplier * enemyHitCount);
       }
-      if (enemyCore.type === 'ELECTRIC' && Math.random() < 0.1) {
-        nextPlayerStunEndTime = now + 2000;
+
+      // ⚡ 번개의 코어
+      if (enemyCore.type === 'ELECTRIC') {
+        // Tier 0 (1층+): 기초 관통 번개 피해 (기본 2)
+        // Tier 1 (100층+): 기초 번개 피해 강화 (2 + 코어레벨 * 0.3)
+        const baseElecFlat = enemyTier >= 1 ? (2 + (enemyCore.level * 0.3)) : 2;
+        coreDamage = Math.floor(baseElecFlat * randomMultiplier * enemyHitCount);
+
+        // Tier 2 (1,000층+): 감전 기절(Stun) 활성화 (1,000층 미만은 기절 0%!)
+        if (enemyTier >= 2 && Math.random() < 0.08) {
+          // Tier 3 (10,000층+): 기절 지속 시간 1.5초 (Tier 2는 1.2초)
+          const stunDuration = enemyTier >= 3 ? 1500 : 1200;
+          nextPlayerStunEndTime = now + stunDuration;
+        }
+
+        // Tier 4 (100,000층+): 플레이어가 기절 중일 때 처형 피해 (공격력 30%)
+        if (enemyTier >= 4 && now < state.playerStunEndTime) {
+          const execBonus = Math.floor(enemyComputed.attack * 0.3);
+          coreDamage += execBonus;
+        }
       }
+
+      // 💧 물의 코어
       if (enemyCore.type === 'WATER') {
-        enemyShieldRecovered = Math.floor(state.currentEnemy.maxHealth * 0.02);
-        nextEnemyShield += enemyShieldRecovered;
+        // Tier 2 (1,000층+): 타격 시 쉴드 충전 활성화 (1,000층 미만은 0)
+        if (enemyTier >= 2) {
+          enemyShieldRecovered = Math.floor(state.currentEnemy.maxHealth * 0.004 * enemyHitCount);
+          nextEnemyShield += enemyShieldRecovered;
+        }
+        // Tier 5 (1,000,000층+): 쉴드 유지 중 피해 증폭 +20%
+        if (enemyTier >= 5 && nextEnemyShield > 0) {
+          normalDamage = Math.floor(normalDamage * 1.2);
+        }
       }
     }
 
@@ -797,16 +873,24 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const nextHealth = Math.max(0, state.player.currentHealth - actualHealthDamage);
     let enemyNextHealth = state.currentEnemy.currentHealth;
     
-    // 코어 연구 기능: 💧 물의 코어 - 해일의 가시 (반사 피해)
+    // 코어 연구 기능: 💧 물의 코어 - 가시 반사 (연구 해금 시에만 피해 반사 활성화)
     let actualReflectedDmg = 0;
     if (state.equippedCore?.type === 'WATER') {
-      const thornsLvl = state.coreAbilities?.water_thorns_reflect || state.coreAbilities?.thornsReflect || 0;
-      const reflectPercent = 0.15 + (thornsLvl * 0.02); // 기본 15% + 레벨당 2%
-      actualReflectedDmg = Math.floor(totalDamage * reflectPercent);
+      const thornsLvl = state.coreAbilities?.water_thorns_reflect || 0;
+      if (thornsLvl > 0) {
+        const reflectPercent = thornsLvl * 0.02; // 레벨당 2% 반사
+        actualReflectedDmg = Math.floor(totalDamage * reflectPercent);
+      }
     }
 
     if (actualReflectedDmg > 0) {
       enemyNextHealth = Math.max(0, enemyNextHealth - actualReflectedDmg);
+    }
+
+    // 💧 물의 코어: Tier 3 (10,000층+) 생명 갈취 (1% 흡혈)
+    if (enemyCore?.type === 'WATER' && enemyTier >= 3) {
+      const enemyLeeched = Math.floor(totalDamage * 0.01);
+      enemyNextHealth = Math.min(state.currentEnemy.maxHealth, enemyNextHealth + enemyLeeched);
     }
 
     if (nextHealth <= 0) {

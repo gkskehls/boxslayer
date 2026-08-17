@@ -5,6 +5,7 @@ import { useGameStore, getComputedStats } from '../store/gameStore';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import type { CoreType } from '../types/game';
 import { formatNumber } from '../utils/format';
+import { getEnemyCoreTier } from '../data/rebirthConfig';
 
 // [박스 외형 스타일] 크기는 80px 고정, 스탯 비율로 색조 결정, 상대와의 총 스탯 차이로 명암(밝기 25%~75%) 산출
 const getDynamicBoxStyle = (
@@ -130,13 +131,14 @@ const getUniqueId = (): string => {
   return `${Date.now()}_${uniquePopupCounter}_${Math.random().toString(36).substring(2, 7)}`;
 };
 
-const getCoreBadgeDisplay = (type?: CoreType) => {
+const getCoreBadgeDisplay = (type?: CoreType, tier?: number) => {
   if (!type) return null;
+  const tierSuffix = tier !== undefined && tier > 0 ? ` T${tier}` : '';
   switch (type) {
-    case 'FIRE': return { label: '🔥불', color: 'bg-red-600 text-white border-red-950' };
-    case 'WATER': return { label: '💧물', color: 'bg-blue-600 text-white border-blue-950' };
-    case 'WIND': return { label: '🍃바람', color: 'bg-emerald-600 text-white border-emerald-950' };
-    case 'ELECTRIC': return { label: '⚡전기', color: 'bg-amber-400 text-black border-amber-800' };
+    case 'FIRE': return { label: `🔥불${tierSuffix}`, color: 'bg-red-600 text-white border-red-950' };
+    case 'WATER': return { label: `💧물${tierSuffix}`, color: 'bg-blue-600 text-white border-blue-950' };
+    case 'WIND': return { label: `🍃바람${tierSuffix}`, color: 'bg-emerald-600 text-white border-emerald-950' };
+    case 'ELECTRIC': return { label: `⚡전기${tierSuffix}`, color: 'bg-amber-400 text-black border-amber-800' };
     default: return null;
   }
 };
@@ -563,7 +565,8 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
 
   const remainingTime = 30 - battleTime;
   const playerCoreBadge = getCoreBadgeDisplay(state.equippedCore?.type);
-  const enemyCoreBadge = getCoreBadgeDisplay(currentEnemy?.core?.type);
+  const enemyTier = getEnemyCoreTier(stage);
+  const enemyCoreBadge = getCoreBadgeDisplay(currentEnemy?.core?.type, enemyTier);
 
   // 피버 타임 레벨별 외곽 글로우 아우라 스타일
   let arenaFeverStyle = 'bg-stone-100 border-neutral-900 shadow-[inset_4px_4px_0px_0px_rgba(0,0,0,0.1)]';
