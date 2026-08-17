@@ -110,6 +110,37 @@ const RetroHpBar = ({
   );
 };
 
+// 스테이지(층수) 및 턴수 식별용 고대비 순환 색상 팔레트
+const STAGE_COLOR_PALETTES = [
+  { text: 'text-amber-400', bg: 'bg-amber-950/60', border: 'border-amber-600/70' },
+  { text: 'text-sky-400', bg: 'bg-sky-950/60', border: 'border-sky-600/70' },
+  { text: 'text-emerald-400', bg: 'bg-emerald-950/60', border: 'border-emerald-600/70' },
+  { text: 'text-purple-400', bg: 'bg-purple-950/60', border: 'border-purple-600/70' },
+  { text: 'text-rose-400', bg: 'bg-rose-950/60', border: 'border-rose-600/70' },
+  { text: 'text-teal-400', bg: 'bg-teal-950/60', border: 'border-teal-600/70' },
+];
+
+const TURN_COLOR_PALETTES = [
+  'text-yellow-300 font-bold',
+  'text-cyan-300 font-bold',
+  'text-lime-300 font-bold',
+  'text-fuchsia-300 font-bold',
+  'text-orange-300 font-bold',
+  'text-violet-300 font-bold',
+];
+
+const getLogPrefixBadge = (curStage: number, curTurn: number) => {
+  const stageStyle = STAGE_COLOR_PALETTES[Math.abs(curStage - 1) % STAGE_COLOR_PALETTES.length];
+  const turnStyle = TURN_COLOR_PALETTES[Math.abs(curTurn - 1) % TURN_COLOR_PALETTES.length];
+  return (
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[11px] font-mono mr-1.5 shadow-sm select-text ${stageStyle.bg} ${stageStyle.border}`}>
+      <span className={stageStyle.text}>{curStage}F</span>
+      <span className="text-stone-500">·</span>
+      <span className={turnStyle}>T{curTurn}</span>
+    </span>
+  );
+};
+
 interface LogEntry {
   id: string;
   message: React.ReactNode;
@@ -221,8 +252,25 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
   const [showStats, setShowStats] = useState<boolean>(false);
   const [damageLog, setDamageLog] = useState<LogEntry[]>([]);
   const [battleTime, setBattleTime] = useState(0);
+  const [turnCount, setTurnCount] = useState(1);
   const [timeMultiplier, setTimeMultiplier] = useState(1);
   const [feverToast, setFeverToast] = useState<string | null>(null);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [isLogExpanded, setIsLogExpanded] = useState<boolean>(false);
+  const [copiedToast, setCopiedToast] = useState<boolean>(false);
+  const logContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleCopyLog = () => {
+    if (!logContainerRef.current) return;
+    const text = logContainerRef.current.innerText;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedToast(true);
+      setTimeout(() => setCopiedToast(false), 1500);
+    }).catch(() => {
+      // fallback
+    });
+  };
 
   const showFeverToast = (msg: string) => {
     setFeverToast(msg);
@@ -241,6 +289,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
         setPlayerAnim('idle');
         setEnemyAnim('idle');
         setBattleTime(0);
+        setTurnCount(1);
         setTimeMultiplier(1);
         setFeverToast(null);
       });
@@ -249,7 +298,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
 
   useEffect(() => {
     let timer: number;
-    if (gameStatus === 'BATTLE') {
+    if (gameStatus === 'BATTLE' && !isPaused) {
       timer = window.setInterval(() => {
         setBattleTime(prev => {
           const newTime = prev + 1;
@@ -262,11 +311,11 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [gameStatus, setDefeat]);
+  }, [gameStatus, setDefeat, isPaused]);
 
   // 피버 타임 배속 단계 및 토스트 알림 연출
   useEffect(() => {
-    if (gameStatus !== 'BATTLE') return;
+    if (gameStatus !== 'BATTLE' || isPaused) return;
 
     const timeout1 = setTimeout(() => {
       setTimeMultiplier(1.5);
@@ -294,7 +343,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
       clearTimeout(timeout3);
       clearTimeout(timeout4);
     };
-  }, [gameStatus]);
+  }, [gameStatus, isPaused]);
 
   const addDamagePopup = (popup: Omit<DamagePopup, 'id'>) => {
     const id = getUniqueId();
@@ -327,11 +376,13 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           }, 180);
         }
 
+        const tag = getLogPrefixBadge(stage, turnCount);
+
         if (isEvaded) {
           addDamagePopup({ val: 0, type: 'miss-player' });
           addLog(
             <span className="text-stone-400 font-mono">
-              <span className="text-rose-400 font-bold">[적 ➜ 나]</span> 회피 (EVADE)
+              {tag}<span className="text-rose-400 font-bold">[적 ➜ 나]</span> 회피 (EVADE)
             </span>
           );
         } else {
@@ -350,14 +401,14 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
 
             addLog(
               <span className="text-rose-300 font-mono">
-                <span className="text-rose-400 font-bold">[적 ➜ 나]</span> 일반 {formatNumber(normalDmg)}{coreText}{absorbText}{stunText}
+                {tag}<span className="text-rose-400 font-bold">[적 ➜ 나]</span> 일반 {formatNumber(normalDmg)}{coreText}{absorbText}{stunText}
               </span>
             );
           }
         }
       });
     }
-  }, [lastDamageTaken, lastPlayerEvadedTime, isPlayerStunned, currentEnemy?.core?.type]);
+  }, [lastDamageTaken, lastPlayerEvadedTime, isPlayerStunned, currentEnemy?.core?.type, stage, turnCount]);
 
   // 적 피격/반사/흡혈 이벤트 리액션
   const prevDamageDealtRef = useRef(lastDamageDealt);
@@ -375,11 +426,13 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           setTimeout(() => setEnemyAnim('idle'), 180);
         }
 
+        const tag = getLogPrefixBadge(stage, turnCount);
+
         if (isEvaded) {
           addDamagePopup({ val: 0, type: 'miss-enemy' });
           addLog(
             <span className="text-stone-500 font-mono">
-              <span className="text-emerald-400 font-bold">[나 ➜ 적]</span> 빗맞음 (MISS)
+              {tag}<span className="text-emerald-400 font-bold">[나 ➜ 적]</span> 빗맞음 (MISS)
             </span>
           );
         } else {
@@ -417,13 +470,13 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
 
           addLog(
             <span className="text-amber-200 font-mono">
-              <span className="text-emerald-400 font-bold">[나 ➜ 적]</span> 일반 {formatNumber(normalDmg)}{coreText}{absorbText}{comboText}{leapText}
+              {tag}<span className="text-emerald-400 font-bold">[나 ➜ 적]</span> 일반 {formatNumber(normalDmg)}{coreText}{absorbText}{comboText}{leapText}
             </span>
           );
         }
       });
     }
-  }, [lastDamageDealt, lastEnemyEvadedTime, state.equippedCore?.type]);
+  }, [lastDamageDealt, lastEnemyEvadedTime, state.equippedCore?.type, stage, turnCount]);
 
   // 반사 데미지 로그
   const prevReflectedRef = useRef(lastReflectedDamage);
@@ -431,15 +484,16 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     if (lastReflectedDamage && lastReflectedDamage > 0 && lastReflectedDamage !== prevReflectedRef.current) {
       prevReflectedRef.current = lastReflectedDamage;
       queueMicrotask(() => {
+        const tag = getLogPrefixBadge(stage, turnCount);
         addDamagePopup({ val: lastReflectedDamage, type: 'reflect' });
         addLog(
           <span className="text-cyan-300 font-mono">
-            <span className="text-cyan-400 font-bold">[나 ➜ 적]</span> 🌀반사 {formatNumber(lastReflectedDamage)}
+            {tag}<span className="text-cyan-400 font-bold">[나 ➜ 적]</span> 🌀반사 {formatNumber(lastReflectedDamage)}
           </span>
         );
       });
     }
-  }, [lastReflectedDamage]);
+  }, [lastReflectedDamage, stage, turnCount]);
 
   // 흡혈 회복 로그
   const prevLeechedRef = useRef(lastLeechedHealth);
@@ -447,15 +501,16 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     if (lastLeechedHealth && lastLeechedHealth > 0 && lastLeechedHealth !== prevLeechedRef.current) {
       prevLeechedRef.current = lastLeechedHealth;
       queueMicrotask(() => {
+        const tag = getLogPrefixBadge(stage, turnCount);
         addDamagePopup({ val: lastLeechedHealth, type: 'leech' });
         addLog(
           <span className="text-emerald-300 font-mono">
-            <span className="text-emerald-400 font-bold">[나]</span> 🩸흡혈 +{formatNumber(lastLeechedHealth)}
+            {tag}<span className="text-emerald-400 font-bold">[나]</span> 🩸흡혈 +{formatNumber(lastLeechedHealth)}
           </span>
         );
       });
     }
-  }, [lastLeechedHealth]);
+  }, [lastLeechedHealth, stage, turnCount]);
 
   // 적 쉴드 회복 로그
   const prevEnemyShieldRef = useRef(lastEnemyShieldRecovered);
@@ -463,18 +518,21 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     if (lastEnemyShieldRecovered && lastEnemyShieldRecovered > 0 && lastEnemyShieldRecovered !== prevEnemyShieldRef.current) {
       prevEnemyShieldRef.current = lastEnemyShieldRecovered;
       queueMicrotask(() => {
+        const tag = getLogPrefixBadge(stage, turnCount);
         addDamagePopup({ val: lastEnemyShieldRecovered, type: 'enemy-shield' });
         addLog(
           <span className="text-cyan-300 font-mono">
-            <span className="text-rose-400 font-bold">[적]</span> 🛡️쉴드 +{formatNumber(lastEnemyShieldRecovered)}
+            {tag}<span className="text-rose-400 font-bold">[적]</span> 🛡️쉴드 +{formatNumber(lastEnemyShieldRecovered)}
           </span>
         );
       });
     }
-  }, [lastEnemyShieldRecovered]);
+  }, [lastEnemyShieldRecovered, stage, turnCount]);
 
   // 전투 스케줄러 루프
   useEffect(() => {
+    if (isPaused) return;
+
     if (gameStatus === 'IDLE') {
       const timer = setTimeout(() => {
         spawnEnemy();
@@ -495,17 +553,14 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [gameStatus, spawnEnemy, retryCurrentFloor]);
+  }, [gameStatus, spawnEnemy, retryCurrentFloor, isPaused]);
 
-  // 전투 턴 타이머 (피버 배속 연동)
+  // 전투 턴 타이머 (피버 배속 연동 및 턴 카운터)
   useEffect(() => {
-    if (gameStatus !== 'BATTLE') return;
+    if (gameStatus !== 'BATTLE' || isPaused) return;
 
-    const basePlayerSpeed = 1.0;
-    const baseEnemySpeed = Math.max(0.5, enemyAttackSpeed);
-
-    const playerIntervalMs = Math.max(50, Math.floor(1000 / (basePlayerSpeed * timeMultiplier)));
-    const enemyIntervalMs = Math.max(50, Math.floor(1000 / (baseEnemySpeed * timeMultiplier)));
+    const baseSpeed = 1.0;
+    const intervalMs = Math.max(50, Math.floor(1000 / (baseSpeed * timeMultiplier)));
 
     const playerTimer = setInterval(() => {
       if (!isPlayerStunned) {
@@ -513,23 +568,24 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
         attackEnemy();
         setTimeout(() => {
           setPlayerAnim(isPlayerStunned ? 'stunned' : 'idle');
-        }, Math.min(150, playerIntervalMs / 2));
+        }, Math.min(150, intervalMs / 2));
       }
-    }, playerIntervalMs);
+    }, intervalMs);
 
     const enemyTimer = setInterval(() => {
       setEnemyAnim('attack');
       attackPlayer();
+      setTurnCount((prev) => prev + 1);
       setTimeout(() => {
         setEnemyAnim('idle');
-      }, Math.min(150, enemyIntervalMs / 2));
-    }, enemyIntervalMs);
+      }, Math.min(150, intervalMs / 2));
+    }, intervalMs);
 
     return () => {
       clearInterval(playerTimer);
       clearInterval(enemyTimer);
     };
-  }, [gameStatus, attackEnemy, attackPlayer, isPlayerStunned, timeMultiplier, enemyAttackSpeed]);
+  }, [gameStatus, attackEnemy, attackPlayer, isPlayerStunned, timeMultiplier, isPaused]);
 
   const playerVariants: Variants = {
     idle: { x: 0, scale: 1, rotate: 0 },
@@ -743,6 +799,20 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* 일시정지 상태 안내 뱃지 */}
+        {isPaused && (
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 z-40 bg-neutral-950/90 text-amber-300 px-3 py-1 border-2 border-amber-400 font-mono font-black text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2 select-none">
+            <span>⏸️ 전투 일시정지됨</span>
+            <button
+              type="button"
+              onClick={() => setIsPaused(false)}
+              className="px-1.5 py-0.5 bg-amber-400 hover:bg-amber-300 text-black text-[10px] font-black border border-black cursor-pointer shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5"
+            >
+              재개 ▶
+            </button>
+          </div>
+        )}
 
         {/* ----------------------------------------------------------------- */}
         {/* [전투 화면 상단 일체형 HUD] 최상단 체력바 & 코어 뱃지 라인 높이에 정렬된 타이머 */}
@@ -1034,10 +1104,54 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
       </div>
 
       {/* 전투 로그 레인 */}
-      <div className="bg-neutral-950 p-2 rounded-none border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-        <div className="h-20 overflow-y-auto custom-scrollbar text-[10px] font-mono text-neutral-200 text-left">
+      <div className="bg-neutral-950 p-2 rounded-none border-4 border-neutral-950 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] select-text">
+        <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-neutral-800 text-[10px] font-mono select-none">
+          <div className="flex items-center gap-1.5">
+            <span className="font-black text-neutral-400">전투 로그</span>
+            {isPaused && (
+              <span className="bg-amber-400 text-neutral-950 text-[9px] font-black px-1.5 py-0.2 animate-pulse">
+                PAUSED (정지됨)
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleCopyLog}
+              className={`px-1.5 py-0.5 border text-[9px] font-bold cursor-pointer transition-colors ${
+                copiedToast
+                  ? 'bg-emerald-600 text-white border-emerald-500'
+                  : 'bg-neutral-900 hover:bg-neutral-800 border-neutral-700 text-neutral-300 hover:text-white'
+              }`}
+            >
+              {copiedToast ? '✅ 복사완료' : '전체복사 📋'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsLogExpanded(!isLogExpanded)}
+              className="px-1.5 py-0.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-400 hover:text-neutral-200 text-[9px] font-bold cursor-pointer transition-colors"
+            >
+              {isLogExpanded ? '축소 ▲' : '확대 🔍'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsPaused(!isPaused)}
+              className={`px-2 py-0.5 border text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 ${
+                isPaused
+                  ? 'bg-amber-400 hover:bg-amber-300 text-neutral-950 border-amber-300 ring-2 ring-amber-400/50'
+                  : 'bg-neutral-800 hover:bg-neutral-700 text-stone-200 border-neutral-600'
+              }`}
+            >
+              {isPaused ? '▶️ 전투 재개' : '⏸️ 일시정지'}
+            </button>
+          </div>
+        </div>
+        <div
+          ref={logContainerRef}
+          className={`overflow-y-auto custom-scrollbar text-[10px] font-mono text-neutral-200 text-left select-text cursor-text selection:bg-amber-400 selection:text-black transition-all duration-200 ${isLogExpanded ? 'h-48' : 'h-20'}`}
+        >
           {damageLog.map((entry) => (
-            <div key={entry.id} className="leading-tight">
+            <div key={entry.id} className="leading-tight py-0.5 select-text selection:bg-amber-400 selection:text-black">
               {entry.message}
             </div>
           ))}

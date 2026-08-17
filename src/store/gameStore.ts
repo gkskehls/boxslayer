@@ -208,7 +208,7 @@ export const getComputedStats = (
     attack,
     defense,
     maxHealth,
-    attackSpeed: 2.0,
+    attackSpeed: 1.0,
     accuracy: finalDex,
     evasion: finalDex,
     comboChance,
