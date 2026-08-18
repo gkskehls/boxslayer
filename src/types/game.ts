@@ -113,6 +113,8 @@ export interface DamageDetails {
   isOneShotLeap?: boolean;
   leapedStages?: number;
   absorbedByShield?: number;
+  attackStage?: number;
+  turn?: number;
 }
 
 export interface GameState {
@@ -131,6 +133,7 @@ export interface GameState {
   lastLeechedHealth: number;
   lastEnemyShieldRecovered: number;
   battleStartTime: number;
+  battleTurn: number;
   reincarnationPoints: number;
   // [신규 영구 재화 및 연구]
   coreFragments: number;             // 💎 사냥 드랍 코어 조각

@@ -208,6 +208,8 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     attackPlayer,
     retryCurrentFloor,
     setDefeat,
+    incrementBattleTurn,
+    battleTurn,
   } = state;
 
   const [offlineBanner, setOfflineBanner] = useState<{ gold: number; exp: number; minutes: number } | null>(() => {
@@ -376,7 +378,9 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           }, 180);
         }
 
-        const tag = getLogPrefixBadge(stage, turnCount);
+        const attackStage = lastDamageTaken.attackStage || stage;
+        const attackTurn = lastDamageTaken.turn || battleTurn || turnCount;
+        const tag = getLogPrefixBadge(attackStage, attackTurn);
 
         if (isEvaded) {
           addDamagePopup({ val: 0, type: 'miss-player' });
@@ -408,7 +412,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
         }
       });
     }
-  }, [lastDamageTaken, lastPlayerEvadedTime, isPlayerStunned, currentEnemy?.core?.type, stage, turnCount]);
+  }, [lastDamageTaken, lastPlayerEvadedTime, isPlayerStunned, currentEnemy?.core?.type, stage, turnCount, battleTurn]);
 
   // 적 피격/반사/흡혈 이벤트 리액션
   const prevDamageDealtRef = useRef(lastDamageDealt);
@@ -426,7 +430,9 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           setTimeout(() => setEnemyAnim('idle'), 180);
         }
 
-        const tag = getLogPrefixBadge(stage, turnCount);
+        const attackStage = lastDamageDealt.attackStage || stage;
+        const attackTurn = lastDamageDealt.turn || battleTurn || turnCount;
+        const tag = getLogPrefixBadge(attackStage, attackTurn);
 
         if (isEvaded) {
           addDamagePopup({ val: 0, type: 'miss-enemy' });
@@ -476,7 +482,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
         }
       });
     }
-  }, [lastDamageDealt, lastEnemyEvadedTime, state.equippedCore?.type, stage, turnCount]);
+  }, [lastDamageDealt, lastEnemyEvadedTime, state.equippedCore?.type, stage, turnCount, battleTurn]);
 
   // 반사 데미지 로그
   const prevReflectedRef = useRef(lastReflectedDamage);
@@ -484,7 +490,9 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     if (lastReflectedDamage && lastReflectedDamage > 0 && lastReflectedDamage !== prevReflectedRef.current) {
       prevReflectedRef.current = lastReflectedDamage;
       queueMicrotask(() => {
-        const tag = getLogPrefixBadge(stage, turnCount);
+        const attackStage = lastDamageTaken?.attackStage || stage;
+        const attackTurn = lastDamageTaken?.turn || battleTurn || turnCount;
+        const tag = getLogPrefixBadge(attackStage, attackTurn);
         addDamagePopup({ val: lastReflectedDamage, type: 'reflect' });
         addLog(
           <span className="text-cyan-300 font-mono">
@@ -493,7 +501,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
         );
       });
     }
-  }, [lastReflectedDamage, stage, turnCount]);
+  }, [lastReflectedDamage, stage, turnCount, battleTurn, lastDamageTaken]);
 
   // 흡혈 회복 로그
   const prevLeechedRef = useRef(lastLeechedHealth);
@@ -501,7 +509,9 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     if (lastLeechedHealth && lastLeechedHealth > 0 && lastLeechedHealth !== prevLeechedRef.current) {
       prevLeechedRef.current = lastLeechedHealth;
       queueMicrotask(() => {
-        const tag = getLogPrefixBadge(stage, turnCount);
+        const attackStage = lastDamageDealt?.attackStage || stage;
+        const attackTurn = lastDamageDealt?.turn || battleTurn || turnCount;
+        const tag = getLogPrefixBadge(attackStage, attackTurn);
         addDamagePopup({ val: lastLeechedHealth, type: 'leech' });
         addLog(
           <span className="text-emerald-300 font-mono">
@@ -510,7 +520,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
         );
       });
     }
-  }, [lastLeechedHealth, stage, turnCount]);
+  }, [lastLeechedHealth, stage, turnCount, battleTurn, lastDamageDealt]);
 
   // 적 쉴드 회복 로그
   const prevEnemyShieldRef = useRef(lastEnemyShieldRecovered);
@@ -518,7 +528,9 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     if (lastEnemyShieldRecovered && lastEnemyShieldRecovered > 0 && lastEnemyShieldRecovered !== prevEnemyShieldRef.current) {
       prevEnemyShieldRef.current = lastEnemyShieldRecovered;
       queueMicrotask(() => {
-        const tag = getLogPrefixBadge(stage, turnCount);
+        const attackStage = lastDamageTaken?.attackStage || stage;
+        const attackTurn = lastDamageTaken?.turn || battleTurn || turnCount;
+        const tag = getLogPrefixBadge(attackStage, attackTurn);
         addDamagePopup({ val: lastEnemyShieldRecovered, type: 'enemy-shield' });
         addLog(
           <span className="text-cyan-300 font-mono">
@@ -527,7 +539,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
         );
       });
     }
-  }, [lastEnemyShieldRecovered, stage, turnCount]);
+  }, [lastEnemyShieldRecovered, stage, turnCount, battleTurn, lastDamageTaken]);
 
   // 전투 스케줄러 루프
   useEffect(() => {
@@ -555,37 +567,60 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     }
   }, [gameStatus, spawnEnemy, retryCurrentFloor, isPaused]);
 
-  // 전투 턴 타이머 (피버 배속 연동 및 턴 카운터)
+  // 전투 턴 타이머 (피버 배속 연동 및 통합 라운드 루프)
   useEffect(() => {
     if (gameStatus !== 'BATTLE' || isPaused) return;
 
     const baseSpeed = 1.0;
-    const intervalMs = Math.max(50, Math.floor(1000 / (baseSpeed * timeMultiplier)));
+    const intervalMs = Math.max(80, Math.floor(1000 / (baseSpeed * timeMultiplier)));
+    const halfInterval = Math.max(30, Math.floor(intervalMs / 2));
 
-    const playerTimer = setInterval(() => {
+    let enemyTimeout: ReturnType<typeof setTimeout> | null = null;
+    let animTimeout1: ReturnType<typeof setTimeout> | null = null;
+    let animTimeout2: ReturnType<typeof setTimeout> | null = null;
+
+    const roundInterval = setInterval(() => {
+      // 1) [Phase 1: 나(플레이어) 턴]
       if (!isPlayerStunned) {
         setPlayerAnim('attack');
         attackEnemy();
-        setTimeout(() => {
+        animTimeout1 = setTimeout(() => {
           setPlayerAnim(isPlayerStunned ? 'stunned' : 'idle');
-        }, Math.min(150, intervalMs / 2));
+        }, Math.min(150, halfInterval));
       }
-    }, intervalMs);
 
-    const enemyTimer = setInterval(() => {
-      setEnemyAnim('attack');
-      attackPlayer();
-      setTurnCount((prev) => prev + 1);
-      setTimeout(() => {
-        setEnemyAnim('idle');
-      }, Math.min(150, intervalMs / 2));
+      // 2) [Phase 2: 적 턴] (반 템포 뒤에 적 생존 여부 확인 후 실행)
+      enemyTimeout = setTimeout(() => {
+        const storeState = useGameStore.getState();
+        if (
+          storeState.gameStatus !== 'BATTLE' ||
+          isPaused ||
+          !storeState.currentEnemy ||
+          storeState.currentEnemy.currentHealth <= 0
+        ) {
+          return;
+        }
+
+        setEnemyAnim('attack');
+        attackPlayer();
+        animTimeout2 = setTimeout(() => {
+          setEnemyAnim('idle');
+        }, Math.min(150, halfInterval));
+
+        // 3) [Phase 3: 턴 종료 및 다음 턴 카운터 진행]
+        incrementBattleTurn();
+        setTurnCount((prev) => prev + 1);
+      }, halfInterval);
+
     }, intervalMs);
 
     return () => {
-      clearInterval(playerTimer);
-      clearInterval(enemyTimer);
+      clearInterval(roundInterval);
+      if (enemyTimeout) clearTimeout(enemyTimeout);
+      if (animTimeout1) clearTimeout(animTimeout1);
+      if (animTimeout2) clearTimeout(animTimeout2);
     };
-  }, [gameStatus, attackEnemy, attackPlayer, isPlayerStunned, timeMultiplier, isPaused]);
+  }, [gameStatus, attackEnemy, attackPlayer, isPlayerStunned, timeMultiplier, isPaused, incrementBattleTurn]);
 
   const playerVariants: Variants = {
     idle: { x: 0, scale: 1, rotate: 0 },

@@ -95,6 +95,7 @@ interface GameActions {
   resetRebirthUpgrades: () => void;
   upgradeCoreAbility: (abilityKey: keyof CoreAbilityLevels) => void;
   resetCoreAbilities: () => void;
+  incrementBattleTurn: () => void;
 }
 
 const initialStats: Stats = { str: 10, dex: 10, con: 10 };
@@ -247,6 +248,7 @@ const initialGameState: GameState = {
   lastLeechedHealth: 0,
   lastEnemyShieldRecovered: 0,
   battleStartTime: 0,
+  battleTurn: 1,
   reincarnationPoints: 0,
   coreFragments: 0,
   boxFragments: 0,
@@ -290,6 +292,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   ...getInitialStoreState(),
 
   setDefeat: (reason) => set({ gameStatus: 'DEFEAT', defeatReason: reason }),
+
+  incrementBattleTurn: () => set((state) => ({ battleTurn: (state.battleTurn || 1) + 1 })),
 
   upgradeRebirthStat: (statKey, count = 1) => set((state) => {
     const config = REBIRTH_UPGRADES_CONFIG.find(c => c.id === statKey);
@@ -461,6 +465,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       },
       gameStatus: 'BATTLE',
       battleStartTime: Date.now(),
+      battleTurn: 1,
       playerShield: Math.floor(playerInitialShield),
       enemyShield: enemyInitialShield,
       windHitCount: 0,
@@ -595,7 +600,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     if (isEvaded) {
       return {
-        lastDamageDealt: { normal: 0, core: coreDamage, shieldRecovered },
+        lastDamageDealt: { normal: 0, core: coreDamage, shieldRecovered, attackStage: state.stage, turn: state.battleTurn || 1 },
         lastEnemyEvadedTime: now,
         playerShield: nextPlayerShield,
         windHitCount: currentWindHits,
@@ -726,7 +731,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           isCombo,
           comboHits,
           isOneShotLeap: isOneShot,
-          leapedStages
+          leapedStages,
+          attackStage: state.stage,
+          turn: state.battleTurn || 1
         },
         lastLeechedHealth: leechedHealth,
         playerShield: nextPlayerShield,
@@ -742,7 +749,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     return {
       player: { ...state.player, currentHealth: newPlayerHp },
       currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
-      lastDamageDealt: { normal: normalDamage, core: coreDamage, shieldRecovered, absorbedByShield: absorbedByEnemyShield, isCombo, comboHits },
+      lastDamageDealt: { normal: normalDamage, core: coreDamage, shieldRecovered, absorbedByShield: absorbedByEnemyShield, isCombo, comboHits, attackStage: state.stage, turn: state.battleTurn || 1 },
       lastLeechedHealth: leechedHealth,
       playerShield: nextPlayerShield,
       enemyShield: remainingEnemyShield,
@@ -781,10 +788,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
     if (state.equippedCore?.type === 'WIND' && state.hasWindEvasion) {
-      return { hasWindEvasion: false, lastPlayerEvadedTime: now, lastDamageTaken: { normal: 0, core: 0 } };
+      return { hasWindEvasion: false, lastPlayerEvadedTime: now, lastDamageTaken: { normal: 0, core: 0, attackStage: state.stage, turn: state.battleTurn || 1 } };
     }
     if (Math.random() > finalHitChance) {
-      return { lastPlayerEvadedTime: now, lastDamageTaken: { normal: 0, core: 0 } };
+      return { lastPlayerEvadedTime: now, lastDamageTaken: { normal: 0, core: 0, attackStage: state.stage, turn: state.battleTurn || 1 } };
     }
 
     // 🍃 바람 코어: Tier 2 (1,000층+) 이상에서 연격(Multi-Hit) 발동 (1,000층 미만은 단타)
@@ -899,7 +906,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         playerShield: 0,
         gameStatus: 'DEFEAT',
         defeatReason: 'HEALTH',
-        lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield },
+        lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield, attackStage: state.stage, turn: state.battleTurn || 1 },
         lastReflectedDamage: actualReflectedDmg,
         lastEnemyShieldRecovered: enemyShieldRecovered,
         lastPlayerEvadedTime: 0,
@@ -912,7 +919,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       playerShield: remainingPlayerShield,
       enemyShield: nextEnemyShield,
       currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
-      lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield },
+      lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield, attackStage: state.stage, turn: state.battleTurn || 1 },
       lastReflectedDamage: actualReflectedDmg,
       lastEnemyShieldRecovered: enemyShieldRecovered,
       lastPlayerEvadedTime: 0,
