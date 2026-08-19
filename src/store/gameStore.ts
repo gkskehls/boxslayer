@@ -409,7 +409,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const enemyHp = enemyComputed.maxHealth;
 
     const coreTypes: CoreType[] = ['FIRE', 'WATER', 'WIND', 'ELECTRIC'];
-    const coreTypeIndex = (nextStage % 7) % 4;
+    const coreTypeIndex = Math.floor((Math.max(1, nextStage) - 1) / 5) % coreTypes.length;
     const coreType = coreTypes[coreTypeIndex];
     const coreLevel = Math.max(1, Math.floor(nextStage / 10)); // 10층당 1코어레벨
 
@@ -458,8 +458,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         stats: stats,
         maxHealth: enemyHp,
         currentHealth: enemyHp,
-        goldReward: Math.floor((10 + (nextStage * 2) + (Math.pow(nextStage, 1.35) * 1.5)) * goldMult),
-        expReward: Math.floor((20 + (nextStage * 8) + (Math.pow(nextStage, 1.3) * 2)) * expMult),
+        goldReward: Math.floor((30 + (nextStage * 6) + (Math.pow(nextStage, 1.4) * 3.5)) * goldMult),
+        expReward: Math.floor((50 + (nextStage * 18) + (Math.pow(nextStage, 1.35) * 4.5)) * expMult),
         core: enemyCore,
         shield: enemyInitialShield,
       },
@@ -1030,11 +1030,13 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const computed = getComputedStats(s.player.stats, s.unlockedSkills, s.activeBuffs, s.rebirthUpgrades);
     const bonusMultiplier = 1 + computed.modifiers.offlineRewardMultiplier;
 
-    const baseEnemyExp = Math.floor(20 + (s.stage * 8) + (Math.pow(s.stage, 1.3) * 2));
-    const baseEnemyGold = Math.floor(10 + (s.stage * 2) + (Math.pow(s.stage, 1.35) * 1.5));
+    const baseEnemyExp = Math.floor(50 + (s.stage * 18) + (Math.pow(s.stage, 1.35) * 4.5));
+    const baseEnemyGold = Math.floor(30 + (s.stage * 6) + (Math.pow(s.stage, 1.4) * 3.5));
 
-    const g = Math.floor((baseEnemyGold * 8 / 60) * minutes * 60 * bonusMultiplier);
-    const e = Math.floor((baseEnemyExp * 8 / 60) * minutes * 60 * bonusMultiplier);
+    // 오프라인 방치 파밍 속도: 분당 2.0마리 (온라인 실시간 전투 대비 약 25~35% 효율로 조정하여 실제 전투 플레이 메리트 대폭 강화)
+    const killsPerMinute = 2.0;
+    const g = Math.floor(baseEnemyGold * killsPerMinute * minutes * bonusMultiplier);
+    const e = Math.floor(baseEnemyExp * killsPerMinute * minutes * bonusMultiplier);
 
     let newLevel = s.player.level;
     let newExp = s.player.experience + e;

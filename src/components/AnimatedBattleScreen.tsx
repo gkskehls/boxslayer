@@ -110,33 +110,10 @@ const RetroHpBar = ({
   );
 };
 
-// 스테이지(층수) 및 턴수 식별용 고대비 순환 색상 팔레트
-const STAGE_COLOR_PALETTES = [
-  { text: 'text-amber-400', bg: 'bg-amber-950/60', border: 'border-amber-600/70' },
-  { text: 'text-sky-400', bg: 'bg-sky-950/60', border: 'border-sky-600/70' },
-  { text: 'text-emerald-400', bg: 'bg-emerald-950/60', border: 'border-emerald-600/70' },
-  { text: 'text-purple-400', bg: 'bg-purple-950/60', border: 'border-purple-600/70' },
-  { text: 'text-rose-400', bg: 'bg-rose-950/60', border: 'border-rose-600/70' },
-  { text: 'text-teal-400', bg: 'bg-teal-950/60', border: 'border-teal-600/70' },
-];
-
-const TURN_COLOR_PALETTES = [
-  'text-yellow-300 font-bold',
-  'text-cyan-300 font-bold',
-  'text-lime-300 font-bold',
-  'text-fuchsia-300 font-bold',
-  'text-orange-300 font-bold',
-  'text-violet-300 font-bold',
-];
-
 const getLogPrefixBadge = (curStage: number, curTurn: number) => {
-  const stageStyle = STAGE_COLOR_PALETTES[Math.abs(curStage - 1) % STAGE_COLOR_PALETTES.length];
-  const turnStyle = TURN_COLOR_PALETTES[Math.abs(curTurn - 1) % TURN_COLOR_PALETTES.length];
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[11px] font-mono mr-1.5 shadow-sm select-text ${stageStyle.bg} ${stageStyle.border}`}>
-      <span className={stageStyle.text}>{curStage}F</span>
-      <span className="text-stone-500">·</span>
-      <span className={turnStyle}>T{curTurn}</span>
+    <span className="text-stone-400 font-mono text-[10px] mr-1.5 select-text font-bold">
+      {curStage}F·T{curTurn}
     </span>
   );
 };
@@ -386,7 +363,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           addDamagePopup({ val: 0, type: 'miss-player' });
           addLog(
             <span className="text-stone-400 font-mono">
-              {tag}<span className="text-rose-400 font-bold">[적 ➜ 나]</span> 회피 (EVADE)
+              {tag}<span className="text-rose-400 font-bold mr-1">[적]</span>회피
             </span>
           );
         } else {
@@ -400,12 +377,12 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
             const coreDmg = lastDamageTaken.core || 0;
             const enemyCore = currentEnemy?.core?.type;
             const coreText = coreDmg > 0 ? ` | ${getCoreKoreanName(enemyCore)} ${formatNumber(coreDmg)}` : '';
-            const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)} 흡수)` : '';
+            const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)})` : '';
             const stunText = isPlayerStunned ? ' ⚡기절' : '';
 
             addLog(
               <span className="text-rose-300 font-mono">
-                {tag}<span className="text-rose-400 font-bold">[적 ➜ 나]</span> 일반 {formatNumber(normalDmg)}{coreText}{absorbText}{stunText}
+                {tag}<span className="text-rose-400 font-bold mr-1">[적]</span>일반 {formatNumber(normalDmg)}{coreText}{absorbText}{stunText}
               </span>
             );
           }
@@ -438,7 +415,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           addDamagePopup({ val: 0, type: 'miss-enemy' });
           addLog(
             <span className="text-stone-500 font-mono">
-              {tag}<span className="text-emerald-400 font-bold">[나 ➜ 적]</span> 빗맞음 (MISS)
+              {tag}<span className="text-emerald-400 font-bold mr-1">[나]</span>빗맞음
             </span>
           );
         } else {
@@ -470,13 +447,13 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           const absorbed = lastDamageDealt.absorbedByShield || 0;
           const playerCore = state.equippedCore?.type;
           const coreText = coreDmg > 0 ? ` | ${getCoreKoreanName(playerCore)} ${formatNumber(coreDmg)}` : '';
-          const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)} 흡수)` : '';
+          const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)})` : '';
           const comboText = lastDamageDealt.isCombo ? ` ⚡${lastDamageDealt.comboHits || 2}x` : '';
           const leapText = (lastDamageDealt.leapedStages && lastDamageDealt.leapedStages > 0) ? ` 🚀+${lastDamageDealt.leapedStages}층` : '';
 
           addLog(
             <span className="text-amber-200 font-mono">
-              {tag}<span className="text-emerald-400 font-bold">[나 ➜ 적]</span> 일반 {formatNumber(normalDmg)}{coreText}{absorbText}{comboText}{leapText}
+              {tag}<span className="text-emerald-400 font-bold mr-1">[나]</span>일반 {formatNumber(normalDmg)}{coreText}{absorbText}{comboText}{leapText}
             </span>
           );
         }
@@ -496,7 +473,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
         addDamagePopup({ val: lastReflectedDamage, type: 'reflect' });
         addLog(
           <span className="text-cyan-300 font-mono">
-            {tag}<span className="text-cyan-400 font-bold">[나 ➜ 적]</span> 🌀반사 {formatNumber(lastReflectedDamage)}
+            {tag}<span className="text-emerald-400 font-bold mr-1">[나]</span>반사 {formatNumber(lastReflectedDamage)}
           </span>
         );
       });
@@ -515,7 +492,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
         addDamagePopup({ val: lastLeechedHealth, type: 'leech' });
         addLog(
           <span className="text-emerald-300 font-mono">
-            {tag}<span className="text-emerald-400 font-bold">[나]</span> 🩸흡혈 +{formatNumber(lastLeechedHealth)}
+            {tag}<span className="text-emerald-400 font-bold mr-1">[나]</span>흡혈 +{formatNumber(lastLeechedHealth)}
           </span>
         );
       });
@@ -534,7 +511,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
         addDamagePopup({ val: lastEnemyShieldRecovered, type: 'enemy-shield' });
         addLog(
           <span className="text-cyan-300 font-mono">
-            {tag}<span className="text-rose-400 font-bold">[적]</span> 🛡️쉴드 +{formatNumber(lastEnemyShieldRecovered)}
+            {tag}<span className="text-rose-400 font-bold mr-1">[적]</span>쉴드 +{formatNumber(lastEnemyShieldRecovered)}
           </span>
         );
       });
