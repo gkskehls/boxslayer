@@ -1,10 +1,11 @@
 import { useState } from 'react';
 
-// 메인 5대 스크린 임포트
+// 메인 스크린 임포트
 import AnimatedBattleScreen from './components/AnimatedBattleScreen';
 import StatsScreen from './components/StatsScreen';
 import RebirthScreen from './components/RebirthScreen';
 import CoreScreen from './components/CoreScreen';
+import { PvpScreen } from './components/PvpScreen';
 import Shop from './components/Shop';
 import NavigationBar, { type ScreenTab } from './components/NavigationBar';
 
@@ -148,6 +149,10 @@ function App() {
 
         {screen === 'CORE_SCREEN' && (
           <div className="w-full max-w-md"><CoreScreen /></div>
+        )}
+
+        {screen === 'PVP_SCREEN' && (
+          <div className="w-full max-w-md"><PvpScreen /></div>
         )}
 
         {screen === 'SHOP_SCREEN' && (

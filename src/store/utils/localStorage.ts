@@ -20,6 +20,14 @@ export const loadStateFromLocalStorage = (): GameState | null => {
             // Initialize lastOnlineTime if it doesn't exist
             parsedState.lastOnlineTime = parsedState.lastOnlineTime || Date.now();
 
+            // Initialize PVP state
+            parsedState.playerName = parsedState.playerName || '박스슬레이어';
+            parsedState.pvpSnapshot = parsedState.pvpSnapshot || null;
+            parsedState.pvpRating = parsedState.pvpRating || 1000;
+            parsedState.pvpWins = parsedState.pvpWins || 0;
+            parsedState.pvpLosses = parsedState.pvpLosses || 0;
+            parsedState.pvpBattleLogs = parsedState.pvpBattleLogs || [];
+
             // Sanitize unlockedSkills and refund RP for removed legacy skills
             if (Array.isArray(parsedState.unlockedSkills)) {
                 let refundedRP = 0;

@@ -3,7 +3,7 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
 
-export type ScreenTab = 'ANIMATED_BATTLE_SCREEN' | 'STATS_SCREEN' | 'REBIRTH_SCREEN' | 'CORE_SCREEN' | 'SHOP_SCREEN';
+export type ScreenTab = 'ANIMATED_BATTLE_SCREEN' | 'STATS_SCREEN' | 'REBIRTH_SCREEN' | 'CORE_SCREEN' | 'PVP_SCREEN' | 'SHOP_SCREEN';
 
 interface NavigationBarProps {
   onNavigate: (screen: ScreenTab) => void;
@@ -18,6 +18,7 @@ const NavigationBar: React.FC<NavigationBarProps> = ({ onNavigate, currentScreen
     { screen: 'STATS_SCREEN', label: '스탯', icon: '📊', badge: player.statPoints },
     { screen: 'REBIRTH_SCREEN', label: '환생', icon: '🌟' },
     { screen: 'CORE_SCREEN', label: '코어', icon: '🔮' },
+    { screen: 'PVP_SCREEN', label: '대전', icon: '🥊' },
     { screen: 'SHOP_SCREEN', label: '상점', icon: '🛒' },
   ];
 

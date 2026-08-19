@@ -110,10 +110,38 @@ const RetroHpBar = ({
   );
 };
 
+// 층(Stage) 및 턴(Turn)별 일관된 고유 색상 팔레트 (같은 층끼리 같은 색, 같은 턴끼리 같은 색)
+const STAGE_COLORS = [
+  'text-amber-400',   // 1F
+  'text-emerald-400', // 2F
+  'text-cyan-400',    // 3F
+  'text-pink-400',    // 4F
+  'text-yellow-300',  // 5F
+  'text-teal-300',    // 6F
+  'text-violet-400',  // 7F
+  'text-orange-400',  // 8F
+];
+
+const TURN_COLORS = [
+  'text-sky-400',     // T1: 스카이블루
+  'text-lime-400',    // T2: 라임그린
+  'text-fuchsia-400', // T3: 퓨샤핑크
+  'text-indigo-300',  // T4: 인디고
+  'text-rose-400',    // T5: 로즈레드
+  'text-amber-300',   // T6: 밝은앰버
+  'text-cyan-300',    // T7: 연한사이언
+  'text-emerald-300', // T8: 연한에메랄드
+];
+
 const getLogPrefixBadge = (curStage: number, curTurn: number) => {
+  const stageColor = STAGE_COLORS[Math.max(0, (curStage - 1)) % STAGE_COLORS.length] || 'text-amber-400';
+  const turnColor = TURN_COLORS[Math.max(0, (curTurn - 1)) % TURN_COLORS.length] || 'text-sky-400';
+
   return (
-    <span className="text-stone-400 font-mono text-[10px] mr-1.5 select-text font-bold">
-      {curStage}F·T{curTurn}
+    <span className="inline-flex items-baseline mr-1.5 select-text font-mono text-[10px] font-bold">
+      <span className={stageColor}>{curStage}F</span>
+      <span className="text-stone-500 mx-0.5">·</span>
+      <span className={turnColor}>T{curTurn}</span>
     </span>
   );
 };
@@ -137,6 +165,33 @@ let uniquePopupCounter = 0;
 const getUniqueId = (): string => {
   uniquePopupCounter = (uniquePopupCounter + 1) % 10000000;
   return `${Date.now()}_${uniquePopupCounter}_${Math.random().toString(36).substring(2, 7)}`;
+};
+
+// 방치 시간 포맷 헬퍼 (시간 분 단위 표기)
+const formatOfflineTime = (totalMinutes: number): string => {
+  if (totalMinutes <= 0) return '0분';
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  if (hours > 0 && mins > 0) {
+    return `${hours}시간 ${mins}분`;
+  }
+  if (hours > 0) {
+    return `${hours}시간`;
+  }
+  return `${mins}분`;
+};
+
+const formatOfflineTimeShort = (totalMinutes: number): string => {
+  if (totalMinutes <= 0) return '0m';
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  if (hours > 0 && mins > 0) {
+    return `+${hours}h ${mins}m`;
+  }
+  if (hours > 0) {
+    return `+${hours}h`;
+  }
+  return `+${mins}m`;
 };
 
 const getCoreBadgeDisplay = (type?: CoreType, tier?: number) => {
@@ -189,7 +244,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     battleTurn,
   } = state;
 
-  const [offlineBanner, setOfflineBanner] = useState<{ gold: number; exp: number; minutes: number } | null>(() => {
+  const [offlineBanner, setOfflineBanner] = useState<{ gold: number; exp: number; minutes: number; levelsGained?: number } | null>(() => {
     const rewards = state.calculateOfflineRewards();
     if (rewards && rewards.minutes >= 1 && (rewards.gold > 0 || rewards.exp > 0)) {
       return rewards;
@@ -197,6 +252,21 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     return null;
   });
   const [showOfflineModal, setShowOfflineModal] = useState(false);
+
+  useEffect(() => {
+    const updateRewards = () => {
+      const rewards = state.calculateOfflineRewards();
+      if (rewards && rewards.minutes >= 1 && (rewards.gold > 0 || rewards.exp > 0)) {
+        setOfflineBanner(rewards);
+      }
+    };
+    const interval = setInterval(updateRewards, 10000);
+    window.addEventListener('focus', updateRewards);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', updateRewards);
+    };
+  }, [state]);
 
   const handleClaimBannerRewards = () => {
     claimOfflineRewards();
@@ -434,7 +504,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
               coreType: state.equippedCore?.type,
             });
           }
-          if (lastDamageDealt.leapedStages && lastDamageDealt.leapedStages > 0) {
+          if (lastDamageDealt.leapedStages && lastDamageDealt.leapedStages > 1) {
             addDamagePopup({
               val: 0,
               type: 'one-shot-leap',
@@ -449,7 +519,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           const coreText = coreDmg > 0 ? ` | ${getCoreKoreanName(playerCore)} ${formatNumber(coreDmg)}` : '';
           const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)})` : '';
           const comboText = lastDamageDealt.isCombo ? ` ⚡${lastDamageDealt.comboHits || 2}x` : '';
-          const leapText = (lastDamageDealt.leapedStages && lastDamageDealt.leapedStages > 0) ? ` 🚀+${lastDamageDealt.leapedStages}층` : '';
+          const leapText = (lastDamageDealt.leapedStages && lastDamageDealt.leapedStages > 1) ? ` (+${lastDamageDealt.leapedStages}층)` : '';
 
           addLog(
             <span className="text-amber-200 font-mono">
@@ -656,49 +726,6 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
   return (
     <div className="max-w-md mx-auto p-4 rounded-none border-4 border-neutral-900 bg-stone-200 w-full flex flex-col gap-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] select-none flex-grow">
 
-      {/* 🎁 오프라인 방치 보상 상세 팝업 모달 */}
-      {showOfflineModal && offlineBanner && (
-        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4 font-mono">
-          <div className="bg-stone-200 border-4 border-black p-4 w-full max-w-xs shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col gap-3 text-stone-900 animate-scale-in">
-            <div className="bg-emerald-600 text-white p-2 border-2 border-black text-center font-black text-sm tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-              🎁 오프라인 방치 보상
-            </div>
-            <div className="bg-stone-100 p-3 border-2 border-black flex flex-col gap-2 text-xs">
-              <div className="flex justify-between items-center text-stone-600 border-b border-stone-300 pb-1.5">
-                <span className="font-bold">누적 방치 시간</span>
-                <span className="font-black text-stone-900 bg-stone-200 px-1.5 py-0.5 border border-stone-400">
-                  {offlineBanner.minutes}분
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-amber-700 font-bold">🪙 획득 골드</span>
-                <span className="font-black text-stone-900">+{formatNumber(offlineBanner.gold)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-blue-700 font-bold">📚 획득 경험치</span>
-                <span className="font-black text-stone-900">+{formatNumber(offlineBanner.exp)} EXP</span>
-              </div>
-            </div>
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={handleClaimBannerRewards}
-                className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
-              >
-                보상 모두 수령
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowOfflineModal(false)}
-                className="px-3 py-2.5 bg-stone-300 hover:bg-stone-400 text-stone-900 text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ================= 통합 상단 HUD (간결한 2줄 구성) ================= */}
       <div className="bg-stone-100 px-2.5 py-2 rounded-none border-4 border-neutral-900 flex flex-col gap-1.5 w-full shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-mono text-xs">
         
@@ -709,9 +736,11 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
               <span className="font-black text-stone-900 tracking-wider">
                 STAGE {stage}
               </span>
-              <span className="font-black text-red-600 text-[11px]">
-                {maxStage || stage}
-              </span>
+              {(stage < maxStage || gameStatus === 'DEFEAT') && (
+                <span className="font-black text-red-600 text-[11px]">
+                  ({maxStage})
+                </span>
+              )}
               <span className="text-stone-300 text-[10px]">|</span>
               <span className="text-neutral-900 font-bold text-[11px]">Lv.{player.level}</span>
               <span className="text-neutral-500 text-[10px]">
@@ -768,22 +797,26 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
             <span className="text-[9px] font-bold text-stone-500 shrink-0">상자</span>
             <span className="text-purple-800 font-black truncate ml-1 font-mono text-[10px]">{formatNumber(boxFragments || 0)}</span>
           </div>
-          {offlineBanner ? (
+          {offlineBanner && offlineBanner.minutes >= 1 ? (
             <button
               type="button"
               onClick={() => setShowOfflineModal(true)}
               className="bg-stone-200 hover:bg-stone-300 border border-black px-1.5 py-0.5 flex items-center justify-between shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer min-w-0"
             >
               <span className="text-[9px] font-black text-stone-800 shrink-0">방치</span>
-              <span className="bg-stone-800 text-yellow-300 text-[8px] px-1 py-0.2 font-black leading-none rounded-none truncate ml-0.5">
-                +{offlineBanner.minutes}m
+              <span className="bg-stone-800 text-yellow-300 text-[8px] px-1 py-0.2 font-black leading-none rounded-none truncate ml-0.5 font-mono">
+                {formatOfflineTimeShort(offlineBanner.minutes)}
               </span>
             </button>
           ) : (
-            <div className="bg-stone-200/60 border border-stone-300 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] text-stone-400 select-none min-w-0">
-              <span className="text-[9px] font-bold">방치</span>
-              <span className="text-[9px] font-mono">대기</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowOfflineModal(true)}
+              className="bg-stone-200/60 hover:bg-stone-200 border border-stone-300 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] text-stone-500 active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-w-0"
+            >
+              <span className="text-[9px] font-bold shrink-0">방치</span>
+              <span className="text-[8px] font-mono text-stone-400">대기</span>
+            </button>
           )}
         </div>
 
@@ -1069,7 +1102,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
                   xArc = 15;
                 } else if (popup.type === 'one-shot-leap') {
                   colorClass = 'text-cyan-600 font-black text-lg md:text-2xl animate-bounce';
-                  text = `🚀 ONE-SHOT +${popup.leapedStages || 3}F!`;
+                  text = `ONE-SHOT +${popup.leapedStages || 3}F!`;
                   xArc = 0;
                 } else if (popup.type === 'leech' || popup.type === 'enemy-shield') {
                   colorClass = 'text-emerald-600 font-black text-sm md:text-base';
@@ -1105,8 +1138,11 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
             <h2 className="text-4xl md:text-5xl font-black text-red-500 mb-2 animate-pulse font-mono tracking-widest drop-shadow-[0_4px_2px_rgba(0,0,0,1)]">
               GAME OVER
             </h2>
-            <p className="text-white text-sm md:text-base font-bold mb-1.5 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
+            <p className="text-white text-sm md:text-base font-bold mb-1 drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
               {defeatReason === 'TIMEOUT' ? '시간이 초과되었습니다!' : '전투에서 패배했습니다!'}
+            </p>
+            <p className="text-red-400 text-xs font-mono font-bold drop-shadow-[0_2px_2px_rgba(0,0,0,1)] mb-1.5">
+              도달 스테이지: STAGE {maxStage || stage}
             </p>
             <p className="text-yellow-300 text-xs font-mono font-bold drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
               잠시 후 10층 전 (STAGE {Math.max(1, stage - 10)})으로 이동하여 재정비합니다...
@@ -1215,6 +1251,114 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           )}
         </AnimatePresence>
       </div>
+
+      {/* ================= 방치 보상 팝업 모달 ================= */}
+      <AnimatePresence>
+        {showOfflineModal && (() => {
+          const currentRewards = offlineBanner || state.calculateOfflineRewards();
+          const currentMinutes = currentRewards?.minutes || 0;
+          const currentGold = currentRewards?.gold || 0;
+          const currentExp = currentRewards?.exp || 0;
+          const currentLevels = currentRewards?.levelsGained || 0;
+          const progressPercent = Math.min(100, (currentMinutes / 720) * 100);
+
+          return (
+            <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4 font-mono select-none backdrop-blur-xs">
+              <motion.div
+                initial={{ scale: 0.92, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.92, opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="bg-stone-100 border-4 border-neutral-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-4 max-w-sm w-full text-stone-900 flex flex-col gap-3"
+              >
+                {/* 모달 상단 헤더 */}
+                <div className="flex justify-between items-center pb-2 border-b-2 border-neutral-900">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm md:text-base font-black text-stone-900 tracking-wider">
+                      📦 오프라인 방치 보상
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold bg-neutral-900 text-yellow-300 px-2 py-0.5 border border-neutral-800">
+                    최대 12시간
+                  </span>
+                </div>
+
+                {/* 누적 시간 & 최대 시간 진행도 카드 */}
+                <div className="bg-stone-200 border-2 border-stone-400 p-2.5 flex flex-col gap-1.5">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[11px] text-stone-600 font-bold">누적 방치 시간</span>
+                    <span className="text-stone-950 font-black text-sm md:text-base font-mono">
+                      {formatOfflineTime(currentMinutes)}
+                    </span>
+                  </div>
+
+                  {/* 프로그레스 바 (최대 12시간 = 720분) */}
+                  <div className="w-full bg-stone-300 h-2.5 border border-stone-500 overflow-hidden shadow-inner">
+                    <div
+                      className="bg-amber-400 h-full transition-all duration-300"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center text-[10px] text-stone-600 font-mono font-bold">
+                    <span>누적 {progressPercent.toFixed(1)}%</span>
+                    <span className="text-stone-800">최대 12시간 (720분)</span>
+                  </div>
+                </div>
+
+                {/* 획득 가능한 보상 내역 */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-stone-200/90 border border-stone-400 p-2 flex flex-col items-center justify-center text-center">
+                    <span className="text-[10px] text-stone-500 font-bold mb-0.5">획득 골드</span>
+                    <span className="text-amber-700 font-black text-sm font-mono">
+                      +{formatNumber(currentGold)} G
+                    </span>
+                  </div>
+                  <div className="bg-stone-200/90 border border-stone-400 p-2 flex flex-col items-center justify-center text-center">
+                    <span className="text-[10px] text-stone-500 font-bold mb-0.5">획득 경험치</span>
+                    <span className="text-emerald-700 font-black text-sm font-mono">
+                      +{formatNumber(currentExp)} EXP
+                    </span>
+                  </div>
+                </div>
+
+                {currentLevels > 0 && (
+                  <div className="bg-emerald-100 border border-emerald-500 text-emerald-800 text-[11px] font-bold p-1.5 text-center font-mono">
+                    🎉 레벨업: +{currentLevels} Lv (스탯 포인트 +{currentLevels * 3})
+                  </div>
+                )}
+
+                <div className="bg-stone-200/70 border border-stone-300 p-2 text-[10px] text-stone-600 leading-relaxed text-center">
+                  오프라인 방치 보상은 게임 종료 및 자리비움 시 <span className="font-bold text-stone-900">최대 12시간</span>까지 자동으로 누적됩니다.
+                </div>
+
+                {/* 하단 버튼 액션 */}
+                <div className="flex gap-2 pt-1 border-t-2 border-neutral-900">
+                  <button
+                    type="button"
+                    onClick={() => setShowOfflineModal(false)}
+                    className="flex-1 py-1.5 bg-stone-300 hover:bg-stone-400 border-2 border-neutral-900 text-stone-800 font-bold text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer"
+                  >
+                    닫기
+                  </button>
+                  <button
+                    type="button"
+                    disabled={currentMinutes < 1}
+                    onClick={handleClaimBannerRewards}
+                    className={`flex-1 py-1.5 font-black text-xs border-2 border-neutral-900 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer ${
+                      currentMinutes >= 1
+                        ? 'bg-yellow-400 hover:bg-yellow-300 text-neutral-950'
+                        : 'bg-stone-300 text-stone-400 border-stone-400 cursor-not-allowed shadow-none'
+                    }`}
+                  >
+                    {currentMinutes >= 1 ? '보상 수령하기' : '누적 시간 부족 (최소 1분)'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
 
     </div>
   );

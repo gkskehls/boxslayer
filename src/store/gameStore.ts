@@ -13,6 +13,7 @@ import type {
   RebirthUpgrades,
   CoreAbilityLevels
 } from '../types/game';
+import type { PvpProfile, PvpBattleLog } from '../types/pvp';
 import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage';
 import {
   REBIRTH_UPGRADES_CONFIG,
@@ -67,6 +68,24 @@ export const getCoreStats = (type: CoreType, level: number, _unlockedSkills?: st
   return { desc: description, effects: finalEffects };
 };
 
+export const calculateCombatPower = (
+  stats: Stats,
+  equippedCore: { type: CoreType; level: number } | null,
+  rebirthUpgrades: RebirthUpgrades,
+  unlockedSkills: string[] = []
+): number => {
+  const computed = getComputedStats(stats, unlockedSkills, {}, rebirthUpgrades);
+  const coreBonus = equippedCore ? equippedCore.level * 150 : 0;
+  const power = Math.floor(
+    computed.attack * 2.2 +
+    computed.defense * 2.8 +
+    computed.maxHealth * 0.5 +
+    (computed.finalStr + computed.finalDex + computed.finalCon) * 3.5 +
+    coreBonus
+  );
+  return Math.max(100, power);
+};
+
 interface GameActions {
   attackEnemy: () => void;
   attackPlayer: () => void;
@@ -96,6 +115,17 @@ interface GameActions {
   upgradeCoreAbility: (abilityKey: keyof CoreAbilityLevels) => void;
   resetCoreAbilities: () => void;
   incrementBattleTurn: () => void;
+  // [PVP]
+  setPlayerName: (name: string) => void;
+  savePvpSnapshot: () => PvpProfile;
+  recordPvpResult: (
+    win: boolean,
+    ratingChange: number,
+    rewardGold: number,
+    rewardRp: number,
+    opponentName: string,
+    opponentLevel: number
+  ) => void;
 }
 
 const initialStats: Stats = { str: 10, dex: 10, con: 10 };
@@ -267,6 +297,12 @@ const initialGameState: GameState = {
   defeatReason: undefined,
   playerStunEndTime: 0,
   enemyStunEndTime: 0,
+  playerName: '박스슬레이어',
+  pvpSnapshot: null,
+  pvpRating: 1000,
+  pvpWins: 0,
+  pvpLosses: 0,
+  pvpBattleLogs: [],
 };
 
 const getInitialStoreState = (): GameState => {
@@ -1139,6 +1175,90 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
     return state;
   }),
+
+  setPlayerName: (name: string) => {
+    const trimmed = name.trim().slice(0, 14);
+    if (!trimmed) return;
+    set((state) => {
+      const updatedSnapshot = state.pvpSnapshot ? { ...state.pvpSnapshot, playerName: trimmed } : null;
+      return {
+        playerName: trimmed,
+        pvpSnapshot: updatedSnapshot,
+      };
+    });
+  },
+
+  savePvpSnapshot: () => {
+    const state = get();
+    const combatPower = calculateCombatPower(
+      state.player.stats,
+      state.equippedCore,
+      state.rebirthUpgrades,
+      state.unlockedSkills
+    );
+
+    const snapshot: PvpProfile = {
+      userId: 'local_player',
+      playerName: state.playerName || '박스슬레이어',
+      level: state.player.level,
+      stats: { ...state.player.stats },
+      equippedCore: state.equippedCore
+        ? { type: state.equippedCore.type, level: state.equippedCore.level, name: state.equippedCore.name }
+        : null,
+      unlockedSkills: [...state.unlockedSkills],
+      rebirthUpgrades: { ...state.rebirthUpgrades },
+      combatPower,
+      pvpScore: state.pvpRating || 1000,
+      pvpWins: state.pvpWins || 0,
+      pvpLosses: state.pvpLosses || 0,
+      allTimeMaxStage: state.allTimeMaxStage || state.maxStage || 1,
+      updatedAt: Date.now(),
+    };
+
+    set({ pvpSnapshot: snapshot });
+    return snapshot;
+  },
+
+  recordPvpResult: (win, ratingChange, rewardGold, rewardRp, opponentName, opponentLevel) => {
+    set((state) => {
+      const currentRating = state.pvpRating || 1000;
+      const newRating = Math.max(100, currentRating + ratingChange);
+      const newWins = win ? (state.pvpWins || 0) + 1 : (state.pvpWins || 0);
+      const newLosses = !win ? (state.pvpLosses || 0) + 1 : (state.pvpLosses || 0);
+      const newGold = state.player.gold + (win ? rewardGold : 0);
+      const newRp = state.reincarnationPoints + (win ? rewardRp : 0);
+
+      const logItem: PvpBattleLog = {
+        id: `pvp_log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        timestamp: Date.now(),
+        opponentName,
+        opponentLevel,
+        isWin: win,
+        scoreDelta: ratingChange,
+        goldReward: win ? rewardGold : 0,
+        rpReward: win ? rewardRp : 0,
+      };
+
+      const updatedLogs = [logItem, ...(state.pvpBattleLogs || [])].slice(0, 30);
+
+      const updatedSnapshot = state.pvpSnapshot ? {
+        ...state.pvpSnapshot,
+        pvpScore: newRating,
+        pvpWins: newWins,
+        pvpLosses: newLosses,
+      } : null;
+
+      return {
+        player: { ...state.player, gold: newGold },
+        reincarnationPoints: newRp,
+        pvpRating: newRating,
+        pvpWins: newWins,
+        pvpLosses: newLosses,
+        pvpBattleLogs: updatedLogs,
+        pvpSnapshot: updatedSnapshot,
+      };
+    });
+  },
 }));
 
 useGameStore.subscribe((state) => {

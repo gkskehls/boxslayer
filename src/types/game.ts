@@ -153,6 +153,13 @@ export interface GameState {
   defeatReason?: DefeatReason;
   playerStunEndTime: number;
   enemyStunEndTime: number;
+  // [PVP 대전 및 프로필]
+  playerName: string;
+  pvpSnapshot: import('./pvp').PvpProfile | null;
+  pvpRating: number;
+  pvpWins: number;
+  pvpLosses: number;
+  pvpBattleLogs: import('./pvp').PvpBattleLog[];
 }
 
 export type SkillNodeType = 'NORMAL' | 'NOTABLE' | 'KEYSTONE';
