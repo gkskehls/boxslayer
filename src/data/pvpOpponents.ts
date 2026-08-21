@@ -18,8 +18,6 @@ export const MOCK_PVP_OPPONENTS: PvpOpponent[] = [
     rebirthUpgrades: { flatStr: 5, flatCon: 5 },
     combatPower: 1450,
     pvpScore: 1000,
-    winGoldReward: 5000,
-    winRpReward: 15,
     description: '공격력에 집중 투자한 신예 슬레이어. 불 코어로 방어 무시 화염 피해를 입힙니다.',
   },
   {
@@ -33,8 +31,6 @@ export const MOCK_PVP_OPPONENTS: PvpOpponent[] = [
     rebirthUpgrades: { flatCon: 15, percentCon: 0.1 },
     combatPower: 4200,
     pvpScore: 1150,
-    winGoldReward: 18000,
-    winRpReward: 35,
     description: '두터운 쉴드와 높은 체력으로 지구전에 특화된 방어형 전사입니다.',
   },
   {
@@ -48,8 +44,6 @@ export const MOCK_PVP_OPPONENTS: PvpOpponent[] = [
     rebirthUpgrades: { flatDex: 25, percentDex: 0.15 },
     combatPower: 11200,
     pvpScore: 1320,
-    winGoldReward: 45000,
-    winRpReward: 70,
     description: '높은 민첩과 연격 발동으로 순식간에 연속 타격을 쏟아붓습니다.',
   },
   {
@@ -63,8 +57,6 @@ export const MOCK_PVP_OPPONENTS: PvpOpponent[] = [
     rebirthUpgrades: { flatStr: 30, flatDex: 20, flatCon: 20 },
     combatPower: 24500,
     pvpScore: 1510,
-    winGoldReward: 95000,
-    winRpReward: 120,
     description: '전기 감전 기절 효과와 균형 잡힌 밸런스로 상대를 무력화합니다.',
   },
   {
@@ -78,8 +70,6 @@ export const MOCK_PVP_OPPONENTS: PvpOpponent[] = [
     rebirthUpgrades: { flatStr: 60, percentStr: 0.35, flatCon: 30 },
     combatPower: 58000,
     pvpScore: 1750,
-    winGoldReward: 200000,
-    winRpReward: 220,
     description: '극단적인 STR 세팅과 3차 화염 지속 피해로 단숨에 적을 불태웁니다.',
   },
   {
@@ -93,8 +83,6 @@ export const MOCK_PVP_OPPONENTS: PvpOpponent[] = [
     rebirthUpgrades: { flatCon: 120, percentCon: 0.5, flatDefense: 50 },
     combatPower: 135000,
     pvpScore: 2050,
-    winGoldReward: 480000,
-    winRpReward: 380,
     description: '압도적인 쉴드 재생과 데미지 반사 특성으로 상대 공격을 역이용합니다.',
   },
   {
@@ -108,8 +96,6 @@ export const MOCK_PVP_OPPONENTS: PvpOpponent[] = [
     rebirthUpgrades: { flatStr: 180, flatDex: 150, flatCon: 150, percentStr: 0.6 },
     combatPower: 310000,
     pvpScore: 2420,
-    winGoldReward: 1100000,
-    winRpReward: 650,
     description: '번개 코어 종결 Keystone을 개방하여 기절 대상에게 치명적인 처형 피해를 입힙니다.',
   },
   {
@@ -123,8 +109,6 @@ export const MOCK_PVP_OPPONENTS: PvpOpponent[] = [
     rebirthUpgrades: { flatDex: 350, percentDex: 0.9, flatStr: 200 },
     combatPower: 620000,
     pvpScore: 2880,
-    winGoldReward: 2500000,
-    winRpReward: 1100,
     description: '극DEX 연타 및 확정 회피 잔상 효과로 상대 공격을 무효화하며 무한 연격을 가합니다.',
   },
   {
@@ -138,8 +122,6 @@ export const MOCK_PVP_OPPONENTS: PvpOpponent[] = [
     rebirthUpgrades: { flatCon: 600, percentCon: 1.2, flatStr: 400, percentStr: 0.8 },
     combatPower: 1350000,
     pvpScore: 3450,
-    winGoldReward: 6000000,
-    winRpReward: 1900,
     description: '철벽의 방어력과 막강한 완력을 겸비한 거인. 해일 스킬로 반사와 쉴드를 극대화합니다.',
   },
   {
@@ -153,8 +135,6 @@ export const MOCK_PVP_OPPONENTS: PvpOpponent[] = [
     rebirthUpgrades: { flatStr: 1000, percentStr: 1.8, flatDex: 800, percentDex: 1.5, flatCon: 900, percentCon: 1.6 },
     combatPower: 3100000,
     pvpScore: 4200,
-    winGoldReward: 15000000,
-    winRpReward: 3500,
     description: '모든 영역을 마스터한 전설의 박스 슬레이어. 초신성 폭발과 압도적인 전투력을 자랑합니다.',
   },
 ];

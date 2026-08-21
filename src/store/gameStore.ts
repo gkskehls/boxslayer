@@ -108,7 +108,7 @@ interface GameActions {
   reincarnate: () => void;
   unlockSkill: (skillId: string) => void;
   resetSkills: () => void;
-  buyShopItem: (item: ShopItem) => void;
+  buyShopItem: (item: ShopItem, count?: number) => void;
   setDefeat: (reason: DefeatReason) => void;
   upgradeRebirthStat: (statKey: keyof RebirthUpgrades, count?: number) => void;
   resetRebirthUpgrades: () => void;
@@ -121,8 +121,6 @@ interface GameActions {
   recordPvpResult: (
     win: boolean,
     ratingChange: number,
-    rewardGold: number,
-    rewardRp: number,
     opponentName: string,
     opponentLevel: number
   ) => void;
@@ -513,7 +511,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   },
 
   attackEnemy: () => set((state) => {
-    if (state.gameStatus !== 'BATTLE' || !state.currentEnemy) return state;
+    if (state.gameStatus !== 'BATTLE' || !state.currentEnemy || state.currentEnemy.currentHealth <= 0) return state;
 
     const now = Date.now();
     if (now < state.playerStunEndTime) return state;
@@ -634,51 +632,44 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     nextPlayerShield = Math.min(playerComputed.maxHealth * 10, nextPlayerShield + shieldRecovered);
 
-    if (isEvaded) {
-      return {
-        lastDamageDealt: { normal: 0, core: coreDamage, shieldRecovered, attackStage: state.stage, turn: state.battleTurn || 1 },
-        lastEnemyEvadedTime: now,
-        playerShield: nextPlayerShield,
-        windHitCount: currentWindHits,
-        hasWindEvasion: nextWindEvasion,
-        elecHitCount: currentElecHits,
-        enemyStunEndTime: nextEnemyStunEndTime,
-      };
-    }
+    // 3. 기본 공격 및 연격(Multi-Hit) 계산 (일반 공격 회피 시 기본 데미지만 0 처리, 코어 발동 피해는 100% 무조건 적중)
+    let normalDamage = 0;
+    let isCombo = false;
+    let comboHits = 1;
+    if (!isEvaded) {
+      const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
+      const randomMultiplier = 0.85 + Math.random() * 0.3;
 
-    // 3. 기본 공격 및 연격(Multi-Hit) 계산
-    const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
-    const randomMultiplier = 0.85 + Math.random() * 0.3;
-
-    // 바람 코어 연격 연구: 해금되었을 때만 연격 발동 (기본은 단타)
-    let multiHitChance = 0;
-    let comboDamageBonus = 1.3;
-    if (state.equippedCore?.type === 'WIND') {
-      const windMultiChanceLvl = state.coreAbilities?.wind_multi_hit_chance || 0;
-      const windMultiDmgLvl = state.coreAbilities?.wind_multi_hit_damage || 0;
-      if (windMultiChanceLvl > 0) {
-        multiHitChance = windMultiChanceLvl * 0.015;
-        comboDamageBonus = 1.3 + (windMultiDmgLvl * 0.03);
+      // 바람 코어 연격 연구: 해금되었을 때만 연격 발동 (기본은 단타)
+      let multiHitChance = 0;
+      let comboDamageBonus = 1.3;
+      if (state.equippedCore?.type === 'WIND') {
+        const windMultiChanceLvl = state.coreAbilities?.wind_multi_hit_chance || 0;
+        const windMultiDmgLvl = state.coreAbilities?.wind_multi_hit_damage || 0;
+        if (windMultiChanceLvl > 0) {
+          multiHitChance = windMultiChanceLvl * 0.015;
+          comboDamageBonus = 1.3 + (windMultiDmgLvl * 0.03);
+        }
       }
-    }
 
-    const isCombo = multiHitChance > 0 && Math.random() < multiHitChance;
-    const comboHits = isCombo ? (Math.random() < 0.25 ? 3 : 2) : 1;
-    const comboMult = isCombo ? comboDamageBonus : 1.0;
+      isCombo = multiHitChance > 0 && Math.random() < multiHitChance;
+      comboHits = isCombo ? (Math.random() < 0.25 ? 3 : 2) : 1;
+      const comboMult = isCombo ? comboDamageBonus : 1.0;
 
-    let normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount * comboHits * comboMult);
+      normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount * comboHits * comboMult);
 
-    // 물의 코어: 수호 공명 (연구 해금 시 쉴드 유지 중 피해 증폭)
-    if (state.equippedCore?.type === 'WATER' && nextPlayerShield > 0) {
-      const shieldBurstLvl = state.coreAbilities?.water_shield_burst || 0;
-      if (shieldBurstLvl > 0) {
-        normalDamage = Math.floor(normalDamage * (1 + (shieldBurstLvl * 0.02)));
+      // 물의 코어: 수호 공명 (연구 해금 시 쉴드 유지 중 피해 증폭)
+      if (state.equippedCore?.type === 'WATER' && nextPlayerShield > 0) {
+        const shieldBurstLvl = state.coreAbilities?.water_shield_burst || 0;
+        if (shieldBurstLvl > 0) {
+          normalDamage = Math.floor(normalDamage * (1 + (shieldBurstLvl * 0.02)));
+        }
       }
     }
 
     const totalDamage = normalDamage + coreDamage;
 
-    // 물의 코어: 생명 갈취 (연구 해금 시 흡혈)
+    // 물의 코어: 생명 갈취 (연구 해금 시 흡혈 - 코어 피해 포함 총 데미지 기준 발동)
     let leechedHealth = 0;
     if (state.equippedCore?.type === 'WATER') {
       const lifeStealLvl = state.coreAbilities?.water_life_steal || 0;
@@ -743,6 +734,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const nextStageNumber = state.stage + leapedStages;
 
       return {
+        gameStatus: 'VICTORY',
         currentEnemy: { ...state.currentEnemy, currentHealth: 0 },
         player: {
           ...state.player,
@@ -758,7 +750,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         allTimeMaxStage: Math.max(state.allTimeMaxStage || 1, state.maxStage || 1, nextStageNumber),
         coreFragments: state.coreFragments + coreFragmentsGained,
         boxFragments: (state.boxFragments || 0) + boxFragmentsGained,
-        gameStatus: 'VICTORY',
+        enemyShield: 0,
+        playerShield: nextPlayerShield,
+        windHitCount: currentWindHits,
+        hasWindEvasion: nextWindEvasion,
+        elecHitCount: currentElecHits,
+        enemyStunEndTime: nextEnemyStunEndTime,
+        lastEnemyEvadedTime: isEvaded ? now : 0,
+        lastLeechedHealth: leechedHealth,
         lastDamageDealt: {
           normal: normalDamage,
           core: coreDamage,
@@ -770,30 +769,37 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           leapedStages,
           attackStage: state.stage,
           turn: state.battleTurn || 1
-        },
-        lastLeechedHealth: leechedHealth,
-        playerShield: nextPlayerShield,
-        enemyShield: 0,
-        windHitCount: currentWindHits,
-        hasWindEvasion: nextWindEvasion,
-        elecHitCount: currentElecHits,
-        enemyStunEndTime: nextEnemyStunEndTime,
-        lastEnemyEvadedTime: 0
+        }
       };
     }
 
     return {
-      player: { ...state.player, currentHealth: newPlayerHp },
-      currentEnemy: { ...state.currentEnemy, currentHealth: newEnemyHealth },
-      lastDamageDealt: { normal: normalDamage, core: coreDamage, shieldRecovered, absorbedByShield: absorbedByEnemyShield, isCombo, comboHits, attackStage: state.stage, turn: state.battleTurn || 1 },
-      lastLeechedHealth: leechedHealth,
-      playerShield: nextPlayerShield,
+      currentEnemy: {
+        ...state.currentEnemy,
+        currentHealth: newEnemyHealth
+      },
+      player: {
+        ...state.player,
+        currentHealth: newPlayerHp
+      },
       enemyShield: remainingEnemyShield,
+      playerShield: nextPlayerShield,
       windHitCount: currentWindHits,
       hasWindEvasion: nextWindEvasion,
       elecHitCount: currentElecHits,
       enemyStunEndTime: nextEnemyStunEndTime,
-      lastEnemyEvadedTime: 0
+      lastEnemyEvadedTime: isEvaded ? now : 0,
+      lastLeechedHealth: leechedHealth,
+      lastDamageDealt: {
+        normal: normalDamage,
+        core: coreDamage,
+        shieldRecovered,
+        absorbedByShield: absorbedByEnemyShield,
+        isCombo,
+        comboHits,
+        attackStage: state.stage,
+        turn: state.battleTurn || 1
+      }
     };
   }),
 
@@ -823,11 +829,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
+    let isPlayerEvaded = false;
+    let nextHasWindEvasion = state.hasWindEvasion;
+
     if (state.equippedCore?.type === 'WIND' && state.hasWindEvasion) {
-      return { hasWindEvasion: false, lastPlayerEvadedTime: now, lastDamageTaken: { normal: 0, core: 0, attackStage: state.stage, turn: state.battleTurn || 1 } };
-    }
-    if (Math.random() > finalHitChance) {
-      return { lastPlayerEvadedTime: now, lastDamageTaken: { normal: 0, core: 0, attackStage: state.stage, turn: state.battleTurn || 1 } };
+      nextHasWindEvasion = false;
+      isPlayerEvaded = true;
+    } else if (Math.random() > finalHitChance) {
+      isPlayerEvaded = true;
     }
 
     // 🍃 바람 코어: Tier 2 (1,000층+) 이상에서 연격(Multi-Hit) 발동 (1,000층 미만은 단타)
@@ -842,9 +851,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       }
     }
 
-    const baseDamage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
+    // 일반 공격 데미지 (회피 시 0)
+    let normalDamage = 0;
+    if (!isPlayerEvaded) {
+      const baseDamage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
+      const randomMultiplier = 0.85 + Math.random() * 0.3;
+      normalDamage = Math.floor(baseDamage * randomMultiplier * enemyHitCount * enemyComboMult);
+    }
     const randomMultiplier = 0.85 + Math.random() * 0.3;
-    let normalDamage = Math.floor(baseDamage * randomMultiplier * enemyHitCount * enemyComboMult);
     let coreDamage = 0;
     let nextPlayerStunEndTime = state.playerStunEndTime;
     let enemyShieldRecovered = 0;
@@ -945,7 +959,50 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield, attackStage: state.stage, turn: state.battleTurn || 1 },
         lastReflectedDamage: actualReflectedDmg,
         lastEnemyShieldRecovered: enemyShieldRecovered,
-        lastPlayerEvadedTime: 0,
+        lastPlayerEvadedTime: isPlayerEvaded ? now : 0,
+        hasWindEvasion: nextHasWindEvasion,
+        playerStunEndTime: 0,
+      };
+    }
+
+    if (enemyNextHealth <= 0) {
+      const { expReward, goldReward } = state.currentEnemy;
+      let newExp = state.player.experience + expReward;
+      let newLevel = state.player.level;
+      let newNextExp = state.player.nextLevelExperience;
+      let statPointsGained = 0;
+
+      while (newExp >= newNextExp) {
+        newExp -= newNextExp;
+        newLevel++;
+        newNextExp = getRequiredExpForLevel(newLevel);
+        statPointsGained += 3;
+      }
+
+      const nextStageNumber = state.stage + 1;
+
+      return {
+        gameStatus: 'VICTORY',
+        currentEnemy: { ...state.currentEnemy, currentHealth: 0 },
+        player: {
+          ...state.player,
+          experience: newExp,
+          level: newLevel,
+          nextLevelExperience: newNextExp,
+          statPoints: state.player.statPoints + statPointsGained,
+          gold: state.player.gold + goldReward,
+          currentHealth: nextHealth,
+        },
+        stage: nextStageNumber,
+        maxStage: Math.max(state.maxStage || 1, nextStageNumber),
+        allTimeMaxStage: Math.max(state.allTimeMaxStage || 1, state.maxStage || 1, nextStageNumber),
+        playerShield: remainingPlayerShield,
+        enemyShield: 0,
+        lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield, attackStage: state.stage, turn: state.battleTurn || 1 },
+        lastReflectedDamage: actualReflectedDmg,
+        lastEnemyShieldRecovered: enemyShieldRecovered,
+        lastPlayerEvadedTime: isPlayerEvaded ? now : 0,
+        hasWindEvasion: nextHasWindEvasion,
         playerStunEndTime: 0,
       };
     }
@@ -958,7 +1015,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield, attackStage: state.stage, turn: state.battleTurn || 1 },
       lastReflectedDamage: actualReflectedDmg,
       lastEnemyShieldRecovered: enemyShieldRecovered,
-      lastPlayerEvadedTime: 0,
+      lastPlayerEvadedTime: isPlayerEvaded ? now : 0,
+      hasWindEvasion: nextHasWindEvasion,
       playerStunEndTime: nextPlayerStunEndTime,
     };
   }),
@@ -1141,25 +1199,32 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   }),
   resetSkills: () => set((state) => state),
 
-  buyShopItem: (item) => set((state) => {
-    if (state.player.gold < item.cost) {
-      alert("골드가 부족합니다.");
+  buyShopItem: (item, count = 1) => set((state) => {
+    if (count <= 0) return state;
+    const maxAffordable = Math.floor(state.player.gold / item.cost);
+    const actualCount = Math.min(count, maxAffordable);
+    if (actualCount <= 0) {
+      if (count === 1) {
+        alert("골드가 부족합니다.");
+      }
       return state;
     }
 
-    const newGold = state.player.gold - item.cost;
+    const totalCost = item.cost * actualCount;
+    const newGold = state.player.gold - totalCost;
 
     if (item.type === 'TEMP_STAT') {
+      const addedPoints = item.effect.value * actualCount;
       return {
         player: {
           ...state.player,
           gold: newGold,
-          statPoints: state.player.statPoints + item.effect.value,
-          tempStatPoints: (state.player.tempStatPoints || 0) + item.effect.value
+          statPoints: state.player.statPoints + addedPoints,
+          tempStatPoints: (state.player.tempStatPoints || 0) + addedPoints
         }
       };
     } else if (item.type === 'TIMED_BUFF') {
-      const durationMs = (item.duration || 0) * 1000;
+      const durationMs = (item.duration || 0) * 1000 * actualCount;
       const now = Date.now();
       const currentEndTime = (state.activeBuffs[item.id] && state.activeBuffs[item.id] > now)
           ? state.activeBuffs[item.id]
@@ -1219,14 +1284,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     return snapshot;
   },
 
-  recordPvpResult: (win, ratingChange, rewardGold, rewardRp, opponentName, opponentLevel) => {
+  recordPvpResult: (win, ratingChange, opponentName, opponentLevel) => {
     set((state) => {
       const currentRating = state.pvpRating || 1000;
       const newRating = Math.max(100, currentRating + ratingChange);
       const newWins = win ? (state.pvpWins || 0) + 1 : (state.pvpWins || 0);
       const newLosses = !win ? (state.pvpLosses || 0) + 1 : (state.pvpLosses || 0);
-      const newGold = state.player.gold + (win ? rewardGold : 0);
-      const newRp = state.reincarnationPoints + (win ? rewardRp : 0);
 
       const logItem: PvpBattleLog = {
         id: `pvp_log_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -1235,8 +1298,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         opponentLevel,
         isWin: win,
         scoreDelta: ratingChange,
-        goldReward: win ? rewardGold : 0,
-        rpReward: win ? rewardRp : 0,
       };
 
       const updatedLogs = [logItem, ...(state.pvpBattleLogs || [])].slice(0, 30);
@@ -1249,8 +1310,6 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       } : null;
 
       return {
-        player: { ...state.player, gold: newGold },
-        reincarnationPoints: newRp,
         pvpRating: newRating,
         pvpWins: newWins,
         pvpLosses: newLosses,

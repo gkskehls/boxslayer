@@ -6,51 +6,71 @@ import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import type { CoreType } from '../types/game';
 import { formatNumber } from '../utils/format';
 import { getEnemyCoreTier } from '../data/rebirthConfig';
+import { BoxColorPreviewModal } from './BoxColorPreviewModal';
+import { Palette } from 'lucide-react';
 
-// [박스 외형 스타일] 크기는 80px 고정, 스탯 비율로 색조 결정, 상대와의 총 스탯 차이로 명암(밝기 25%~75%) 산출
+// [박스 외형 스타일 - 방안 C: 8비트 아케이드 전용 클래식 프리셋 팔레트]
+// 엄선된 레트로 16색 테이블에서 1위/2위 스탯 몰빵 및 조합에 맞추어 선명하고 직관적인 색상을 부여합니다.
 const getDynamicBoxStyle = (
   stats: { str: number; dex: number; con: number },
   opponentTotalStats: number,
   baseSize: number = 80
 ) => {
   const { str, dex, con } = stats;
-  const myTotalStats = (str || 0) + (dex || 0) + (con || 0) || 1;
-  const oppTotalStats = Math.max(1, opponentTotalStats || 1);
+  const total = (str || 0) + (dex || 0) + (con || 0) || 1;
+  const oppTotal = Math.max(1, opponentTotalStats || 1);
 
-  // 1) 고유 색조 RGB 비율 (STR: 빨강, DEX: 초록, CON: 파랑)
-  const normR = (str || 0) / myTotalStats;
-  const normG = (dex || 0) / myTotalStats;
-  const normB = (con || 0) / myTotalStats;
+  const rRatio = (str || 0) / total;
+  const gRatio = (dex || 0) / total;
+  const bRatio = (con || 0) / total;
 
-  // 2) 상대와의 스탯 총합 비율에 따른 명암(밝기) 계수 산출 (25% ~ 75% 안전 가독 범위)
-  const diffRatio = (myTotalStats - oppTotalStats) / Math.max(myTotalStats, oppTotalStats);
-  const lightness = Math.min(0.75, Math.max(0.25, 0.50 + diffRatio * 0.25));
+  // 8비트 아케이드 전용 클래식 프리셋 색상 매핑
+  let hexColor = '#64748B'; // 밸런스형: 티타늄 슬레이트 실버
 
-  // 기본 색상을 명도에 맞춰 스케일링
-  const lightnessFactor = lightness * 2;
-  const r = Math.min(255, Math.max(0, Math.floor(normR * 255 * lightnessFactor)));
-  const g = Math.min(255, Math.max(0, Math.floor(normG * 255 * lightnessFactor)));
-  const b = Math.min(255, Math.max(0, Math.floor(normB * 255 * lightnessFactor)));
+  if (rRatio >= 0.70) {
+    hexColor = '#E11D48'; // 순수 STR 100% 극몰빵: 버서커 크림슨 레드
+  } else if (gRatio >= 0.70) {
+    hexColor = '#10B981'; // 순수 DEX 100% 극몰빵: 스피더 에메랄드 그린
+  } else if (bRatio >= 0.70) {
+    hexColor = '#2563EB'; // 순수 CON 100% 극몰빵: 가디언 코발트 블루
+  } else if (rRatio >= 0.35 && gRatio >= 0.35) {
+    hexColor = '#F97316'; // STR + DEX 하이브리드: 듀얼리스트 앰버 오렌지
+  } else if (rRatio >= 0.35 && bRatio >= 0.35) {
+    hexColor = '#8B5CF6'; // STR + CON 하이브리드: 워로드 로열 바이올렛
+  } else if (gRatio >= 0.35 && bRatio >= 0.35) {
+    hexColor = '#06B6D4'; // DEX + CON 하이브리드: 레인저 아쿠아 사이언
+  } else if (rRatio >= 0.45) {
+    hexColor = '#EA580C'; // STR 우세형: 파이어 엠버
+  } else if (gRatio >= 0.45) {
+    hexColor = '#059669'; // DEX 우세형: 딥 포레스트
+  } else if (bRatio >= 0.45) {
+    hexColor = '#1D4ED8'; // CON 우세형: 로열 인디고
+  }
+
+  // 상대와의 총 스탯 차이에 따른 명암 밝기 필터
+  const diffRatio = (total - oppTotal) / Math.max(total, oppTotal);
+  const brightness = Math.min(1.3, Math.max(0.7, 1.0 + diffRatio * 0.3));
 
   return {
-    backgroundColor: `rgb(${r}, ${g}, ${b})`,
+    backgroundColor: hexColor,
+    filter: `brightness(${brightness})`,
     width: `${baseSize}px`,
     height: `${baseSize}px`,
     borderRadius: '0px',
   };
 };
 
-// 코어 타입별 테두리 및 톤온톤 인셋 스타일 (캐릭터 색상과 자연스럽게 조화)
+// 코어 타입별 테두리 및 속성 발광 오라 링 스타일 (방안 C와 조화)
 const getCoreBorderClass = (coreType?: CoreType | null) => {
   switch (coreType) {
     case 'FIRE':
-      return 'border-neutral-950 ring-2 ring-inset ring-red-500/40 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+      return 'border-neutral-950 ring-4 ring-red-500/80 shadow-[0_0_12px_rgba(239,68,68,0.75)]';
     case 'WATER':
-      return 'border-neutral-950 ring-2 ring-inset ring-sky-400/40 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+      return 'border-neutral-950 ring-4 ring-sky-400/80 shadow-[0_0_12px_rgba(56,189,248,0.75)]';
     case 'WIND':
-      return 'border-neutral-950 ring-2 ring-inset ring-emerald-400/40 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+      return 'border-neutral-950 ring-4 ring-emerald-400/80 shadow-[0_0_12px_rgba(52,211,153,0.75)]';
     case 'ELECTRIC':
-      return 'border-neutral-950 ring-2 ring-inset ring-amber-400/40 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+      return 'border-neutral-950 ring-4 ring-amber-400/80 shadow-[0_0_12px_rgba(251,191,36,0.85)]';
     default:
       return 'border-neutral-950 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
   }
@@ -255,7 +275,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
 
   useEffect(() => {
     const updateRewards = () => {
-      const rewards = state.calculateOfflineRewards();
+      const rewards = useGameStore.getState().calculateOfflineRewards();
       if (rewards && rewards.minutes >= 1 && (rewards.gold > 0 || rewards.exp > 0)) {
         setOfflineBanner(rewards);
       }
@@ -266,7 +286,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
       clearInterval(interval);
       window.removeEventListener('focus', updateRewards);
     };
-  }, [state]);
+  }, []);
 
   const handleClaimBannerRewards = () => {
     claimOfflineRewards();
@@ -294,8 +314,10 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     ? (enemyComputed.finalStr + enemyComputed.finalDex + enemyComputed.finalCon)
     : (currentEnemy ? (currentEnemy.stats.str + currentEnemy.stats.dex + currentEnemy.stats.con) : 1);
 
-  const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit' | 'stunned'>('idle');
+  const [playerAnim, setPlayerAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
   const [enemyAnim, setEnemyAnim] = useState<'idle' | 'attack' | 'hit'>('idle');
+
+  const effectivePlayerAnim = (playerAnim === 'idle' && isPlayerStunned) ? 'stunned' : playerAnim;
 
   const [damagePopups, setDamagePopups] = useState<DamagePopup[]>([]);
   const [showStats, setShowStats] = useState<boolean>(false);
@@ -307,6 +329,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isLogExpanded, setIsLogExpanded] = useState<boolean>(false);
   const [copiedToast, setCopiedToast] = useState<boolean>(false);
+  const [showColorPreview, setShowColorPreview] = useState<boolean>(false);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   const handleCopyLog = () => {
@@ -327,21 +350,16 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
   };
 
   useEffect(() => {
-    queueMicrotask(() => {
-      setPlayerAnim(isPlayerStunned ? 'stunned' : 'idle');
-    });
-  }, [isPlayerStunned]);
-
-  useEffect(() => {
     if (gameStatus !== 'BATTLE') {
-      queueMicrotask(() => {
+      const timer = setTimeout(() => {
         setPlayerAnim('idle');
         setEnemyAnim('idle');
         setBattleTime(0);
         setTurnCount(1);
         setTimeMultiplier(1);
         setFeverToast(null);
-      });
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [gameStatus]);
 
@@ -416,39 +434,45 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
       prevDamageTakenRef.current = lastDamageTaken;
       prevPlayerEvadedTimeRef.current = lastPlayerEvadedTime;
       const isEvaded = lastPlayerEvadedTime > 0;
+      const normalDmg = lastDamageTaken.normal || 0;
+      const coreDmg = lastDamageTaken.core || 0;
+      const absorbed = lastDamageTaken.absorbedByShield || 0;
+      const enemyCore = currentEnemy?.core?.type;
+      const coreText = coreDmg > 0 ? ` | ${getCoreKoreanName(enemyCore)} ${formatNumber(coreDmg)}` : '';
+      const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)})` : '';
+      const stunText = isPlayerStunned ? ' ⚡기절' : '';
 
-      queueMicrotask(() => {
-        if (!isEvaded) {
-          setPlayerAnim('hit');
-          setTimeout(() => {
-            setPlayerAnim(isPlayerStunned ? 'stunned' : 'idle');
-          }, 180);
-        }
+      const attackStage = lastDamageTaken.attackStage || stage;
+      const attackTurn = lastDamageTaken.turn || battleTurn || turnCount;
+      const tag = getLogPrefixBadge(attackStage, attackTurn);
 
-        const attackStage = lastDamageTaken.attackStage || stage;
-        const attackTurn = lastDamageTaken.turn || battleTurn || turnCount;
-        const tag = getLogPrefixBadge(attackStage, attackTurn);
+      const animTimer1 = (!isEvaded || coreDmg > 0)
+        ? setTimeout(() => setPlayerAnim('hit'), 0)
+        : null;
+      const animTimer2 = (!isEvaded || coreDmg > 0)
+        ? setTimeout(() => setPlayerAnim('idle'), 180)
+        : null;
 
+      const timer = setTimeout(() => {
         if (isEvaded) {
           addDamagePopup({ val: 0, type: 'miss-player' });
+          if (coreDmg > 0) {
+            addDamagePopup({ val: coreDmg, type: 'taken-core' });
+          }
           addLog(
-            <span className="text-stone-400 font-mono">
-              {tag}<span className="text-rose-400 font-bold mr-1">[적]</span>회피
+            <span className="text-rose-300 font-mono">
+              {tag}<span className="text-rose-400 font-bold mr-1">[적]</span>회피{coreText}{absorbText}{stunText}
             </span>
           );
         } else {
-          const totalTaken = (lastDamageTaken.normal || 0) + (lastDamageTaken.core || 0);
-          const absorbed = lastDamageTaken.absorbedByShield || 0;
+          const totalTaken = normalDmg + coreDmg;
           if (totalTaken > 0 || absorbed > 0) {
-            if (totalTaken > 0) {
-              addDamagePopup({ val: totalTaken, type: 'taken' });
+            if (normalDmg > 0) {
+              addDamagePopup({ val: normalDmg, type: 'taken' });
             }
-            const normalDmg = lastDamageTaken.normal || 0;
-            const coreDmg = lastDamageTaken.core || 0;
-            const enemyCore = currentEnemy?.core?.type;
-            const coreText = coreDmg > 0 ? ` | ${getCoreKoreanName(enemyCore)} ${formatNumber(coreDmg)}` : '';
-            const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)})` : '';
-            const stunText = isPlayerStunned ? ' ⚡기절' : '';
+            if (coreDmg > 0) {
+              addDamagePopup({ val: coreDmg, type: 'taken-core' });
+            }
 
             addLog(
               <span className="text-rose-300 font-mono">
@@ -457,7 +481,13 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
             );
           }
         }
-      });
+      }, 0);
+
+      return () => {
+        if (animTimer1) clearTimeout(animTimer1);
+        if (animTimer2) clearTimeout(animTimer2);
+        clearTimeout(timer);
+      };
     }
   }, [lastDamageTaken, lastPlayerEvadedTime, isPlayerStunned, currentEnemy?.core?.type, stage, turnCount, battleTurn]);
 
@@ -470,36 +500,53 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
       prevDamageDealtRef.current = lastDamageDealt;
       prevEnemyEvadedTimeRef.current = lastEnemyEvadedTime;
       const isEvaded = lastEnemyEvadedTime > 0;
+      const normalDmg = lastDamageDealt.normal || 0;
+      const coreDmg = lastDamageDealt.core || 0;
+      const absorbed = lastDamageDealt.absorbedByShield || 0;
+      const playerCore = state.equippedCore?.type;
+      const coreText = coreDmg > 0 ? ` | ${getCoreKoreanName(playerCore)} ${formatNumber(coreDmg)}` : '';
+      const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)})` : '';
+      const comboText = lastDamageDealt.isCombo ? ` ⚡${lastDamageDealt.comboHits || 2}x` : '';
+      const leapText = (lastDamageDealt.leapedStages && lastDamageDealt.leapedStages > 1) ? ` (+${lastDamageDealt.leapedStages}층)` : '';
 
-      queueMicrotask(() => {
-        if (!isEvaded) {
-          setEnemyAnim('hit');
-          setTimeout(() => setEnemyAnim('idle'), 180);
-        }
+      const enemyTimer1 = (!isEvaded || coreDmg > 0)
+        ? setTimeout(() => setEnemyAnim('hit'), 0)
+        : null;
+      const enemyTimer2 = (!isEvaded || coreDmg > 0)
+        ? setTimeout(() => setEnemyAnim('idle'), 180)
+        : null;
 
-        const attackStage = lastDamageDealt.attackStage || stage;
-        const attackTurn = lastDamageDealt.turn || battleTurn || turnCount;
-        const tag = getLogPrefixBadge(attackStage, attackTurn);
+      const attackStage = lastDamageDealt.attackStage || stage;
+      const attackTurn = lastDamageDealt.turn || battleTurn || turnCount;
+      const tag = getLogPrefixBadge(attackStage, attackTurn);
 
+      const timer = setTimeout(() => {
         if (isEvaded) {
           addDamagePopup({ val: 0, type: 'miss-enemy' });
+          if (coreDmg > 0) {
+            addDamagePopup({
+              val: coreDmg,
+              type: 'core',
+              coreType: state.equippedCore?.type,
+            });
+          }
           addLog(
-            <span className="text-stone-500 font-mono">
-              {tag}<span className="text-emerald-400 font-bold mr-1">[나]</span>빗맞음
+            <span className="text-amber-200 font-mono">
+              {tag}<span className="text-emerald-400 font-bold mr-1">[나]</span>빗맞음{coreText}{absorbText}
             </span>
           );
         } else {
-          if (lastDamageDealt.normal > 0) {
+          if (normalDmg > 0) {
             addDamagePopup({
-              val: lastDamageDealt.normal,
+              val: normalDmg,
               type: 'normal',
               isCombo: lastDamageDealt.isCombo,
               comboHits: lastDamageDealt.comboHits,
             });
           }
-          if (lastDamageDealt.core > 0) {
+          if (coreDmg > 0) {
             addDamagePopup({
-              val: lastDamageDealt.core,
+              val: coreDmg,
               type: 'core',
               coreType: state.equippedCore?.type,
             });
@@ -512,22 +559,19 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
             });
           }
 
-          const normalDmg = lastDamageDealt.normal || 0;
-          const coreDmg = lastDamageDealt.core || 0;
-          const absorbed = lastDamageDealt.absorbedByShield || 0;
-          const playerCore = state.equippedCore?.type;
-          const coreText = coreDmg > 0 ? ` | ${getCoreKoreanName(playerCore)} ${formatNumber(coreDmg)}` : '';
-          const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)})` : '';
-          const comboText = lastDamageDealt.isCombo ? ` ⚡${lastDamageDealt.comboHits || 2}x` : '';
-          const leapText = (lastDamageDealt.leapedStages && lastDamageDealt.leapedStages > 1) ? ` (+${lastDamageDealt.leapedStages}층)` : '';
-
           addLog(
             <span className="text-amber-200 font-mono">
               {tag}<span className="text-emerald-400 font-bold mr-1">[나]</span>일반 {formatNumber(normalDmg)}{coreText}{absorbText}{comboText}{leapText}
             </span>
           );
         }
-      });
+      }, 0);
+
+      return () => {
+        if (enemyTimer1) clearTimeout(enemyTimer1);
+        if (enemyTimer2) clearTimeout(enemyTimer2);
+        clearTimeout(timer);
+      };
     }
   }, [lastDamageDealt, lastEnemyEvadedTime, state.equippedCore?.type, stage, turnCount, battleTurn]);
 
@@ -536,17 +580,18 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
   useEffect(() => {
     if (lastReflectedDamage && lastReflectedDamage > 0 && lastReflectedDamage !== prevReflectedRef.current) {
       prevReflectedRef.current = lastReflectedDamage;
-      queueMicrotask(() => {
-        const attackStage = lastDamageTaken?.attackStage || stage;
-        const attackTurn = lastDamageTaken?.turn || battleTurn || turnCount;
-        const tag = getLogPrefixBadge(attackStage, attackTurn);
+      const attackStage = lastDamageTaken?.attackStage || stage;
+      const attackTurn = lastDamageTaken?.turn || battleTurn || turnCount;
+      const tag = getLogPrefixBadge(attackStage, attackTurn);
+      const timer = setTimeout(() => {
         addDamagePopup({ val: lastReflectedDamage, type: 'reflect' });
         addLog(
           <span className="text-cyan-300 font-mono">
             {tag}<span className="text-emerald-400 font-bold mr-1">[나]</span>반사 {formatNumber(lastReflectedDamage)}
           </span>
         );
-      });
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [lastReflectedDamage, stage, turnCount, battleTurn, lastDamageTaken]);
 
@@ -555,17 +600,18 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
   useEffect(() => {
     if (lastLeechedHealth && lastLeechedHealth > 0 && lastLeechedHealth !== prevLeechedRef.current) {
       prevLeechedRef.current = lastLeechedHealth;
-      queueMicrotask(() => {
-        const attackStage = lastDamageDealt?.attackStage || stage;
-        const attackTurn = lastDamageDealt?.turn || battleTurn || turnCount;
-        const tag = getLogPrefixBadge(attackStage, attackTurn);
+      const attackStage = lastDamageDealt?.attackStage || stage;
+      const attackTurn = lastDamageDealt?.turn || battleTurn || turnCount;
+      const tag = getLogPrefixBadge(attackStage, attackTurn);
+      const timer = setTimeout(() => {
         addDamagePopup({ val: lastLeechedHealth, type: 'leech' });
         addLog(
           <span className="text-emerald-300 font-mono">
             {tag}<span className="text-emerald-400 font-bold mr-1">[나]</span>흡혈 +{formatNumber(lastLeechedHealth)}
           </span>
         );
-      });
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [lastLeechedHealth, stage, turnCount, battleTurn, lastDamageDealt]);
 
@@ -574,17 +620,18 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
   useEffect(() => {
     if (lastEnemyShieldRecovered && lastEnemyShieldRecovered > 0 && lastEnemyShieldRecovered !== prevEnemyShieldRef.current) {
       prevEnemyShieldRef.current = lastEnemyShieldRecovered;
-      queueMicrotask(() => {
-        const attackStage = lastDamageTaken?.attackStage || stage;
-        const attackTurn = lastDamageTaken?.turn || battleTurn || turnCount;
-        const tag = getLogPrefixBadge(attackStage, attackTurn);
+      const attackStage = lastDamageTaken?.attackStage || stage;
+      const attackTurn = lastDamageTaken?.turn || battleTurn || turnCount;
+      const tag = getLogPrefixBadge(attackStage, attackTurn);
+      const timer = setTimeout(() => {
         addDamagePopup({ val: lastEnemyShieldRecovered, type: 'enemy-shield' });
         addLog(
           <span className="text-cyan-300 font-mono">
             {tag}<span className="text-rose-400 font-bold mr-1">[적]</span>쉴드 +{formatNumber(lastEnemyShieldRecovered)}
           </span>
         );
-      });
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [lastEnemyShieldRecovered, stage, turnCount, battleTurn, lastDamageTaken]);
 
@@ -627,12 +674,22 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
     let animTimeout2: ReturnType<typeof setTimeout> | null = null;
 
     const roundInterval = setInterval(() => {
+      const currentState = useGameStore.getState();
+      if (
+        currentState.gameStatus !== 'BATTLE' ||
+        isPaused ||
+        !currentState.currentEnemy ||
+        currentState.currentEnemy.currentHealth <= 0
+      ) {
+        return;
+      }
+
       // 1) [Phase 1: 나(플레이어) 턴]
       if (!isPlayerStunned) {
         setPlayerAnim('attack');
         attackEnemy();
         animTimeout1 = setTimeout(() => {
-          setPlayerAnim(isPlayerStunned ? 'stunned' : 'idle');
+          setPlayerAnim('idle');
         }, Math.min(150, halfInterval));
       }
 
@@ -783,42 +840,53 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           </div>
         </div>
 
-        {/* [2행] 골드 / 코어 / 상자 / 방치를 한 줄에 4분할 일렬 배치 */}
-        <div className="grid grid-cols-4 gap-1 w-full text-[11px]">
-          <div className="bg-stone-200/90 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] min-w-0">
-            <span className="text-[9px] font-bold text-stone-500 shrink-0">골드</span>
-            <span className="text-stone-900 font-black truncate ml-1 font-mono text-[10px]">{formatNumber(player.gold)}</span>
-          </div>
-          <div className="bg-stone-200/90 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] min-w-0">
-            <span className="text-[9px] font-bold text-stone-500 shrink-0">코어</span>
-            <span className="text-cyan-800 font-black truncate ml-1 font-mono text-[10px]">{formatNumber(coreFragments)}</span>
-          </div>
-          <div className="bg-stone-200/90 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] min-w-0">
-            <span className="text-[9px] font-bold text-stone-500 shrink-0">상자</span>
-            <span className="text-purple-800 font-black truncate ml-1 font-mono text-[10px]">{formatNumber(boxFragments || 0)}</span>
-          </div>
-          {offlineBanner && offlineBanner.minutes >= 1 ? (
+          {/* [2행] 골드 / 코어 / 상자 / 방치를 한 줄에 4분할 일렬 배치 + 색상 프리뷰 */}
+          <div className="grid grid-cols-5 gap-1 w-full text-[11px]">
+            <div className="bg-stone-200/90 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] min-w-0">
+              <span className="text-[9px] font-bold text-stone-500 shrink-0">골드</span>
+              <span className="text-stone-900 font-black truncate ml-1 font-mono text-[10px]">{formatNumber(player.gold)}</span>
+            </div>
+            <div className="bg-stone-200/90 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] min-w-0">
+              <span className="text-[9px] font-bold text-stone-500 shrink-0">코어</span>
+              <span className="text-cyan-800 font-black truncate ml-1 font-mono text-[10px]">{formatNumber(coreFragments)}</span>
+            </div>
+            <div className="bg-stone-200/90 border border-stone-400 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] min-w-0">
+              <span className="text-[9px] font-bold text-stone-500 shrink-0">상자</span>
+              <span className="text-purple-800 font-black truncate ml-1 font-mono text-[10px]">{formatNumber(boxFragments || 0)}</span>
+            </div>
+            {offlineBanner && offlineBanner.minutes >= 1 ? (
+              <button
+                type="button"
+                onClick={() => setShowOfflineModal(true)}
+                className="bg-stone-200 hover:bg-stone-300 border border-black px-1.5 py-0.5 flex items-center justify-between shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer min-w-0"
+              >
+                <span className="text-[9px] font-black text-stone-800 shrink-0">방치</span>
+                <span className="bg-stone-800 text-yellow-300 text-[8px] px-1 py-0.2 font-black leading-none rounded-none truncate ml-0.5 font-mono">
+                  {formatOfflineTimeShort(offlineBanner.minutes)}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowOfflineModal(true)}
+                className="bg-stone-200/60 hover:bg-stone-200 border border-stone-300 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] text-stone-500 active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-w-0"
+              >
+                <span className="text-[9px] font-bold shrink-0">방치</span>
+                <span className="text-[8px] font-mono text-stone-400">대기</span>
+              </button>
+            )}
+
+            {/* 박스 색상 프리뷰 모달 열기 버튼 */}
             <button
               type="button"
-              onClick={() => setShowOfflineModal(true)}
-              className="bg-stone-200 hover:bg-stone-300 border border-black px-1.5 py-0.5 flex items-center justify-between shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none cursor-pointer min-w-0"
+              onClick={() => setShowColorPreview(true)}
+              className="bg-amber-300 hover:bg-amber-200 border border-black px-1 py-0.5 flex items-center justify-center gap-0.5 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-w-0"
+              title="박스 색상 방식 5종 비교 프리뷰"
             >
-              <span className="text-[9px] font-black text-stone-800 shrink-0">방치</span>
-              <span className="bg-stone-800 text-yellow-300 text-[8px] px-1 py-0.2 font-black leading-none rounded-none truncate ml-0.5 font-mono">
-                {formatOfflineTimeShort(offlineBanner.minutes)}
-              </span>
+              <Palette className="w-2.5 h-2.5 text-stone-900 shrink-0" />
+              <span className="text-[9px] font-black text-stone-900 truncate">색상비교</span>
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowOfflineModal(true)}
-              className="bg-stone-200/60 hover:bg-stone-200 border border-stone-300 px-1.5 py-0.5 flex items-center justify-between shadow-[inset_1px_1px_0px_rgba(0,0,0,0.06)] text-stone-500 active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-w-0"
-            >
-              <span className="text-[9px] font-bold shrink-0">방치</span>
-              <span className="text-[8px] font-mono text-stone-400">대기</span>
-            </button>
-          )}
-        </div>
+          </div>
 
       </div>
 
@@ -958,7 +1026,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           <div className="relative z-20">
             <motion.div
               variants={playerVariants}
-              animate={playerAnim}
+              animate={effectivePlayerAnim}
               className={`flex items-center justify-center border-4 ${playerCoreBorderClass} z-20 overflow-hidden bg-stone-300`}
               style={getDynamicBoxStyle(
                 {
@@ -972,7 +1040,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
             >
               <div className="flex flex-col items-center justify-center w-full h-full p-1 text-neutral-950 font-mono select-none">
                 <div className="flex justify-between w-full px-2 mb-1.5">
-                  {playerAnim === 'hit' || playerAnim === 'stunned' ? (
+                  {effectivePlayerAnim === 'hit' || effectivePlayerAnim === 'stunned' ? (
                     <>
                       <span className="text-xs font-black leading-none">&gt;</span>
                       <span className="text-xs font-black leading-none">&lt;</span>
@@ -984,7 +1052,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
                     </>
                   )}
                 </div>
-                <div className={`h-1 bg-neutral-950 transition-all duration-100 ${playerAnim === 'attack' ? 'w-4 bg-red-950' : 'w-2.5'}`}></div>
+                <div className={`h-1 bg-neutral-950 transition-all duration-100 ${effectivePlayerAnim === 'attack' ? 'w-4 bg-red-950' : 'w-2.5'}`}></div>
               </div>
             </motion.div>
 
@@ -1359,6 +1427,12 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           );
         })()}
       </AnimatePresence>
+
+      {/* 박스 색상 방식 5종 비교 프리뷰 모달 */}
+      <BoxColorPreviewModal
+        isOpen={showColorPreview}
+        onClose={() => setShowColorPreview(false)}
+      />
 
     </div>
   );

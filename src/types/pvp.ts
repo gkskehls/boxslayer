@@ -45,13 +45,11 @@ export interface PvpOpponent {
   rebirthUpgrades: Partial<RebirthUpgrades>;
   combatPower: number;
   pvpScore: number;
-  winGoldReward: number;
-  winRpReward: number;
   description: string;
 }
 
 /**
- * PVP 대전 전적 기록 인터페이스
+ * PVP 대전 전적 기록 인터페이스 (대전 포인트/레이팅 전용)
  */
 export interface PvpBattleLog {
   id: string;
@@ -60,6 +58,4 @@ export interface PvpBattleLog {
   opponentLevel: number;
   isWin: boolean;
   scoreDelta: number;
-  goldReward: number;
-  rpReward: number;
 }

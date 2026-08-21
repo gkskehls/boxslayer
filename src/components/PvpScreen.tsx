@@ -79,8 +79,6 @@ export const PvpScreen: React.FC = () => {
     finished: boolean;
     isWin: boolean;
     ratingDelta: number;
-    goldReward: number;
-    rpReward: number;
   } | null>(null);
 
   const [playerAttackAnim, setPlayerAttackAnim] = useState(false);
@@ -111,6 +109,49 @@ export const PvpScreen: React.FC = () => {
     }, 2800);
   };
 
+  const [initiativeInfo, setInitiativeInfo] = useState<{
+    isPlayerFirst: boolean;
+    reason: string;
+  } | null>(null);
+
+  // 선공(Initiative) 판정 3단계 우선순위 계산
+  const getInitiative = (
+    myComputed: ReturnType<typeof getComputedStats>,
+    oppComputed: ReturnType<typeof getComputedStats>
+  ) => {
+    // 1순위: 최종 민첩(DEX) 높은 쪽
+    if (myComputed.finalDex > oppComputed.finalDex) {
+      return {
+        isPlayerFirst: true,
+        reason: `민첩 우세 (${formatNumber(myComputed.finalDex)} > ${formatNumber(oppComputed.finalDex)})`,
+      };
+    } else if (oppComputed.finalDex > myComputed.finalDex) {
+      return {
+        isPlayerFirst: false,
+        reason: `상대 민첩 우세 (${formatNumber(oppComputed.finalDex)} > ${formatNumber(myComputed.finalDex)})`,
+      };
+    }
+
+    // 2순위: 공격 속도 빠른 쪽
+    if (myComputed.attackSpeed > oppComputed.attackSpeed) {
+      return {
+        isPlayerFirst: true,
+        reason: `공격속도 우세 (${myComputed.attackSpeed.toFixed(2)}/s > ${oppComputed.attackSpeed.toFixed(2)}/s)`,
+      };
+    } else if (oppComputed.attackSpeed > myComputed.attackSpeed) {
+      return {
+        isPlayerFirst: false,
+        reason: `상대 공격속도 우세 (${oppComputed.attackSpeed.toFixed(2)}/s > ${myComputed.attackSpeed.toFixed(2)}/s)`,
+      };
+    }
+
+    // 3순위: 공격자(도전자 / 플레이어) 우선권
+    return {
+      isPlayerFirst: true,
+      reason: `공격자(도전자) 우선권`,
+    };
+  };
+
   // 대전 시작
   const handleStartBattle = (opponent: PvpOpponent) => {
     let myDeck = pvpSnapshot;
@@ -139,6 +180,10 @@ export const PvpScreen: React.FC = () => {
       opponent.rebirthUpgrades as RebirthUpgrades
     );
 
+    // 선공 결정
+    const init = getInitiative(myComputed, oppComputed);
+    setInitiativeInfo(init);
+
     // 쉴드 계산
     let myStartShield = 0;
     if (myDeck.equippedCore?.type === 'WATER') {
@@ -159,12 +204,20 @@ export const PvpScreen: React.FC = () => {
     setOppShield(oppStartShield);
     setOppMaxShield(Math.max(oppStartShield, 100));
 
+    const firstAttacker = init.isPlayerFirst ? myDeck.playerName : opponent.playerName;
+
     setBattleLogs([
       {
         id: `init_1`,
         turn: 1,
         text: `⚔️ [PVP 아레나] ${myDeck.playerName}(Lv.${myDeck.level}) VS ${opponent.playerName}(Lv.${opponent.level}) 결투 개시!`,
         type: 'system',
+      },
+      {
+        id: `init_2`,
+        turn: 1,
+        text: `⚡ [선공 판정] ${firstAttacker} 선공 (${init.reason})`,
+        type: 'special',
       },
     ]);
   };
@@ -200,153 +253,253 @@ export const PvpScreen: React.FC = () => {
       selectedOpponent.rebirthUpgrades as RebirthUpgrades
     );
 
-    const intervalMs = Math.floor(800 / battleSpeed);
+    const init = getInitiative(myComputed, oppComputed);
+    const isPlayerFirst = init.isPlayerFirst;
+    const intervalMs = Math.floor(900 / battleSpeed);
 
+    // 플레이어 공격 함수 (일반 공격 회피 시 데미지 0, 코어 발동 피해는 100% 무조건 적중)
+    const executePlayerAttack = (currentTurn: number, onDeathCallback: () => void) => {
+      setPlayerAttackAnim(true);
+      setTimeout(() => setPlayerAttackAnim(false), 200);
+
+      // 명중/회피 계산
+      const hitChance = Math.max(0.1, Math.min(1.0, 0.95 + (myComputed.accuracy - oppComputed.evasion) * 0.01));
+      const isPEvaded = Math.random() > hitChance;
+
+      let pNormalDmg = 0;
+      let isPCombo = false;
+      if (!isPEvaded) {
+        pNormalDmg = Math.max(1, Math.floor(myComputed.attack - (oppComputed.defense * 0.45)));
+        isPCombo = Math.random() < 0.25;
+        if (isPCombo) pNormalDmg = Math.floor(pNormalDmg * 1.5);
+      }
+
+      // 코어 발동 피해 (No Miss - 절대 적중)
+      let pCoreDmg = 0;
+      let coreBadgeText = '';
+      if (myDeck.equippedCore?.type === 'FIRE') {
+        pCoreDmg = Math.floor(myDeck.equippedCore.level * 35 + myComputed.finalStr * 0.4);
+        coreBadgeText = '🔥화염';
+      } else if (myDeck.equippedCore?.type === 'ELECTRIC') {
+        pCoreDmg = Math.floor(myDeck.equippedCore.level * 30 + myComputed.finalDex * 0.3);
+        coreBadgeText = '⚡뇌전';
+      } else if (myDeck.equippedCore?.type === 'WIND') {
+        pCoreDmg = Math.floor(myDeck.equippedCore.level * 20 + myComputed.finalDex * 0.25);
+        coreBadgeText = '🌪️돌풍';
+      }
+
+      const totalPDamage = pNormalDmg + pCoreDmg;
+
+      setOppHp((curOppHp) => {
+        const updatedShield = oppShield;
+        let remainingDmg = totalPDamage;
+
+        if (updatedShield > 0) {
+          if (updatedShield >= remainingDmg) {
+            setOppShield(updatedShield - remainingDmg);
+            remainingDmg = 0;
+          } else {
+            remainingDmg -= updatedShield;
+            setOppShield(0);
+          }
+        }
+
+        const nextOppHp = Math.max(0, curOppHp - remainingDmg);
+
+        // 데미지 팝업
+        const popupId = `pop_${Date.now()}_${Math.random()}`;
+        setDamagePopups((prev) => [
+          ...prev.slice(-6),
+          {
+            id: popupId,
+            val: totalPDamage,
+            type: isPEvaded ? 'player-core' : (isPCombo ? 'player-combo' : 'player-normal'),
+          },
+        ]);
+
+        // 로그 기록
+        let logText = '';
+        if (isPEvaded) {
+          if (pCoreDmg > 0) {
+            logText = `${myDeck.playerName}의 공격이 빗나갔으나, ${coreBadgeText} 코어 발동으로 ${formatNumber(pCoreDmg)} 피해!`;
+          } else {
+            logText = `${myDeck.playerName}의 공격이 회피되었습니다! (MISS)`;
+          }
+        } else {
+          logText = `${myDeck.playerName}의 ${isPCombo ? '⚡연속 공격!' : '몸통박치기!'} ${formatNumber(totalPDamage)} 피해${pCoreDmg > 0 ? ` (${coreBadgeText} +${formatNumber(pCoreDmg)})` : ''}`;
+        }
+
+        setBattleLogs((logs) => [
+          ...logs.slice(-25),
+          {
+            id: `log_p_${currentTurn}_${Date.now()}`,
+            turn: currentTurn,
+            text: logText,
+            type: 'player',
+          },
+        ]);
+
+        if (nextOppHp <= 0) {
+          onDeathCallback();
+          return 0;
+        }
+
+        return nextOppHp;
+      });
+    };
+
+    // 상대방 공격 함수 (일반 공격 회피 시 데미지 0, 코어 발동 피해는 100% 무조건 적중)
+    const executeOpponentAttack = (currentTurn: number, onDeathCallback: () => void) => {
+      setOppAttackAnim(true);
+      setTimeout(() => setOppAttackAnim(false), 200);
+
+      // 명중/회피 계산
+      const oppHitChance = Math.max(0.1, Math.min(1.0, 0.95 + (oppComputed.accuracy - myComputed.evasion) * 0.01));
+      const isOppEvaded = Math.random() > oppHitChance;
+
+      let oppNormalDmg = 0;
+      let isOppCombo = false;
+      if (!isOppEvaded) {
+        oppNormalDmg = Math.max(1, Math.floor(oppComputed.attack - (myComputed.defense * 0.45)));
+        isOppCombo = Math.random() < 0.2;
+        if (isOppCombo) oppNormalDmg = Math.floor(oppNormalDmg * 1.4);
+      }
+
+      // 코어 발동 피해 (No Miss - 절대 적중)
+      let oppCoreDmg = 0;
+      let oppCoreText = '';
+      if (selectedOpponent.equippedCore?.type === 'FIRE') {
+        oppCoreDmg = Math.floor(selectedOpponent.equippedCore.level * 35 + oppComputed.finalStr * 0.35);
+        oppCoreText = '🔥화염';
+      } else if (selectedOpponent.equippedCore?.type === 'ELECTRIC') {
+        oppCoreDmg = Math.floor(selectedOpponent.equippedCore.level * 30 + oppComputed.finalDex * 0.28);
+        oppCoreText = '⚡뇌전';
+      } else if (selectedOpponent.equippedCore?.type === 'WIND') {
+        oppCoreDmg = Math.floor(selectedOpponent.equippedCore.level * 20 + oppComputed.finalDex * 0.22);
+        oppCoreText = '🌪️돌풍';
+      }
+
+      const totalOppDmg = oppNormalDmg + oppCoreDmg;
+
+      setPlayerHp((curHp) => {
+        const curPShield = playerShield;
+        let remDmg = totalOppDmg;
+
+        if (curPShield > 0) {
+          if (curPShield >= remDmg) {
+            setPlayerShield(curPShield - remDmg);
+            remDmg = 0;
+          } else {
+            remDmg -= curPShield;
+            setPlayerShield(0);
+          }
+        }
+
+        const nextPlayerHp = Math.max(0, curHp - remDmg);
+
+        setDamagePopups((prev) => [
+          ...prev.slice(-6),
+          {
+            id: `opp_pop_${Date.now()}`,
+            val: totalOppDmg,
+            type: isOppEvaded ? 'enemy-core' : (isOppCombo ? 'enemy-combo' : 'enemy-normal'),
+          },
+        ]);
+
+        let logText = '';
+        if (isOppEvaded) {
+          if (oppCoreDmg > 0) {
+            logText = `${selectedOpponent.playerName}의 공격을 회피했으나, ${oppCoreText} 코어 발동으로 ${formatNumber(oppCoreDmg)} 피해!`;
+          } else {
+            logText = `${selectedOpponent.playerName}의 공격을 완벽히 회피했습니다! (EVADED)`;
+          }
+        } else {
+          logText = `${selectedOpponent.playerName}의 ${isOppCombo ? '💥강타!' : '돌진!'} ${formatNumber(totalOppDmg)} 피해${oppCoreDmg > 0 ? ` (${oppCoreText} +${formatNumber(oppCoreDmg)})` : ''}`;
+        }
+
+        setBattleLogs((logs) => [
+          ...logs.slice(-25),
+          {
+            id: `log_o_${currentTurn}_${Date.now()}`,
+            turn: currentTurn,
+            text: logText,
+            type: 'enemy',
+          },
+        ]);
+
+        if (nextPlayerHp <= 0) {
+          onDeathCallback();
+          return 0;
+        }
+
+        return nextPlayerHp;
+      });
+    };
+
+    // 승리 처리
+    const handlePlayerWin = () => {
+      if (battleTimerRef.current) clearInterval(battleTimerRef.current);
+      const myRating = pvpRating || 1000;
+      const oppRating = selectedOpponent.pvpScore || 1000;
+      const ratingDelta = Math.max(15, Math.min(45, Math.floor(25 + (oppRating - myRating) * 0.05)));
+      
+      recordPvpResult(
+        true,
+        ratingDelta,
+        selectedOpponent.playerName,
+        selectedOpponent.level
+      );
+
+      setBattleResult({
+        finished: true,
+        isWin: true,
+        ratingDelta,
+      });
+    };
+
+    // 패배 처리
+    const handlePlayerLoss = () => {
+      if (battleTimerRef.current) clearInterval(battleTimerRef.current);
+      const myRating = pvpRating || 1000;
+      const oppRating = selectedOpponent.pvpScore || 1000;
+      const ratingDelta = -Math.max(8, Math.min(25, Math.floor(15 + (myRating - oppRating) * 0.03)));
+
+      recordPvpResult(
+        false,
+        ratingDelta,
+        selectedOpponent.playerName,
+        selectedOpponent.level
+      );
+
+      setBattleResult({
+        finished: true,
+        isWin: false,
+        ratingDelta,
+      });
+    };
+
+    // 턴 루프 실행 (선공 우선순위에 따른 순차 공격)
     battleTimerRef.current = window.setInterval(() => {
       setTurn((prevTurn) => {
         const nextTurn = prevTurn + 1;
 
-        // 1. 플레이어 공격 페이즈
-        setPlayerAttackAnim(true);
-        setTimeout(() => setPlayerAttackAnim(false), 200);
+        if (isPlayerFirst) {
+          // [선공] 플레이어 먼저 공격
+          executePlayerAttack(nextTurn, handlePlayerWin);
 
-        let pDamage = Math.max(1, Math.floor(myComputed.attack - (oppComputed.defense * 0.45)));
-        const isPCombo = Math.random() < 0.25;
-        if (isPCombo) pDamage = Math.floor(pDamage * 1.5);
-
-        // 화염 코어 추가 관통 피해
-        let pCoreBonus = 0;
-        if (myDeck.equippedCore?.type === 'FIRE') {
-          pCoreBonus = Math.floor(myDeck.equippedCore.level * 35 + myComputed.finalStr * 0.4);
-        }
-
-        const totalPDamage = pDamage + pCoreBonus;
-
-        setOppHp((curOppHp) => {
-          const updatedShield = oppShield;
-          let remainingDmg = totalPDamage;
-
-          if (updatedShield > 0) {
-            if (updatedShield >= remainingDmg) {
-              setOppShield(updatedShield - remainingDmg);
-              remainingDmg = 0;
-            } else {
-              remainingDmg -= updatedShield;
-              setOppShield(0);
-            }
-          }
-
-          const nextOppHp = Math.max(0, curOppHp - remainingDmg);
-
-          // 데미지 팝업
-          const popupId = `pop_${Date.now()}_${Math.random()}`;
-          setDamagePopups((prev) => [
-            ...prev.slice(-6),
-            { id: popupId, val: totalPDamage, type: isPCombo ? 'player-combo' : 'player-normal' },
-          ]);
-
-          // 로그 추가
-          setBattleLogs((logs) => [
-            ...logs.slice(-25),
-            {
-              id: `log_p_${nextTurn}_${Date.now()}`,
-              turn: nextTurn,
-              text: `${myDeck.playerName}의 ${isPCombo ? '⚡연속 공격!' : '몸통박치기!'} ${formatNumber(totalPDamage)} 피해${pCoreBonus > 0 ? ` (🔥화염 +${formatNumber(pCoreBonus)})` : ''}`,
-              type: 'player',
-            },
-          ]);
-
-          // 상대 사망 체크
-          if (nextOppHp <= 0) {
-            if (battleTimerRef.current) clearInterval(battleTimerRef.current);
-            const myRating = pvpRating || 1000;
-            const oppRating = selectedOpponent.pvpScore || 1000;
-            const ratingDelta = Math.max(15, Math.min(45, Math.floor(25 + (oppRating - myRating) * 0.05)));
-            
-            recordPvpResult(true, ratingDelta, selectedOpponent.winGoldReward, selectedOpponent.winRpReward, selectedOpponent.playerName, selectedOpponent.level);
-
-            setBattleResult({
-              finished: true,
-              isWin: true,
-              ratingDelta,
-              goldReward: selectedOpponent.winGoldReward,
-              rpReward: selectedOpponent.winRpReward,
-            });
-            return 0;
-          }
-
-          // 2. 상대방 반격 페이즈 (플레이어가 아직 살아있을 때)
+          // [후공] 상대방 반격 (플레이어 공격 후 0.5 간격 후)
           setTimeout(() => {
-            setOppAttackAnim(true);
-            setTimeout(() => setOppAttackAnim(false), 200);
-
-            let oppDmg = Math.max(1, Math.floor(oppComputed.attack - (myComputed.defense * 0.45)));
-            const isOppCombo = Math.random() < 0.2;
-            if (isOppCombo) oppDmg = Math.floor(oppDmg * 1.4);
-
-            let oppCoreBonus = 0;
-            if (selectedOpponent.equippedCore?.type === 'FIRE') {
-              oppCoreBonus = Math.floor(selectedOpponent.equippedCore.level * 35 + oppComputed.finalStr * 0.35);
-            }
-
-            const totalOppDmg = oppDmg + oppCoreBonus;
-
-            setPlayerHp((curHp) => {
-              const curPShield = playerShield;
-              let remDmg = totalOppDmg;
-
-              if (curPShield > 0) {
-                if (curPShield >= remDmg) {
-                  setPlayerShield(curPShield - remDmg);
-                  remDmg = 0;
-                } else {
-                  remDmg -= curPShield;
-                  setPlayerShield(0);
-                }
-              }
-
-              const nextPlayerHp = Math.max(0, curHp - remDmg);
-
-              setDamagePopups((prev) => [
-                ...prev.slice(-6),
-                { id: `opp_pop_${Date.now()}`, val: totalOppDmg, type: isOppCombo ? 'enemy-combo' : 'enemy-normal' },
-              ]);
-
-              setBattleLogs((logs) => [
-                ...logs.slice(-25),
-                {
-                  id: `log_o_${nextTurn}_${Date.now()}`,
-                  turn: nextTurn,
-                  text: `${selectedOpponent.playerName}의 ${isOppCombo ? '💥강타!' : '돌진!'} ${formatNumber(totalOppDmg)} 피해`,
-                  type: 'enemy',
-                },
-              ]);
-
-              // 플레이어 사망 체크
-              if (nextPlayerHp <= 0) {
-                if (battleTimerRef.current) clearInterval(battleTimerRef.current);
-                const myRating = pvpRating || 1000;
-                const oppRating = selectedOpponent.pvpScore || 1000;
-                const ratingDelta = -Math.max(8, Math.min(25, Math.floor(15 + (myRating - oppRating) * 0.03)));
-
-                recordPvpResult(false, ratingDelta, 0, 0, selectedOpponent.playerName, selectedOpponent.level);
-
-                setBattleResult({
-                  finished: true,
-                  isWin: false,
-                  ratingDelta,
-                  goldReward: 0,
-                  rpReward: 0,
-                });
-                return 0;
-              }
-
-              return nextPlayerHp;
-            });
+            executeOpponentAttack(nextTurn, handlePlayerLoss);
           }, Math.floor(intervalMs / 2));
+        } else {
+          // [선공] 상대방 먼저 공격
+          executeOpponentAttack(nextTurn, handlePlayerLoss);
 
-          return nextOppHp;
-        });
+          // [후공] 플레이어 반격 (상대 공격 후 0.5 간격 후)
+          setTimeout(() => {
+            executePlayerAttack(nextTurn, handlePlayerWin);
+          }, Math.floor(intervalMs / 2));
+        }
 
         return nextTurn;
       });
@@ -555,6 +708,30 @@ export const PvpScreen: React.FC = () => {
                 const oppBadge = getCoreBadge(opp.equippedCore?.type);
                 const isRecommended = Math.abs((pvpRating || 1000) - opp.pvpScore) <= 250;
 
+                const myDeck = pvpSnapshot || {
+                  playerName: playerName || '박스슬레이어',
+                  level: player.level,
+                  stats: player.stats,
+                  equippedCore,
+                  unlockedSkills,
+                  rebirthUpgrades,
+                  combatPower: currentLiveCP,
+                  pvpScore: pvpRating,
+                };
+                const myComputed = getComputedStats(
+                  myDeck.stats,
+                  myDeck.unlockedSkills,
+                  {},
+                  myDeck.rebirthUpgrades as RebirthUpgrades
+                );
+                const oppComputed = getComputedStats(
+                  opp.stats,
+                  opp.unlockedSkills,
+                  {},
+                  opp.rebirthUpgrades as RebirthUpgrades
+                );
+                const oppInit = getInitiative(myComputed, oppComputed);
+
                 return (
                   <div
                     key={opp.id}
@@ -571,8 +748,17 @@ export const PvpScreen: React.FC = () => {
                         <span className={`text-[9px] font-black px-1 border ${oppBadge.border} ${oppBadge.bg} ${oppBadge.text}`}>
                           {oppBadge.icon} {oppBadge.label}
                         </span>
+                        {oppInit.isPlayerFirst ? (
+                          <span className="bg-emerald-100 text-emerald-800 border border-emerald-500 text-[8px] font-black px-1" title={oppInit.reason}>
+                            ⚡선공
+                          </span>
+                        ) : (
+                          <span className="bg-rose-100 text-rose-800 border border-rose-500 text-[8px] font-black px-1" title={oppInit.reason}>
+                            🛡️후공
+                          </span>
+                        )}
                         {isRecommended && (
-                          <span className="bg-emerald-500 text-white text-[8px] font-black px-1 border border-emerald-800">
+                          <span className="bg-amber-400 text-black text-[8px] font-black px-1 border border-black">
                             추천
                           </span>
                         )}
@@ -587,7 +773,7 @@ export const PvpScreen: React.FC = () => {
                       </div>
 
                       <div className="text-[9px] text-stone-500 truncate">
-                        보상: +{formatNumber(opp.winGoldReward)}G, +{opp.winRpReward}RP
+                        {opp.description}
                       </div>
                     </div>
 
@@ -614,6 +800,11 @@ export const PvpScreen: React.FC = () => {
             <div className="flex items-center gap-2 font-black">
               <span className="text-red-700 animate-pulse">● LIVE PVP ARENA</span>
               <span>TURN {turn}</span>
+              {initiativeInfo && (
+                <span className={`text-[9px] px-1 py-0.5 border ${initiativeInfo.isPlayerFirst ? 'bg-emerald-100 text-emerald-800 border-emerald-600' : 'bg-rose-100 text-rose-800 border-rose-600'}`}>
+                  {initiativeInfo.isPlayerFirst ? '⚡내 선공' : '🛡️상대 선공'} ({initiativeInfo.reason})
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-stone-500 font-bold">배속:</span>
@@ -774,24 +965,12 @@ export const PvpScreen: React.FC = () => {
                   </p>
 
                   <div className="bg-stone-900 border-2 border-stone-700 p-2.5 w-full max-w-xs mb-4 text-xs font-bold space-y-1.5">
-                    <div className="flex justify-between items-center text-stone-300 border-b border-stone-800 pb-1">
+                    <div className="flex justify-between items-center text-stone-300">
                       <span>레이팅 변동</span>
                       <span className={battleResult.ratingDelta >= 0 ? 'text-emerald-400 font-black' : 'text-red-400 font-black'}>
                         {battleResult.ratingDelta >= 0 ? `+${battleResult.ratingDelta}` : battleResult.ratingDelta} 점 ({pvpRating}점)
                       </span>
                     </div>
-                    {battleResult.isWin && (
-                      <>
-                        <div className="flex justify-between items-center text-stone-300">
-                          <span>골드 보상</span>
-                          <span className="text-amber-400 font-black">+{formatNumber(battleResult.goldReward)} G</span>
-                        </div>
-                        <div className="flex justify-between items-center text-stone-300">
-                          <span>환생 포인트(RP)</span>
-                          <span className="text-purple-400 font-black">+{battleResult.rpReward} RP</span>
-                        </div>
-                      </>
-                    )}
                   </div>
 
                   <button
@@ -878,11 +1057,6 @@ export const PvpScreen: React.FC = () => {
                     >
                       {log.scoreDelta >= 0 ? `+${log.scoreDelta}` : log.scoreDelta} 점
                     </span>
-                    {log.isWin && (
-                      <span className="text-[9px] text-amber-700 block font-bold">
-                        +{formatNumber(log.goldReward)}G / +{log.rpReward}RP
-                      </span>
-                    )}
                   </div>
                 </div>
               ))}
