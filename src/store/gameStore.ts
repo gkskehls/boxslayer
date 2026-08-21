@@ -42,6 +42,27 @@ export const getRequiredExpForLevel = (level: number): number => {
   return Math.floor(100 * Math.pow(level, 1.5));
 };
 
+export const calculateSuccessfulHits = (attemptHits: number, hitChance: number): number => {
+  const safeChance = Math.max(0.1, Math.min(1.0, hitChance));
+  if (attemptHits <= 0) return 0;
+  if (attemptHits <= 50) {
+    let count = 0;
+    for (let i = 0; i < attemptHits; i++) {
+      if (Math.random() < safeChance) count++;
+    }
+    return count;
+  }
+  // 대량 타수 통계 근사 (이항 분포 정규 근사)
+  const mean = attemptHits * safeChance;
+  const variance = attemptHits * safeChance * (1 - safeChance);
+  const stdDev = Math.sqrt(Math.max(0.0001, variance));
+  const u1 = Math.max(1e-6, Math.random());
+  const u2 = Math.random();
+  const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+  const hits = Math.round(mean + z * stdDev);
+  return Math.max(0, Math.min(attemptHits, hits));
+};
+
 export const getCoreStats = (type: CoreType, level: number, _unlockedSkills?: string[]): CoreStats => {
   void _unlockedSkills;
   const coreLevel = level > 0 ? level : 1;
@@ -76,8 +97,9 @@ export const calculateCombatPower = (
 ): number => {
   const computed = getComputedStats(stats, unlockedSkills, {}, rebirthUpgrades);
   const coreBonus = equippedCore ? equippedCore.level * 150 : 0;
+  const attackSpeedFactor = Math.sqrt(Math.max(1, computed.attackSpeed));
   const power = Math.floor(
-    computed.attack * 2.2 +
+    (computed.attack * 2.2 * attackSpeedFactor) +
     computed.defense * 2.8 +
     computed.maxHealth * 0.5 +
     (computed.finalStr + computed.finalDex + computed.finalCon) * 3.5 +
@@ -225,6 +247,9 @@ export const getComputedStats = (
     defense *= 3;
   }
 
+  // 민첩(DEX) 기반 상한선 없는 무한 연격(공속) 공식: 1.0 + 0.15 * (DEX^0.55)
+  const attackSpeed = Number((1.0 + 0.15 * Math.pow(Math.max(0, finalDex), 0.55)).toFixed(2));
+
   return {
     finalStr,
     finalDex,
@@ -237,7 +262,7 @@ export const getComputedStats = (
     attack,
     defense,
     maxHealth,
-    attackSpeed: 1.0,
+    attackSpeed,
     accuracy: finalDex,
     evasion: finalDex,
     comboChance,
@@ -519,7 +544,19 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const playerComputed = getComputedStats(state.player.stats, state.unlockedSkills, state.activeBuffs, state.rebirthUpgrades);
     const enemyComputed = getComputedStats(state.currentEnemy.stats);
 
-    // 1. 명중/회피 계산 (바람 코어 특화 적용)
+    // 1. 공속 및 가상 연격(Multi-Hit) 타수 산출 (DEX 기반 무한 스케일링 + 바람 코어 증폭)
+    let windSpeedBonus = 1.0;
+    if (state.equippedCore?.type === 'WIND') {
+      const windMultiChanceLvl = state.coreAbilities?.wind_multi_hit_chance || 0;
+      const windMultiDmgLvl = state.coreAbilities?.wind_multi_hit_damage || 0;
+      windSpeedBonus = 1.0 + (state.equippedCore.level * 0.02) + (windMultiChanceLvl * 0.03) + (windMultiDmgLvl * 0.02);
+    }
+    const effectiveAttackSpeed = Number((playerComputed.attackSpeed * windSpeedBonus).toFixed(2));
+    const floorHits = Math.max(1, Math.floor(effectiveAttackSpeed));
+    const extraChance = effectiveAttackSpeed - floorHits;
+    const attemptHits = floorHits + (Math.random() < extraChance ? 1 : 0);
+
+    // 2. 명중/회피 계산 및 성공 유효 타수 산출
     let hitChance = 0.95 + ((playerComputed.accuracy - enemyComputed.evasion) * 0.01);
     if (state.equippedCore?.type === 'WIND') {
       const windStats = getCoreStats('WIND', state.equippedCore.level, state.unlockedSkills);
@@ -533,9 +570,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
-    const isEvaded = Math.random() > finalHitChance;
+    const successfulHits = calculateSuccessfulHits(attemptHits, finalHitChance);
+    const isEvaded = successfulHits === 0;
 
-    const hitCount = 1;
     let coreDamage = 0;
     let shieldRecovered = 0;
     let nextPlayerShield = state.playerShield;
@@ -544,19 +581,19 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     let currentElecHits = state.elecHitCount;
     let nextEnemyStunEndTime = state.enemyStunEndTime;
 
-    // 2. 코어별 고유 독립 연구 스킬 계산
+    // 3. 코어 발동 (절대 독립 발동: 일반 공격 미스/회피에 영향받지 않고 100% 무조건 발동 + 공속 배수 스케일링)
     if (state.equippedCore) {
       const coreType = state.equippedCore.type;
       const coreLvl = state.equippedCore.level;
 
       if (coreType === 'WATER') {
-        // 💧 물의 코어: 타격 쉴드 충전 연구 해금 시에만 쉴드 회복 (기본은 0)
+        // 💧 물의 코어: 타격 쉴드 충전 (연구 해금 시 쉴드 회복도 공속 배수만큼 증폭)
         const shieldOnHitLvl = state.coreAbilities?.water_shield_on_hit || 0;
         if (shieldOnHitLvl > 0) {
-          shieldRecovered = Math.floor(playerComputed.maxHealth * (shieldOnHitLvl * 0.004) * hitCount);
+          shieldRecovered = Math.floor(playerComputed.maxHealth * (shieldOnHitLvl * 0.004) * effectiveAttackSpeed);
         }
       } else if (coreType === 'FIRE') {
-        // 🔥 불의 코어: 기본 고정 데미지 + 연구 해금(작열/STR계수/지속화상/화염폭발/초신성)
+        // 🔥 불의 코어: 기본 화염 피해 + 연구(작열/STR계수/지속화상/화염폭발) * 공속 배수 스케일링
         const flatDmgLvl = state.coreAbilities?.fire_flat_damage || 0;
         const strRatioLvl = state.coreAbilities?.fire_str_ratio || 0;
         const burnDotLvl = state.coreAbilities?.fire_burn_dot || 0;
@@ -569,27 +606,27 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
         const baseCoreDmg = (baseFlat + strBonusDamage) * dmgMultiplier;
         const randomMultiplier = 0.85 + Math.random() * 0.3;
-        coreDamage = Math.floor(baseCoreDmg * randomMultiplier * hitCount);
+        coreDamage = Math.floor(baseCoreDmg * randomMultiplier * effectiveAttackSpeed);
 
-        // 초신성 폭발 (5타 주기) - 해금 시에만 발동
+        // 초신성 폭발 (5타 주기) - 해금 시 발동
         if (supernovaLvl > 0) {
-          currentWindHits += hitCount;
+          currentWindHits += attemptHits;
           if (currentWindHits >= 5) {
             const supernovaMult = 1.5 + (supernovaLvl * 0.05);
-            coreDamage += Math.floor(playerComputed.attack * supernovaMult);
+            coreDamage += Math.floor(playerComputed.attack * supernovaMult * Math.sqrt(effectiveAttackSpeed));
             currentWindHits = 0;
           }
         }
       } else if (coreType === 'WIND') {
-        // 🌪️ 바람의 코어: 태풍의 눈(10타 폭풍 강타) & 잔상 분신(8타 절대 회피) - 해금 시에만 발동
+        // 🌪️ 바람의 코어: 태풍의 눈(10타 폭풍 강타) & 잔상 분신(8타 절대 회피)
         const comboBurstLvl = state.coreAbilities?.wind_combo_burst || 0;
         const absoluteEvaLvl = state.coreAbilities?.wind_absolute_evasion || 0;
 
         if (comboBurstLvl > 0 || absoluteEvaLvl > 0) {
-          currentWindHits += hitCount;
+          currentWindHits += attemptHits;
           if (comboBurstLvl > 0 && currentWindHits >= 10) {
             const burstMult = 1.5 + (comboBurstLvl * 0.05);
-            coreDamage += Math.floor(playerComputed.attack * burstMult);
+            coreDamage += Math.floor(playerComputed.attack * burstMult * Math.sqrt(effectiveAttackSpeed));
             currentWindHits = 0;
           }
           if (absoluteEvaLvl > 0 && currentWindHits >= 8) {
@@ -597,29 +634,26 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           }
         }
       } else if (coreType === 'ELECTRIC') {
-        // ⚡ 번개의 코어: 뇌전 스파크(기본관통+연구), 감전기절(연구해금시), 뇌신처형, 과부하
+        // ⚡ 번개의 코어: 뇌전 스파크(기본관통+연구) * 공속 배수 스케일링, 감전기절, 뇌신처형
         const flatDmgLvl = state.coreAbilities?.electric_flat_damage || 0;
         const stunChanceLvl = state.coreAbilities?.electric_stun_chance || 0;
         const stunDurLvl = state.coreAbilities?.electric_stun_duration || 0;
         const execLvl = state.coreAbilities?.electric_execution_damage || 0;
         const overloadLvl = state.coreAbilities?.electric_chain_overload || 0;
 
-        const baseElecDmg = (2 + (coreLvl * 0.3)) + (flatDmgLvl * 3);
-        coreDamage += baseElecDmg;
+        const baseElecDmg = ((2 + (coreLvl * 0.3)) + (flatDmgLvl * 3)) * effectiveAttackSpeed;
+        coreDamage += Math.floor(baseElecDmg);
 
-        // 감전 기절 연구가 해금되었을 때만 기절 및 기절 보너스 효과 발동
         if (stunChanceLvl > 0) {
           if (now < state.enemyStunEndTime) {
-            // 기절 중인 적에게 처형 및 과부하 낙뢰 (연구 해금 시)
             const execMult = execLvl > 0 ? (0.3 + (execLvl * 0.05)) : 0;
             const overloadMult = overloadLvl > 0 ? (0.4 + (overloadLvl * 0.03)) : 0;
             if (execMult > 0 || overloadMult > 0) {
-              coreDamage += Math.floor(playerComputed.attack * (execMult + overloadMult));
+              coreDamage += Math.floor(playerComputed.attack * (execMult + overloadMult) * Math.sqrt(effectiveAttackSpeed));
             }
           } else {
-            // 기절 확률 및 스택 체크
-            const stunChance = stunChanceLvl * 0.01;
-            currentElecHits += hitCount;
+            const stunChance = Math.min(0.5, stunChanceLvl * 0.01 * (1 + attemptHits * 0.02));
+            currentElecHits += attemptHits;
             if (currentElecHits >= 10 || Math.random() < stunChance) {
               const stunDurationMs = Math.floor(1200 + (stunDurLvl * 100));
               nextEnemyStunEndTime = now + stunDurationMs;
@@ -632,31 +666,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
     nextPlayerShield = Math.min(playerComputed.maxHealth * 10, nextPlayerShield + shieldRecovered);
 
-    // 3. 기본 공격 및 연격(Multi-Hit) 계산 (일반 공격 회피 시 기본 데미지만 0 처리, 코어 발동 피해는 100% 무조건 적중)
+    // 4. 기본 물리 공격 데미지 계산 (유효 타수 * 타수당 데미지)
     let normalDamage = 0;
-    let isCombo = false;
-    let comboHits = 1;
     if (!isEvaded) {
-      const baseNormalDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
+      const baseOneHitDamage = Math.floor(Math.max(1, playerComputed.attack - enemyComputed.defense));
       const randomMultiplier = 0.85 + Math.random() * 0.3;
-
-      // 바람 코어 연격 연구: 해금되었을 때만 연격 발동 (기본은 단타)
-      let multiHitChance = 0;
-      let comboDamageBonus = 1.3;
-      if (state.equippedCore?.type === 'WIND') {
-        const windMultiChanceLvl = state.coreAbilities?.wind_multi_hit_chance || 0;
-        const windMultiDmgLvl = state.coreAbilities?.wind_multi_hit_damage || 0;
-        if (windMultiChanceLvl > 0) {
-          multiHitChance = windMultiChanceLvl * 0.015;
-          comboDamageBonus = 1.3 + (windMultiDmgLvl * 0.03);
-        }
-      }
-
-      isCombo = multiHitChance > 0 && Math.random() < multiHitChance;
-      comboHits = isCombo ? (Math.random() < 0.25 ? 3 : 2) : 1;
-      const comboMult = isCombo ? comboDamageBonus : 1.0;
-
-      normalDamage = Math.floor(baseNormalDamage * randomMultiplier * hitCount * comboHits * comboMult);
+      normalDamage = Math.floor(baseOneHitDamage * randomMultiplier * successfulHits);
 
       // 물의 코어: 수호 공명 (연구 해금 시 쉴드 유지 중 피해 증폭)
       if (state.equippedCore?.type === 'WATER' && nextPlayerShield > 0) {
@@ -701,10 +716,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const totalExpReward = expReward * leapedStages;
       const totalGoldReward = goldReward * leapedStages;
 
-      // 💎 코어 조각 & 📦 박스 조각 드랍 계산 (전투 승리 시에만 드랍, 오프라인 보상 지급 불가)
-      // 기준: 100회 전투(약 100층)당 평균 1개 획득 (기본 드랍률 1.0%), 원샷 3층 도약 시 약 300층당 1개 체감
+      // 💎 코어 조각 & 📦 박스 조각 드랍 계산
       const dropBonus = 1 + (playerComputed.modifiers.coreFragmentDropBonus || 0);
-      const baseChance = 0.01 * (1 + state.stage / 5000); // 1층: 1%, 1000층: 1.2%, 5000층: 2.0%
+      const baseChance = 0.01 * (1 + state.stage / 5000);
       const finalCoreDropChance = Math.min(0.05, baseChance * dropBonus);
       const finalBoxDropChance = Math.min(0.05, baseChance);
 
@@ -763,8 +777,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           core: coreDamage,
           shieldRecovered,
           absorbedByShield: absorbedByEnemyShield,
-          isCombo,
-          comboHits,
+          isCombo: attemptHits > 1,
+          comboHits: successfulHits,
+          attemptHits,
+          successfulHits,
+          attackSpeed: effectiveAttackSpeed,
           isOneShotLeap: isOneShot,
           leapedStages,
           attackStage: state.stage,
@@ -795,8 +812,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         core: coreDamage,
         shieldRecovered,
         absorbedByShield: absorbedByEnemyShield,
-        isCombo,
-        comboHits,
+        isCombo: attemptHits > 1,
+        comboHits: successfulHits,
+        attemptHits,
+        successfulHits,
+        attackSpeed: effectiveAttackSpeed,
         attackStage: state.stage,
         turn: state.battleTurn || 1
       }
@@ -815,9 +835,16 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const enemyTier = getEnemyCoreTier(state.stage);
     const enemyCore = state.currentEnemy.core;
 
+    // 1. 적 공속 및 연격(Multi-Hit) 타수 산출 (DEX 기반)
+    const enemyWindBonus = enemyCore?.type === 'WIND' ? (1 + (enemyCore.level * 0.02) + (enemyTier >= 1 ? 0.2 : 0)) : 1.0;
+    const effectiveEnemySpeed = Number((enemyComputed.attackSpeed * enemyWindBonus).toFixed(2));
+    const floorEnemyHits = Math.max(1, Math.floor(effectiveEnemySpeed));
+    const extraEnemyChance = effectiveEnemySpeed - floorEnemyHits;
+    const enemyAttemptHits = floorEnemyHits + (Math.random() < extraEnemyChance ? 1 : 0);
+
+    // 2. 적 명중률 및 성공 유효 타수
     let hitChance = 0.95 + ((enemyComputed.accuracy - playerComputed.evasion) * 0.01);
     if (enemyCore?.type === 'WIND') {
-      // 🍃 바람: 1층(Tier 0)부터 기본 명중/회피 보너스 +1.5% 적용 (Tier 1 이상 시 추가 강화)
       const windBonus = 0.015 + (enemyCore.level * 0.001) + (enemyTier >= 1 ? 0.005 : 0);
       hitChance += windBonus;
     }
@@ -829,86 +856,60 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     const finalHitChance = Math.max(0.1, Math.min(1.0, hitChance));
-    let isPlayerEvaded = false;
+    let isPlayerEvaded: boolean;
+    let enemySuccessfulHits: number;
     let nextHasWindEvasion = state.hasWindEvasion;
 
     if (state.equippedCore?.type === 'WIND' && state.hasWindEvasion) {
       nextHasWindEvasion = false;
       isPlayerEvaded = true;
-    } else if (Math.random() > finalHitChance) {
-      isPlayerEvaded = true;
+      enemySuccessfulHits = 0;
+    } else {
+      enemySuccessfulHits = calculateSuccessfulHits(enemyAttemptHits, finalHitChance);
+      isPlayerEvaded = enemySuccessfulHits === 0;
     }
 
-    // 🍃 바람 코어: Tier 2 (1,000층+) 이상에서 연격(Multi-Hit) 발동 (1,000층 미만은 단타)
-    let enemyHitCount = 1;
-    let enemyComboMult = 1.0;
-    if (enemyCore?.type === 'WIND' && enemyTier >= 2) {
-      const windMultiChance = Math.min(0.3, 0.15 + (enemyCore.level * 0.001));
-      if (Math.random() < windMultiChance) {
-        enemyHitCount = 2;
-        // Tier 3 (10,000층+) 이상에서 연격 증폭 1.3배
-        enemyComboMult = enemyTier >= 3 ? 1.3 : 1.0;
-      }
-    }
-
-    // 일반 공격 데미지 (회피 시 0)
+    // 3. 적 일반 물리 공격 데미지
     let normalDamage = 0;
     if (!isPlayerEvaded) {
       const baseDamage = Math.floor(Math.max(1, enemyComputed.attack - playerComputed.defense));
       const randomMultiplier = 0.85 + Math.random() * 0.3;
-      normalDamage = Math.floor(baseDamage * randomMultiplier * enemyHitCount * enemyComboMult);
+      normalDamage = Math.floor(baseDamage * randomMultiplier * enemySuccessfulHits);
     }
+
     const randomMultiplier = 0.85 + Math.random() * 0.3;
     let coreDamage = 0;
     let nextPlayerStunEndTime = state.playerStunEndTime;
     let enemyShieldRecovered = 0;
     let nextEnemyShield = state.enemyShield;
 
+    // 4. 적 코어 절대 발동 (공속 배수 스케일링)
     if (enemyCore) {
-      // 🔥 불의 코어
       if (enemyCore.type === 'FIRE') {
-        // Tier 0 (1층+): 기초 고정 화염 피해 (기본 1)
-        // Tier 1 (100층+): 기초 화염 피해 강화 (1 + 코어레벨 * 0.5)
         const baseFlat = enemyTier >= 1 ? (1 + (enemyCore.level * 0.5)) : 1;
-        // Tier 2 (1,000층+): 근력(STR) 비례 추가 피해 (미해금 시 0)
         const strBonus = enemyTier >= 2 ? (state.currentEnemy.stats.str * 0.04) : 0;
-        // Tier 3 (10,000층+): 지속 화상 배율 1.25x
         const burnMult = enemyTier >= 3 ? 1.25 : 1.0;
-        // Tier 4 (100,000층+): 화염 폭발 배율 1.25x
         const fireMult = enemyTier >= 4 ? 1.25 : 1.0;
 
-        coreDamage = Math.floor((baseFlat + strBonus) * burnMult * fireMult * randomMultiplier * enemyHitCount);
-      }
-
-      // ⚡ 번개의 코어
-      if (enemyCore.type === 'ELECTRIC') {
-        // Tier 0 (1층+): 기초 관통 번개 피해 (기본 2)
-        // Tier 1 (100층+): 기초 번개 피해 강화 (2 + 코어레벨 * 0.3)
+        coreDamage = Math.floor((baseFlat + strBonus) * burnMult * fireMult * randomMultiplier * effectiveEnemySpeed);
+      } else if (enemyCore.type === 'ELECTRIC') {
         const baseElecFlat = enemyTier >= 1 ? (2 + (enemyCore.level * 0.3)) : 2;
-        coreDamage = Math.floor(baseElecFlat * randomMultiplier * enemyHitCount);
+        coreDamage = Math.floor(baseElecFlat * randomMultiplier * effectiveEnemySpeed);
 
-        // Tier 2 (1,000층+): 감전 기절(Stun) 활성화 (1,000층 미만은 기절 0%!)
         if (enemyTier >= 2 && Math.random() < 0.08) {
-          // Tier 3 (10,000층+): 기절 지속 시간 1.5초 (Tier 2는 1.2초)
           const stunDuration = enemyTier >= 3 ? 1500 : 1200;
           nextPlayerStunEndTime = now + stunDuration;
         }
 
-        // Tier 4 (100,000층+): 플레이어가 기절 중일 때 처형 피해 (공격력 30%)
         if (enemyTier >= 4 && now < state.playerStunEndTime) {
-          const execBonus = Math.floor(enemyComputed.attack * 0.3);
+          const execBonus = Math.floor(enemyComputed.attack * 0.3 * Math.sqrt(effectiveEnemySpeed));
           coreDamage += execBonus;
         }
-      }
-
-      // 💧 물의 코어
-      if (enemyCore.type === 'WATER') {
-        // Tier 2 (1,000층+): 타격 시 쉴드 충전 활성화 (1,000층 미만은 0)
+      } else if (enemyCore.type === 'WATER') {
         if (enemyTier >= 2) {
-          enemyShieldRecovered = Math.floor(state.currentEnemy.maxHealth * 0.004 * enemyHitCount);
+          enemyShieldRecovered = Math.floor(state.currentEnemy.maxHealth * 0.004 * effectiveEnemySpeed);
           nextEnemyShield += enemyShieldRecovered;
         }
-        // Tier 5 (1,000,000층+): 쉴드 유지 중 피해 증폭 +20%
         if (enemyTier >= 5 && nextEnemyShield > 0) {
           normalDamage = Math.floor(normalDamage * 1.2);
         }
@@ -956,7 +957,17 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         playerShield: 0,
         gameStatus: 'DEFEAT',
         defeatReason: 'HEALTH',
-        lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield, attackStage: state.stage, turn: state.battleTurn || 1 },
+        lastDamageTaken: {
+          normal: normalDamage,
+          core: coreDamage,
+          absorbedByShield: absorbedByPlayerShield,
+          attemptHits: enemyAttemptHits,
+          successfulHits: enemySuccessfulHits,
+          comboHits: enemySuccessfulHits,
+          attackSpeed: effectiveEnemySpeed,
+          attackStage: state.stage,
+          turn: state.battleTurn || 1
+        },
         lastReflectedDamage: actualReflectedDmg,
         lastEnemyShieldRecovered: enemyShieldRecovered,
         lastPlayerEvadedTime: isPlayerEvaded ? now : 0,
@@ -998,7 +1009,17 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         allTimeMaxStage: Math.max(state.allTimeMaxStage || 1, state.maxStage || 1, nextStageNumber),
         playerShield: remainingPlayerShield,
         enemyShield: 0,
-        lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield, attackStage: state.stage, turn: state.battleTurn || 1 },
+        lastDamageTaken: {
+          normal: normalDamage,
+          core: coreDamage,
+          absorbedByShield: absorbedByPlayerShield,
+          attemptHits: enemyAttemptHits,
+          successfulHits: enemySuccessfulHits,
+          comboHits: enemySuccessfulHits,
+          attackSpeed: effectiveEnemySpeed,
+          attackStage: state.stage,
+          turn: state.battleTurn || 1
+        },
         lastReflectedDamage: actualReflectedDmg,
         lastEnemyShieldRecovered: enemyShieldRecovered,
         lastPlayerEvadedTime: isPlayerEvaded ? now : 0,
@@ -1012,7 +1033,17 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       playerShield: remainingPlayerShield,
       enemyShield: nextEnemyShield,
       currentEnemy: { ...state.currentEnemy, currentHealth: enemyNextHealth },
-      lastDamageTaken: { normal: normalDamage, core: coreDamage, absorbedByShield: absorbedByPlayerShield, attackStage: state.stage, turn: state.battleTurn || 1 },
+      lastDamageTaken: {
+        normal: normalDamage,
+        core: coreDamage,
+        absorbedByShield: absorbedByPlayerShield,
+        attemptHits: enemyAttemptHits,
+        successfulHits: enemySuccessfulHits,
+        comboHits: enemySuccessfulHits,
+        attackSpeed: effectiveEnemySpeed,
+        attackStage: state.stage,
+        turn: state.battleTurn || 1
+      },
       lastReflectedDamage: actualReflectedDmg,
       lastEnemyShieldRecovered: enemyShieldRecovered,
       lastPlayerEvadedTime: isPlayerEvaded ? now : 0,
@@ -1213,17 +1244,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const totalCost = item.cost * actualCount;
     const newGold = state.player.gold - totalCost;
 
-    if (item.type === 'TEMP_STAT') {
-      const addedPoints = item.effect.value * actualCount;
-      return {
-        player: {
-          ...state.player,
-          gold: newGold,
-          statPoints: state.player.statPoints + addedPoints,
-          tempStatPoints: (state.player.tempStatPoints || 0) + addedPoints
-        }
-      };
-    } else if (item.type === 'TIMED_BUFF') {
+    if (item.type === 'TIMED_BUFF') {
       const durationMs = (item.duration || 0) * 1000 * actualCount;
       const now = Date.now();
       const currentEndTime = (state.activeBuffs[item.id] && state.activeBuffs[item.id] > now)

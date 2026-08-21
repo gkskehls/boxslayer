@@ -441,6 +441,9 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
       const coreText = coreDmg > 0 ? ` | ${getCoreKoreanName(enemyCore)} ${formatNumber(coreDmg)}` : '';
       const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)})` : '';
       const stunText = isPlayerStunned ? ' ⚡기절' : '';
+      const comboText = (lastDamageTaken.attemptHits && lastDamageTaken.attemptHits > 1)
+        ? ` ⚡${lastDamageTaken.successfulHits ?? 1}/${lastDamageTaken.attemptHits}연타`
+        : '';
 
       const attackStage = lastDamageTaken.attackStage || stage;
       const attackTurn = lastDamageTaken.turn || battleTurn || turnCount;
@@ -468,7 +471,12 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
           const totalTaken = normalDmg + coreDmg;
           if (totalTaken > 0 || absorbed > 0) {
             if (normalDmg > 0) {
-              addDamagePopup({ val: normalDmg, type: 'taken' });
+              addDamagePopup({
+                val: normalDmg,
+                type: 'taken',
+                isCombo: Boolean(lastDamageTaken.attemptHits && lastDamageTaken.attemptHits > 1),
+                comboHits: lastDamageTaken.successfulHits ?? 1,
+              });
             }
             if (coreDmg > 0) {
               addDamagePopup({ val: coreDmg, type: 'taken-core' });
@@ -476,7 +484,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
 
             addLog(
               <span className="text-rose-300 font-mono">
-                {tag}<span className="text-rose-400 font-bold mr-1">[적]</span>일반 {formatNumber(normalDmg)}{coreText}{absorbText}{stunText}
+                {tag}<span className="text-rose-400 font-bold mr-1">[적]</span>일반 {formatNumber(normalDmg)}{coreText}{absorbText}{comboText}{stunText}
               </span>
             );
           }
@@ -506,7 +514,9 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
       const playerCore = state.equippedCore?.type;
       const coreText = coreDmg > 0 ? ` | ${getCoreKoreanName(playerCore)} ${formatNumber(coreDmg)}` : '';
       const absorbText = absorbed > 0 ? ` (🛡️${formatNumber(absorbed)})` : '';
-      const comboText = lastDamageDealt.isCombo ? ` ⚡${lastDamageDealt.comboHits || 2}x` : '';
+      const comboText = (lastDamageDealt.attemptHits && lastDamageDealt.attemptHits > 1)
+        ? ` ⚡${lastDamageDealt.successfulHits ?? 1}/${lastDamageDealt.attemptHits}연타`
+        : (lastDamageDealt.isCombo ? ` ⚡${lastDamageDealt.comboHits || 2}연타` : '');
       const leapText = (lastDamageDealt.leapedStages && lastDamageDealt.leapedStages > 1) ? ` (+${lastDamageDealt.leapedStages}층)` : '';
 
       const enemyTimer1 = (!isEvaded || coreDmg > 0)
@@ -1139,7 +1149,7 @@ const AnimatedBattleScreen: React.FC<AnimatedBattleScreenProps> = ({ onNavigateT
                 let xArc = 35;
 
                 if (popup.isCombo) {
-                  text = `⚡COMBO ${popup.comboHits || 2}x! -${formatNumber(popup.val)}`;
+                  text = `⚡${popup.comboHits || 2}연타! -${formatNumber(popup.val)}`;
                   colorClass = 'text-amber-600 font-black text-base md:text-xl';
                   xArc = 40;
                 }

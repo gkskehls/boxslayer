@@ -20,18 +20,13 @@ const StatsScreen: React.FC = () => {
     const [showColorPreview, setShowColorPreview] = useState(false);
     const [activeHoldKey, setActiveHoldKey] = useState<string | null>(null);
 
-    const holdTimeoutRef = useRef<number | null>(null);
-    const holdIntervalRef = useRef<number | null>(null);
+    const holdTimerRef = useRef<number | null>(null);
     const holdTicksRef = useRef<number>(0);
 
     const clearTimers = useCallback(() => {
-        if (holdTimeoutRef.current !== null) {
-            clearTimeout(holdTimeoutRef.current);
-            holdTimeoutRef.current = null;
-        }
-        if (holdIntervalRef.current !== null) {
-            clearInterval(holdIntervalRef.current);
-            holdIntervalRef.current = null;
+        if (holdTimerRef.current !== null) {
+            clearTimeout(holdTimerRef.current);
+            holdTimerRef.current = null;
         }
         holdTicksRef.current = 0;
         setActiveHoldKey(null);
@@ -54,43 +49,57 @@ const StatsScreen: React.FC = () => {
             return;
         }
 
-        // 1. 최초 1회 즉시 스탯 투자
+        // 1. 단일 탭: 즉시 정확히 1회만 스탯 투자
         const initialAmount = Math.min(amount, currentPoints);
         distributeStat(statKey, initialAmount);
 
-        // 2. 160ms 이상 꾹 누르고 있을 경우 초고속 가속 연속 분배 시작
+        // 2. 400ms 이상 꾹 누르고 있을 경우 점진적 가속 연속 투자 시작
         holdTicksRef.current = 0;
-        holdTimeoutRef.current = window.setTimeout(() => {
-            holdIntervalRef.current = window.setInterval(() => {
-                const pts = useGameStore.getState().player.statPoints;
-                if (pts <= 0) {
-                    clearTimers();
-                    return;
-                }
 
-                holdTicksRef.current += 1;
-                const ticks = holdTicksRef.current;
-                let batch = amount;
+        const runNextTick = () => {
+            const pts = useGameStore.getState().player.statPoints;
+            if (pts <= 0) {
+                clearTimers();
+                return;
+            }
 
-                // 30ms 틱 수에 따른 가속 (ticks: 10=300ms, 25=750ms, 50=1.5s, 80=2.4s)
-                if (ticks > 80) {
-                    batch = Math.max(amount * 500, 10000);
-                } else if (ticks > 50) {
-                    batch = Math.max(amount * 100, 2500);
-                } else if (ticks > 25) {
-                    batch = Math.max(amount * 25, 500);
-                } else if (ticks > 10) {
-                    batch = Math.max(amount * 5, 50);
-                }
+            holdTicksRef.current += 1;
+            const ticks = holdTicksRef.current;
 
-                const actual = Math.min(batch, pts);
-                if (actual > 0) {
-                    distributeStat(statKey, actual);
-                } else {
-                    clearTimers();
-                }
-            }, 30);
-        }, 160);
+            // 단계별 인터벌 속도(ms) 및 배치 크기 (처음엔 천천히, 오래 누를수록 초고속)
+            let nextDelay: number;
+            let batch: number;
+
+            if (ticks > 40) {
+                nextDelay = 25;
+                batch = Math.max(amount * 500, 10000);
+            } else if (ticks > 28) {
+                nextDelay = 35;
+                batch = Math.max(amount * 50, 1000);
+            } else if (ticks > 18) {
+                nextDelay = 50;
+                batch = Math.max(amount * 10, 100);
+            } else if (ticks > 10) {
+                nextDelay = 75;
+                batch = Math.max(amount * 2, 20);
+            } else if (ticks > 4) {
+                nextDelay = 100;
+                batch = amount;
+            } else {
+                nextDelay = 140; // 초기 구간: 제어 가능한 편안한 속도 (또각또각)
+                batch = amount;
+            }
+
+            const actual = Math.min(batch, pts);
+            if (actual > 0) {
+                distributeStat(statKey, actual);
+                holdTimerRef.current = window.setTimeout(runNextTick, nextDelay);
+            } else {
+                clearTimers();
+            }
+        };
+
+        holdTimerRef.current = window.setTimeout(runNextTick, 400);
     }, [distributeStat, clearTimers]);
 
     const computed = getComputedStats(player.stats, unlockedSkills, activeBuffs, rebirthUpgrades);
@@ -103,7 +112,7 @@ const StatsScreen: React.FC = () => {
 
     const statsConfig = [
         { key: 'str', label: '힘 (STR)', desc: '공격력 +2 (최종 STR * 2)' },
-        { key: 'dex', label: '민첩 (DEX)', desc: '명중력 및 회피율 증가 (최종 DEX)' },
+        { key: 'dex', label: '민첩 (DEX)', desc: '명중·회피 및 공격속도(연격 횟수) 증가' },
         { key: 'con', label: '체력 (CON)', desc: '최대 체력 +5 / 방어력 +0.2' },
     ] as const;
 
@@ -170,8 +179,8 @@ const StatsScreen: React.FC = () => {
                     <span className="text-green-700 font-black leading-tight">{formatNumber(computed.maxHealth)}</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-black/10 pb-0.5">
-                    <span className="text-stone-600 font-sans font-bold text-[11px] leading-tight">공격속도</span>
-                    <span className="text-black font-black leading-tight">{computed.attackSpeed.toFixed(1)}/s</span>
+                    <span className="text-stone-600 font-sans font-bold text-[11px] leading-tight">공격속도 / 연격</span>
+                    <span className="text-black font-black leading-tight">{computed.attackSpeed.toFixed(2)}/s ({computed.attackSpeed.toFixed(1)}연타)</span>
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="text-stone-600 font-sans font-bold text-[11px] leading-tight">명중력</span>
@@ -223,15 +232,13 @@ const StatsScreen: React.FC = () => {
                                             key={btnLabel}
                                             type="button"
                                             disabled={!isAvailable}
-                                            onMouseDown={() => handlePressStart(key, amount)}
-                                            onMouseUp={clearTimers}
-                                            onMouseLeave={clearTimers}
-                                            onTouchStart={(e) => {
-                                                e.preventDefault();
+                                            onPointerDown={(e) => {
+                                                if (e.button !== 0 && e.pointerType === 'mouse') return;
                                                 handlePressStart(key, amount);
                                             }}
-                                            onTouchEnd={clearTimers}
-                                            onTouchCancel={clearTimers}
+                                            onPointerUp={clearTimers}
+                                            onPointerLeave={clearTimers}
+                                            onPointerCancel={clearTimers}
                                             onContextMenu={(e) => e.preventDefault()}
                                             className={`py-2 rounded-none font-black text-[11px] transition-all break-keep border-2 border-black leading-none uppercase select-none
                                               ${isAvailable

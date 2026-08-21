@@ -110,6 +110,9 @@ export interface DamageDetails {
   core: number;
   isCombo?: boolean;
   comboHits?: number;
+  attemptHits?: number;
+  successfulHits?: number;
+  attackSpeed?: number;
   isOneShotLeap?: boolean;
   leapedStages?: number;
   absorbedByShield?: number;
@@ -214,7 +217,7 @@ export interface SkillNode {
   effects: SkillEffects;
 }
 
-export type ShopItemType = 'TEMP_STAT' | 'TIMED_BUFF';
+export type ShopItemType = 'TIMED_BUFF';
 
 export interface ShopItem {
   id: string;

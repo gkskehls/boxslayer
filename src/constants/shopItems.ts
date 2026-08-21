@@ -1,6 +1,6 @@
 // src/constants/shopItems.ts
 
-export type ShopItemType = 'TEMP_STAT' | 'TIMED_BUFF';
+export type ShopItemType = 'TIMED_BUFF';
 
 export interface ShopItem {
   id: string;
@@ -12,41 +12,12 @@ export interface ShopItem {
     target: string;
     value: number;
   };
-  duration?: number; // 초 단위 (시간제 버프에만 존재)
+  duration?: number; // 초 단위 (시간제 버프)
   requiredSkillId?: string | null; // null이면 조건 없음
 }
 
 export const SHOP_ITEMS: ShopItem[] = [
-  // --- 1. 임시 스탯 펌핑 (환생 전까지 유지) ---
-  {
-    id: "stat_temp_1",
-    name: "초급 훈련 교본",
-    description: "보너스 스탯 포인트 +1을 얻습니다. (환생 시 초기화)",
-    type: "TEMP_STAT",
-    cost: 5000,
-    effect: { target: "statPoints", value: 1 },
-    requiredSkillId: null
-  },
-  {
-    id: "stat_temp_2",
-    name: "중급 훈련 교본",
-    description: "보너스 스탯 포인트 +10을 얻습니다. (환생 시 초기화)",
-    type: "TEMP_STAT",
-    cost: 45000,
-    effect: { target: "statPoints", value: 10 },
-    requiredSkillId: null
-  },
-  {
-    id: "stat_temp_3",
-    name: "한계 돌파의 비약",
-    description: "보너스 스탯 포인트 +100을 얻습니다. (환생 시 초기화)",
-    type: "TEMP_STAT",
-    cost: 400000,
-    effect: { target: "statPoints", value: 100 },
-    requiredSkillId: null
-  },
-
-  // --- 2. 시간제 파밍 버프 (골드, 경험치) ---
+  // --- 1. 시간제 파밍 버프 (골드, 경험치) ---
   {
     id: "buff_gold_2x",
     name: "황금 상인의 축복",
@@ -68,7 +39,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     requiredSkillId: null
   },
 
-  // --- 3. 속성 코어 극한 각성 버프 ---
+  // --- 2. 속성 코어 극한 각성 버프 ---
   {
     id: "buff_berserk",
     name: "광전사의 분노",

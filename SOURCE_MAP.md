@@ -10,18 +10,18 @@
 - `App.tsx`: 메인 라우팅 및 레이아웃
 - `components/AnimatedBattleScreen.tsx`: 전투 시뮬레이션, 레트로 픽셀 HP/쉴드 HUD 및 결과 화면
 - `components/StatsScreen.tsx`: 스탯 분배 및 외형 변화 UI
+- `components/RebirthScreen.tsx`: 환생 실행, 14종 영구 업그레이드 및 RP 초기화 화면
 - `components/CoreScreen.tsx`: 코어 관리 및 강화 UI
-- `components/TownScreen.tsx`: 마을 허브 화면
+- `components/PvpScreen.tsx`: 비동기 1:1 아레나 대전 및 전적 화면
 - `components/Shop.tsx`: 재화 사용 상점
 - `components/NavigationBar.tsx`: 전역 내비게이션 바
-- `components/SkillTreeScreen.tsx`: 스킬 트리 UI 및 자동 배치 엔진
 
 ## 3. 타입 정의 (Types)
-- `types/game.ts`: 게임 내 주요 인터페이스 (GameState, Player, Core, SkillNode 등 정의)
+- `types/game.ts`: 게임 내 주요 인터페이스 (GameState, Player, Core 등 정의)
 - `types/core.d.ts`: 코어 시스템 전용 타입 정의 (기존 구조 유지)
 
-## 4. 상수 및 데이터 (Constants)
-- `constants/skills.ts`: 스킬 트리 노드 데이터 전체 정의
+## 4. 상수 및 데이터 (Constants & Data)
+- `data/rebirthConfig.ts`: 14종 환생 STAT/UTILITY 영구 업그레이드 비용/효과 설정
 - `constants/shopItems.ts`: 상점에서 판매하는 아이템 목록 정의
 
 ## 5. 리소스 (Assets)

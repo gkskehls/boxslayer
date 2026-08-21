@@ -21,7 +21,6 @@ const Shop: React.FC = () => {
   const [activeHoldItemId, setActiveHoldItemId] = useState<string | null>(null);
 
   const holdTimerRef = useRef<number | null>(null);
-  const intervalTimerRef = useRef<number | null>(null);
   const holdTicksRef = useRef<number>(0);
 
   // 타이머 작동 (1초마다 UI 갱신)
@@ -36,10 +35,6 @@ const Shop: React.FC = () => {
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
-    if (intervalTimerRef.current !== null) {
-      clearInterval(intervalTimerRef.current);
-      intervalTimerRef.current = null;
-    }
     holdTicksRef.current = 0;
     setActiveHoldItemId(null);
   }, []);
@@ -51,43 +46,57 @@ const Shop: React.FC = () => {
 
     setActiveHoldItemId(item.id);
 
-    // 1. 즉시 1회 구매 실행
+    // 1. 단일 탭: 즉시 정확히 1개만 구매 실행
     buyShopItem(item, 1);
 
-    // 2. 150ms 동안 꾸욱 누르고 있으면 초고속 가속 연속 구매 시작
+    // 2. 400ms 동안 의도적으로 꾹 누르고 있을 때만 점진적 가속 연속 구매 시작
     holdTicksRef.current = 0;
-    holdTimerRef.current = window.setTimeout(() => {
-      intervalTimerRef.current = window.setInterval(() => {
-        const gold = useGameStore.getState().player.gold;
-        const maxAffordable = Math.floor(gold / item.cost);
-        if (maxAffordable <= 0) {
-          clearPressTimers();
-          return;
-        }
 
-        holdTicksRef.current += 1;
-        const ticks = holdTicksRef.current;
-        let batch = 1;
+    const runNextBuyTick = () => {
+      const gold = useGameStore.getState().player.gold;
+      const maxAffordable = Math.floor(gold / item.cost);
+      if (maxAffordable <= 0) {
+        clearPressTimers();
+        return;
+      }
 
-        // 30ms 틱 수에 따른 기하급수적 대량 구매 가속 (ticks: 10=300ms, 25=750ms, 50=1.5s, 80=2.4s)
-        if (ticks > 80) {
-          batch = 500;
-        } else if (ticks > 50) {
-          batch = 100;
-        } else if (ticks > 25) {
-          batch = 25;
-        } else if (ticks > 10) {
-          batch = 5;
-        }
+      holdTicksRef.current += 1;
+      const ticks = holdTicksRef.current;
 
-        const toBuy = Math.min(batch, maxAffordable);
-        if (toBuy > 0) {
-          buyShopItem(item, toBuy);
-        } else {
-          clearPressTimers();
-        }
-      }, 30);
-    }, 150);
+      // 단계별 인터벌 속도(ms) 및 배치 크기 (처음엔 1개씩 천천히, 오래 누르면 수백개씩)
+      let nextDelay: number;
+      let batch: number;
+
+      if (ticks > 40) {
+        nextDelay = 25;
+        batch = 500;
+      } else if (ticks > 28) {
+        nextDelay = 35;
+        batch = 100;
+      } else if (ticks > 18) {
+        nextDelay = 50;
+        batch = 20;
+      } else if (ticks > 10) {
+        nextDelay = 75;
+        batch = 5;
+      } else if (ticks > 4) {
+        nextDelay = 100;
+        batch = 1;
+      } else {
+        nextDelay = 140; // 초기 구간: 1개씩 또각또각 구매
+        batch = 1;
+      }
+
+      const toBuy = Math.min(batch, maxAffordable);
+      if (toBuy > 0) {
+        buyShopItem(item, toBuy);
+        holdTimerRef.current = window.setTimeout(runNextBuyTick, nextDelay);
+      } else {
+        clearPressTimers();
+      }
+    };
+
+    holdTimerRef.current = window.setTimeout(runNextBuyTick, 400);
   }, [buyShopItem, clearPressTimers]);
 
   // 컴포넌트 언마운트 시 타이머 정리
@@ -152,7 +161,7 @@ const Shop: React.FC = () => {
 
                   <div className="text-left flex-1 min-w-0">
                     <h3 className="text-xs font-black uppercase tracking-tight text-black">
-                      {item.type === 'TEMP_STAT' ? '📈' : '⏳'} {item.name}
+                      ⏳ {item.name}
                     </h3>
                     <p className="text-[10px] font-bold text-stone-500 mt-1 leading-tight">{item.description}</p>
                     <p className="text-[11px] font-black mt-1 text-amber-700 font-mono tracking-tighter">
@@ -162,15 +171,13 @@ const Shop: React.FC = () => {
 
                   <button
                       type="button"
-                      onMouseDown={() => handlePressStart(item)}
-                      onMouseUp={clearPressTimers}
-                      onMouseLeave={clearPressTimers}
-                      onTouchStart={(e) => {
-                        e.preventDefault();
+                      onPointerDown={(e) => {
+                        if (e.button !== 0 && e.pointerType === 'mouse') return;
                         handlePressStart(item);
                       }}
-                      onTouchEnd={clearPressTimers}
-                      onTouchCancel={clearPressTimers}
+                      onPointerUp={clearPressTimers}
+                      onPointerLeave={clearPressTimers}
+                      onPointerCancel={clearPressTimers}
                       onContextMenu={(e) => e.preventDefault()}
                       disabled={!canAfford}
                       className={`px-3 py-2 rounded-none border-2 border-black font-black text-xs transition-all whitespace-nowrap leading-none uppercase tracking-wider select-none
