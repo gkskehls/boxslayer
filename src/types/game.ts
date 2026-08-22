@@ -163,6 +163,8 @@ export interface GameState {
   pvpWins: number;
   pvpLosses: number;
   pvpBattleLogs: import('./pvp').PvpBattleLog[];
+  // [요일 던전 차원의 균열]
+  dungeonState: import('./dungeon').DungeonState;
 }
 
 export type SkillNodeType = 'NORMAL' | 'NOTABLE' | 'KEYSTONE';

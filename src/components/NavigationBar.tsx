@@ -3,7 +3,7 @@
 import React from 'react';
 import { useGameStore } from '../store/gameStore';
 
-export type ScreenTab = 'ANIMATED_BATTLE_SCREEN' | 'STATS_SCREEN' | 'REBIRTH_SCREEN' | 'CORE_SCREEN' | 'PVP_SCREEN' | 'SHOP_SCREEN';
+export type ScreenTab = 'ANIMATED_BATTLE_SCREEN' | 'DUNGEON_SCREEN' | 'STATS_SCREEN' | 'REBIRTH_SCREEN' | 'CORE_SCREEN' | 'PVP_SCREEN' | 'SHOP_SCREEN';
 
 interface NavigationBarProps {
   onNavigate: (screen: ScreenTab) => void;
@@ -11,10 +11,11 @@ interface NavigationBarProps {
 }
 
 const NavigationBar: React.FC<NavigationBarProps> = ({ onNavigate, currentScreen }) => {
-  const { player } = useGameStore();
+  const { player, dungeonState } = useGameStore();
 
   const navItems: { screen: ScreenTab; label: string; icon: string; badge?: number }[] = [
     { screen: 'ANIMATED_BATTLE_SCREEN', label: '전투', icon: '⚔️' },
+    { screen: 'DUNGEON_SCREEN', label: '던전', icon: '🌀', badge: dungeonState?.tickets || 0 },
     { screen: 'STATS_SCREEN', label: '스탯', icon: '📊', badge: player.statPoints },
     { screen: 'REBIRTH_SCREEN', label: '환생', icon: '🌟' },
     { screen: 'CORE_SCREEN', label: '코어', icon: '🔮' },

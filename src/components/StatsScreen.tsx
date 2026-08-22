@@ -113,7 +113,7 @@ const StatsScreen: React.FC = () => {
     const statsConfig = [
         { key: 'str', label: '힘 (STR)', desc: '공격력 +2 (최종 STR * 2)' },
         { key: 'dex', label: '민첩 (DEX)', desc: '명중·회피 및 공격속도(연격 횟수) 증가' },
-        { key: 'con', label: '체력 (CON)', desc: '최대 체력 +5 / 방어력 +0.2' },
+        { key: 'con', label: '체력 (CON)', desc: '최대 체력 +30 / 방어력 +0.5' },
     ] as const;
 
     return (

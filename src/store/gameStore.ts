@@ -14,6 +14,8 @@ import type {
   CoreAbilityLevels
 } from '../types/game';
 import type { PvpProfile, PvpBattleLog } from '../types/pvp';
+import type { DungeonState, DungeonType, DungeonProgress, DungeonRewardResult } from '../types/dungeon';
+import { calculateDungeonRewards } from '../data/dungeonConfig';
 import { loadStateFromLocalStorage, saveStateToLocalStorage } from './utils/localStorage';
 import {
   REBIRTH_UPGRADES_CONFIG,
@@ -146,9 +148,32 @@ interface GameActions {
     opponentName: string,
     opponentLevel: number
   ) => void;
+  // [요일 던전]
+  checkAndRefillDungeonTickets: () => void;
+  purchaseDungeonTicket: () => boolean;
+  clearDungeonFloor: (type: DungeonType, floor: number, timeSeconds: number) => DungeonRewardResult;
+  sweepDungeonFloor: (type: DungeonType, floor: number) => DungeonRewardResult | null;
 }
 
 const initialStats: Stats = { str: 10, dex: 10, con: 10 };
+
+const defaultDungeonProgress: Record<DungeonType, DungeonProgress> = {
+  GOLD: { maxClearedFloor: 0, floors: {} },
+  EXP: { maxClearedFloor: 0, floors: {} },
+  CORE: { maxClearedFloor: 0, floors: {} },
+  BOX: { maxClearedFloor: 0, floors: {} },
+  RP: { maxClearedFloor: 0, floors: {} },
+};
+
+const getTodayDateString = () => new Date().toISOString().split('T')[0];
+
+const defaultDungeonState: DungeonState = {
+  tickets: 3,
+  maxTickets: 3,
+  lastTicketRefillDate: getTodayDateString(),
+  purchasedTicketsToday: 0,
+  progress: defaultDungeonProgress,
+};
 
 const defaultRebirthUpgrades: RebirthUpgrades = {
   flatStr: 0,
@@ -233,9 +258,11 @@ export const getComputedStats = (
   const finalCon = Math.floor(baseCon * (1 + percentCon));
 
   // 모든 전투력(공격력, 방어력, 체력)은 STR, DEX, CON 스탯에 의해서만 100% 산출
+  // 5공방 밸런스 기준: CON 비례 체력 대폭 상향 및 공격/방어 계수 정규화
   let attack = 20 + (finalStr * 2);
-  let defense = 5 + (finalCon * 0.2);
-  let maxHealth = 100 + (finalCon * 5);
+  let defense = 5 + (finalCon * 0.5);
+  // CON 1당 체력 30으로 책정 (공격력과 15:1 비율 형성하여 동스펙 5~7타 공방 실현)
+  let maxHealth = 100 + (finalCon * 30);
 
   const now = Date.now();
   if (activeBuffs['buff_berserk'] && activeBuffs['buff_berserk'] > now) {
@@ -326,6 +353,7 @@ const initialGameState: GameState = {
   pvpWins: 0,
   pvpLosses: 0,
   pvpBattleLogs: [],
+  dungeonState: defaultDungeonState,
 };
 
 const getInitialStoreState = (): GameState => {
@@ -337,6 +365,14 @@ const getInitialStoreState = (): GameState => {
         ...loadedState,
         rebirthUpgrades: { ...defaultRebirthUpgrades, ...(loadedState.rebirthUpgrades || {}) },
         coreAbilities: { ...defaultCoreAbilities, ...(loadedState.coreAbilities || {}) },
+        dungeonState: {
+          ...defaultDungeonState,
+          ...(loadedState.dungeonState || {}),
+          progress: {
+            ...defaultDungeonProgress,
+            ...((loadedState.dungeonState && loadedState.dungeonState.progress) || {}),
+          },
+        },
       };
       state.player = { ...initialPlayer, ...(loadedState.player || {}) };
       return state;
@@ -448,6 +484,13 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       rebirthUpgrades: state.rebirthUpgrades,
       coreAbilities: state.coreAbilities,
       unlockedSkills: state.unlockedSkills,
+      dungeonState: state.dungeonState, // 🔒 환생 후에도 요일 던전 최고 단계 및 소탕 권한 100% 영구 보존!
+      playerName: state.playerName,
+      pvpSnapshot: state.pvpSnapshot,
+      pvpRating: state.pvpRating,
+      pvpWins: state.pvpWins,
+      pvpLosses: state.pvpLosses,
+      pvpBattleLogs: state.pvpBattleLogs,
       stage: startStage,
       maxStage: startStage,
       allTimeMaxStage: updatedAllTimeMax,
@@ -1338,6 +1381,160 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         pvpSnapshot: updatedSnapshot,
       };
     });
+  },
+
+  // ================= [요일 던전 차원의 균열 액션] =================
+  checkAndRefillDungeonTickets: () => {
+    const today = getTodayDateString();
+    set((state) => {
+      const currentDungeon = state.dungeonState || defaultDungeonState;
+      if (currentDungeon.lastTicketRefillDate !== today) {
+        return {
+          dungeonState: {
+            ...currentDungeon,
+            tickets: 3, // 매일 3장으로 완충
+            lastTicketRefillDate: today,
+            purchasedTicketsToday: 0,
+          },
+        };
+      }
+      return state;
+    });
+  },
+
+  purchaseDungeonTicket: () => {
+    const state = get();
+    const currentDungeon = state.dungeonState || defaultDungeonState;
+    
+    // [테스트 모드] 무료 무제한 티켓 충전 (1회 클릭 시 3장 충전)
+    set({
+      dungeonState: {
+        ...currentDungeon,
+        tickets: currentDungeon.tickets + 3,
+        purchasedTicketsToday: (currentDungeon.purchasedTicketsToday || 0) + 1,
+      },
+    });
+    return true;
+  },
+
+  clearDungeonFloor: (type: DungeonType, floor: number, timeSeconds: number) => {
+    const state = get();
+    const currentDungeon = state.dungeonState || defaultDungeonState;
+    const progress = currentDungeon.progress[type] || { maxClearedFloor: 0, floors: {} };
+    const isFirstClear = floor > progress.maxClearedFloor;
+
+    // 별점 산출 (10초 이내: 3별, 20초 이내: 2별, 30초 이내: 1별)
+    let stars = 1;
+    if (timeSeconds <= 10) stars = 3;
+    else if (timeSeconds <= 20) stars = 2;
+
+    const previousFloorData = progress.floors[floor];
+    const previousStars = previousFloorData?.stars || 0;
+    const bestTime = previousFloorData?.bestTimeSeconds
+      ? Math.min(previousFloorData.bestTimeSeconds, timeSeconds)
+      : timeSeconds;
+
+    const rewards = calculateDungeonRewards(type, floor, isFirstClear);
+    rewards.starsGained = Math.max(0, stars - previousStars);
+
+    // 보상 지급 및 레벨업 체크
+    let newExp = state.player.experience + rewards.exp;
+    let newLevel = state.player.level;
+    let newNextExp = state.player.nextLevelExperience;
+    let statPointsGained = 0;
+
+    while (newExp >= newNextExp) {
+      newExp -= newNextExp;
+      newLevel++;
+      newNextExp = getRequiredExpForLevel(newLevel);
+      statPointsGained += 3;
+    }
+
+    const updatedProgress: DungeonProgress = {
+      maxClearedFloor: Math.max(progress.maxClearedFloor, floor),
+      floors: {
+        ...progress.floors,
+        [floor]: {
+          cleared: true,
+          stars: Math.max(previousStars, stars),
+          bestTimeSeconds: bestTime,
+        },
+      },
+    };
+
+    set({
+      player: {
+        ...state.player,
+        gold: state.player.gold + rewards.gold,
+        experience: newExp,
+        level: newLevel,
+        nextLevelExperience: newNextExp,
+        statPoints: state.player.statPoints + statPointsGained,
+      },
+      coreFragments: state.coreFragments + rewards.coreFragments,
+      boxFragments: (state.boxFragments || 0) + rewards.boxFragments,
+      reincarnationPoints: state.reincarnationPoints + rewards.rp,
+      dungeonState: {
+        ...currentDungeon,
+        tickets: Math.max(0, currentDungeon.tickets - 1),
+        progress: {
+          ...currentDungeon.progress,
+          [type]: updatedProgress,
+        },
+      },
+    });
+
+    return rewards;
+  },
+
+  sweepDungeonFloor: (type: DungeonType, floor: number) => {
+    const state = get();
+    const currentDungeon = state.dungeonState || defaultDungeonState;
+    if (currentDungeon.tickets <= 0) {
+      alert("남은 던전 티켓이 없습니다!");
+      return null;
+    }
+
+    const progress = currentDungeon.progress[type];
+    const floorInfo = progress?.floors[floor];
+    if (!floorInfo || floorInfo.stars < 3) {
+      alert("3별(⭐⭐⭐)을 달성한 단계만 즉시 소탕할 수 있습니다.");
+      return null;
+    }
+
+    const rewards = calculateDungeonRewards(type, floor, false);
+
+    let newExp = state.player.experience + rewards.exp;
+    let newLevel = state.player.level;
+    let newNextExp = state.player.nextLevelExperience;
+    let statPointsGained = 0;
+
+    while (newExp >= newNextExp) {
+      newExp -= newNextExp;
+      newLevel++;
+      newNextExp = getRequiredExpForLevel(newLevel);
+      statPointsGained += 3;
+    }
+
+    set({
+      player: {
+        ...state.player,
+        gold: state.player.gold + rewards.gold,
+        experience: newExp,
+        level: newLevel,
+        nextLevelExperience: newNextExp,
+        statPoints: state.player.statPoints + statPointsGained,
+      },
+      coreFragments: state.coreFragments + rewards.coreFragments,
+      boxFragments: (state.boxFragments || 0) + rewards.boxFragments,
+      reincarnationPoints: state.reincarnationPoints + rewards.rp,
+      dungeonState: {
+        ...currentDungeon,
+        tickets: Math.max(0, currentDungeon.tickets - 1),
+      },
+    });
+
+    return rewards;
   },
 }));
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 // 메인 스크린 임포트
 import AnimatedBattleScreen from './components/AnimatedBattleScreen';
+import { DungeonScreen } from './components/DungeonScreen';
 import StatsScreen from './components/StatsScreen';
 import RebirthScreen from './components/RebirthScreen';
 import CoreScreen from './components/CoreScreen';
@@ -132,11 +133,15 @@ function App() {
           </div>
         )}
 
-        {/* ================= 5대 메인 스크린 ================= */}
+        {/* ================= 6대 메인 스크린 ================= */}
         {screen === 'ANIMATED_BATTLE_SCREEN' && (
           <div className="w-full max-w-md">
             <AnimatedBattleScreen onNavigateToStats={() => handleNavigate('STATS_SCREEN')} />
           </div>
+        )}
+
+        {screen === 'DUNGEON_SCREEN' && (
+          <div className="w-full max-w-md"><DungeonScreen /></div>
         )}
 
         {screen === 'STATS_SCREEN' && (
